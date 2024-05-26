@@ -29,6 +29,15 @@ export class UserEntity extends BaseEntity implements IUser {
   @Column({ type: 'text', nullable: true })
   profile_url?: string;
 
+  @Column({ nullable: true })
+  url_image: string;
+
+  @Column({ default: true })
+  is_active: boolean;
+
+  @Column({ default: false })
+  is_deleted: boolean;
+
   @Exclude()
   @Column()
   password: string;

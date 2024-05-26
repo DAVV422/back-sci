@@ -6,5 +6,8 @@ export interface IUser {
     grade: string;
     birthdate: Date;
     password: string;
+    url_image?: string;
+    is_active: boolean;
+    is_deleted: boolean;
     role: string;
   }
