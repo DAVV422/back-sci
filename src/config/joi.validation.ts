@@ -17,6 +17,8 @@ export const configValidationSchema = Joi.object({
   DB_USERNAME: Joi.string().default('postgres'),
   DB_PASSWORD: Joi.string().default(''),
 
+  URL_MONGO: Joi.string().default("mongodb://localhost/nest"),
+
   HASH_SALT: Joi.number().default(10),
   JWT_AUTH: Joi.string().default('secret'),
   JWT_RECOVERY: Joi.string().default('secret'),

@@ -13,7 +13,8 @@ export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
   @Post('register')
-  public async register(@Body() createUserDto: CreateUserDto): Promise<ResponseMessage> {
+  public async register(@Body() createUserDto: CreateUserDto): Promise<ResponseMessage> {    
+    console.log(createUserDto);
     return {
       statusCode: 201,
       data: await this.authService.register(createUserDto),
@@ -30,7 +31,7 @@ export class AuthController {
   }
 
   @ApiQuery({ name: 'token', type: 'string', required: true })
-  @Get('checkToken')
+  @Post('checkToken')
   public async checkToken(@Query('token') token: string): Promise<ResponseMessage> {
     return {
       statusCode: 200,

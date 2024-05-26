@@ -1,0 +1,11 @@
+{
+    "workbench.commandPalette.experimental.suggestCommands": true,
+    "workbench.activityBar.location": "default",
+    "workbench.editor.autoLockGroups": {
+        "jupyter-notebook": true
+    },
+    "workbench.iconTheme": "material-icon-theme",
+    "editor.linkedEditing": true,
+    "editor.guides.bracketPairs": true,
+    "breadcrumbs.filePath": "on"
+}

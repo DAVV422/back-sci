@@ -14,6 +14,8 @@ export const EnvConfig = () => ({
     DB_DATABASE: process.env.DB_DATABASE || 'postgres',
     DB_USERNAME: process.env.DB_USERNAME || 'postgres',
     DB_PASSWORD: process.env.DB_PASSWORD || 'postgres',
+
+    URL_MONGO: process.env.URL_MONGO || 'mongodb://localhost/nest',
   
     HASH_SALT: process.env.HASH_SALT || 10,
     JWT_AUTH: process.env.JWT_AUTH || 'secret',

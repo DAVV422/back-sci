@@ -26,10 +26,13 @@ export class UserEntity extends BaseEntity implements IUser {
   @Column({ nullable: true })
   birthdate: Date;
 
+  @Column({ type: 'text', nullable: true })
+  profile_url?: string;
+
   @Exclude()
   @Column()
   password: string;
 
-  @Column({ type: 'enum', enum: ROLES })
+  @Column({ type: 'enum', enum: ROLES, default:ROLES.BASIC })
   role: ROLES;
 }

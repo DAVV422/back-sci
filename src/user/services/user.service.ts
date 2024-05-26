@@ -8,6 +8,7 @@ import { UserEntity } from '../entities/user.entity';
 import { handlerError } from '../../common/utils/handlerError.utils';
 import { QueryDto } from '../../common/dto/query.dto';
 import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
+import { MongoFileService } from 'src/providers/mongoFile/mongo-file.service';
 
 @Injectable()
 export class UserService {
@@ -16,6 +17,7 @@ export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    private readonly mongoFileService: MongoFileService
   ) { }
 
   public async findAll(queryDto: QueryDto): Promise<UserEntity[]> {
@@ -32,10 +34,15 @@ export class UserService {
     }
   }
 
-  public async createUser(createUserDto: CreateUserDto): Promise<UserEntity> {
+  public async createUser(createUserDto: CreateUserDto, file?: Express.Multer.File): Promise<UserEntity> {
     try {
-      createUserDto.password = await this.encryptPassword(createUserDto.password);
-      await this.userRepository.save(createUserDto);
+      createUserDto.password = await this.encryptPassword(createUserDto.password);      
+      const user_created = await this.userRepository.save(createUserDto);
+      if (file) {
+        //-- Guardar la imagen en mongo 
+        user_created.profile_url = await this.mongoFileService.saveImage(file.buffer, file.originalname, file.mimetype);
+        //--
+      }  
       return await this.findOneBy({ key: 'email', value: createUserDto.email, });
     } catch (error) {
       handlerError(error, this.logger);

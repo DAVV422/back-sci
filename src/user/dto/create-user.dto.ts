@@ -52,7 +52,7 @@ export class CreateUserDto {
   grade?: string;
 
   @ApiProperty({
-    example: '18/04/2000',
+    example: '2000-04-18',
     type: String,
     description: 'Fecha de Nacimiento del usuario',
   })  
@@ -73,9 +73,8 @@ export class CreateUserDto {
     example: 'admin',
     enum: ROLES,
     description: 'Rol del usuario',
-  })
-  @IsNotEmpty()
+  })  
   @IsString()
   @IsEnum(ROLES)
-  role: ROLES;
+  role?: ROLES;
 }

@@ -13,6 +13,8 @@ declare namespace NodeJS {
       DB_DATABASE: string;
       DB_USERNAME: string;
       DB_PASSWORD: string;
+
+      URL_MONGO: string;
   
       HASH_SALT: number;
       JWT_AUTH: string;
