@@ -21,6 +21,7 @@ import { ImagesModule } from './images/images.module';
 import { PatientModule } from './patient/patient.module';
 import { ProvidedModule } from './provided/provided.module';
 import { RequestModule } from './request/request.module';
+import { ResourceModule } from './resource/resource.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { RequestModule } from './request/request.module';
     PatientModule,
     ProvidedModule,
     RequestModule,
+    ResourceModule,
   ],
 })
 export class AppModule {}
