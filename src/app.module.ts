@@ -15,6 +15,7 @@ import { DetailEquipmentModule } from './detail-equipment/detail-equipment.modul
 import { EmergencyModule } from './emergency/emergency.module';
 import { EquipmentModule } from './equipment/equipment.module';
 import { Form201Module } from './form-201/form-201.module';
+import { Form207Module } from './form-207/form-207.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { Form201Module } from './form-201/form-201.module';
     EmergencyModule,
     EquipmentModule,
     Form201Module,
+    Form207Module,
   ],
 })
 export class AppModule {}
