@@ -13,6 +13,7 @@ import { AttendsModule } from './attends/attends.module';
 import { SpecificDatesModule } from './specific-dates/specific-dates.module';
 import { DetailEquipmentModule } from './detail-equipment/detail-equipment.module';
 import { EmergencyModule } from './emergency/emergency.module';
+import { EquipmentModule } from './equipment/equipment.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { EmergencyModule } from './emergency/emergency.module';
     SpecificDatesModule,
     DetailEquipmentModule,
     EmergencyModule,
+    EquipmentModule,
   ],
 })
 export class AppModule {}
