@@ -9,6 +9,7 @@ import { CommonModule } from './common/common.module';
 import { SeederModule } from './seeder/seeder.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ActionModule } from './action/action.module';
+import { AttendsModule } from './attends/attends.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ActionModule } from './action/action.module';
     AuthModule,
     SeederModule,
     ActionModule,
+    AttendsModule,
   ],
 })
 export class AppModule {}
