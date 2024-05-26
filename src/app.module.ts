@@ -10,6 +10,7 @@ import { SeederModule } from './seeder/seeder.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ActionModule } from './action/action.module';
 import { AttendsModule } from './attends/attends.module';
+import { SpecificDatesModule } from './specific-dates/specific-dates.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { AttendsModule } from './attends/attends.module';
     SeederModule,
     ActionModule,
     AttendsModule,
+    SpecificDatesModule,
   ],
 })
 export class AppModule {}
