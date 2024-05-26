@@ -14,6 +14,7 @@ import { SpecificDatesModule } from './specific-dates/specific-dates.module';
 import { DetailEquipmentModule } from './detail-equipment/detail-equipment.module';
 import { EmergencyModule } from './emergency/emergency.module';
 import { EquipmentModule } from './equipment/equipment.module';
+import { Form201Module } from './form-201/form-201.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { EquipmentModule } from './equipment/equipment.module';
     DetailEquipmentModule,
     EmergencyModule,
     EquipmentModule,
+    Form201Module,
   ],
 })
 export class AppModule {}
