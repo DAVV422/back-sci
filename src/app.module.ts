@@ -18,6 +18,7 @@ import { Form201Module } from './form-201/form-201.module';
 import { Form207Module } from './form-207/form-207.module';
 import { Form211Module } from './form-211/form-211.module';
 import { ImagesModule } from './images/images.module';
+import { PatientModule } from './patient/patient.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ImagesModule } from './images/images.module';
     Form207Module,
     Form211Module,
     ImagesModule,
+    PatientModule,
   ],
 })
 export class AppModule {}
