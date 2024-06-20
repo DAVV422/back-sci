@@ -1,7 +1,7 @@
 import { Column, Entity, ManyToOne, OneToMany } from "typeorm";
 import { BaseEntity } from "../../common/entities/base.entity";
 import { AttendEntity } from "../../attends/entities/attends.entity";
-// import { ActionEntity } from "../../actions/entities/action.entity";
+import { ActionEntity } from "../../action/entities/action.entity";
 import { EmergencyEntity } from "../../emergency/entities/emergency.entity";
 
 @Entity({ name: 'form201' })
@@ -59,8 +59,8 @@ export class Form201Entity extends BaseEntity{
     @Column({ name: 'date', type: 'date', nullable: false })
     date: Date;
 
-    // @OneToMany(() => ActionEntity, action => action.form201)
-    // actions: ActionEntity[];
+    @OneToMany(() => ActionEntity, (action) => action.form201)
+    actions: ActionEntity[];
 
     @ManyToOne(() => EmergencyEntity, emergency => emergency.form201, { nullable: false, onDelete: 'CASCADE' })
     emergency: EmergencyEntity;
