@@ -8,6 +8,7 @@ import { Form201Entity } from "../../form-201/entities/form-201.entity";
 // import { Form211Entity } from "../../form-211/entities/form-211.entity";
 // import { ResourceEntity } from "../../resource/entities/resource.entity";
 import { AttendEntity } from "src/attends/entities/attends.entity";
+import { ResourceEntity } from "src/resource/entities/resource.entity";
 
 @Entity({ name: 'emergency' })
 export class EmergencyEntity extends BaseEntity {
@@ -65,6 +66,9 @@ export class EmergencyEntity extends BaseEntity {
 
     @OneToMany(() => AttendEntity, (attend) => attend.emergency, { nullable: true, onDelete: 'CASCADE' })
     attends?: AttendEntity[];
+
+    @OneToMany(() => ResourceEntity, (resource) => resource.equipment)
+    resources?: ResourceEntity[];
 
     // @OneToMany(() => Form207Entity, form207 => form207.emergency)
     // form207: Form207Entity[];
