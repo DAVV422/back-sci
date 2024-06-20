@@ -1,7 +1,7 @@
 import { Column, Entity, ManyToOne, OneToMany } from "typeorm";
 import { BaseEntity } from "../../common/entities/base.entity";
 import { AttendEntity } from "../../attends/entities/attends.entity";
-// import { ActionEntity } from "../../actions/entities/action.entity";
+import { ActionEntity } from "../../action/entities/action.entity";
 import { EmergencyEntity } from "../../emergency/entities/emergency.entity";
 
 @Entity({ name: 'form201' })
@@ -31,21 +31,21 @@ export class Form201Entity extends BaseEntity{
     @Column({ name: 'tactics', type: 'varchar', length: 255, nullable: false })
     tactics: string;
 
-    @Column({ 
-        name: 'coordinates_pc', 
-        type: 'simple-array', 
-        nullable: true, 
-        comment: 'Array with longitude and latitude'
-    })
-    coordinates_pc?: number[];
+    // @Column({ 
+    //     name: 'coordinates_pc', 
+    //     type: 'simple-array', 
+    //     nullable: true, 
+    //     comment: 'Array with longitude and latitude'
+    // })
+    // coordinates_pc?: number[];
 
-    @Column({ 
-        name: 'coordinates_e', 
-        type: 'simple-array', 
-        nullable: true, 
-        comment: 'Array with longitude and latitude'
-    })
-    coordinates_e?: number[];
+    // @Column({ 
+    //     name: 'coordinates_e', 
+    //     type: 'simple-array', 
+    //     nullable: true, 
+    //     comment: 'Array with longitude and latitude'
+    // })
+    // coordinates_e?: number[];
 
     @Column({ name: 'egress_route', type: 'varchar', length: 255, default: '' })
     egress_route: string;
@@ -59,8 +59,8 @@ export class Form201Entity extends BaseEntity{
     @Column({ name: 'date', type: 'date', nullable: false })
     date: Date;
 
-    // @OneToMany(() => ActionEntity, action => action.form201)
-    // actions: ActionEntity[];
+    @OneToMany(() => ActionEntity, (action) => action.form201)
+    actions: ActionEntity[];
 
     @ManyToOne(() => EmergencyEntity, emergency => emergency.form201, { nullable: false, onDelete: 'CASCADE' })
     emergency: EmergencyEntity;
