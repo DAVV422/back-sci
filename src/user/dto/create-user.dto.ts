@@ -1,11 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsNotEmpty, IsString, MinLength, } from 'class-validator';
-
+import { IsBoolean, IsDateString, IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { ROLES } from '../../common/constants';
 
 export class CreateUserDto {
   @ApiProperty({
-    example: 'John Doe',
+    example: 'John',
     type: String,
     description: 'Nombre del usuario',
   })
@@ -15,7 +14,7 @@ export class CreateUserDto {
   name: string;
 
   @ApiProperty({
-    example: 'John Doe',
+    example: 'Doe',
     type: String,
     description: 'Apellido del usuario',
   })
@@ -35,31 +34,6 @@ export class CreateUserDto {
   email: string;
 
   @ApiProperty({
-    example: '67303349',
-    type: String,
-    description: 'Numero de celular del usuario',
-  })  
-  @IsString()  
-  @MinLength(8)
-  cellphone?: string;
-
-  @ApiProperty({
-    example: 'Capitán',
-    type: String,
-    description: 'Grado Jerárquico del usuario',
-  })  
-  @IsString()    
-  grade?: string;
-
-  @ApiProperty({
-    example: '2000-04-18',
-    type: String,
-    description: 'Fecha de Nacimiento del usuario',
-  })  
-  @IsString()  
-  birthdate?: string;
-
-  @ApiProperty({
     example: '123456',
     type: String,
     description: 'Contraseña del usuario',
@@ -70,11 +44,39 @@ export class CreateUserDto {
   password: string;
 
   @ApiProperty({
+    example: '67303349',
+    type: String,
+    description: 'Número de celular del usuario',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  cellphone?: string;
+
+  @ApiProperty({
+    example: 'Capitán',
+    type: String,
+    description: 'Grado Jerárquico del usuario',
+  })
+  @IsOptional()
+  @IsString()
+  grade?: string;
+
+  @ApiProperty({
+    example: '2000-04-18',
+    type: String,
+    description: 'Fecha de Nacimiento del usuario',
+  })
+  @IsOptional()  
+  birthdate?: Date;
+
+  @ApiProperty({
     example: 'admin',
     enum: ROLES,
     description: 'Rol del usuario',
-  })  
-  @IsString()
+  })
+  @IsNotEmpty()
   @IsEnum(ROLES)
-  role?: ROLES;
+  role: ROLES;
 }
+

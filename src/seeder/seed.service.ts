@@ -18,7 +18,7 @@ export class SeedService {
         name: 'diego',
         last_name: 'vargas',
         cellphone: '67303324',
-        birthdate: '2000-04-18',
+        birthdate: new Date('2000-04-18'),
         grade: 'Bombero I 3er Año',
         email: 'diego@live.com',
         password: '123456789',
