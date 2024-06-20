@@ -1,12 +1,13 @@
-import { Body, Controller, Get, Delete, Param, UseGuards, ParseUUIDPipe, Query, Patch, } from '@nestjs/common';
+import { Body, Controller, Get, Delete, Param, UseGuards, ParseUUIDPipe, Query, Patch, Post, UseInterceptors, UploadedFile, } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger/dist';
 
 import { RolesAccess } from '../../auth/decorators/roles.decorator';
 import { AuthGuard, RolesGuard } from '../../auth/guards/';
-import { UpdateUserDto } from '../dto/';
+import { CreateUserDto, UpdateUserDto } from '../dto/';
 import { UserService } from '../services/user.service';
 import { QueryDto } from '../../common/dto/query.dto';
 import { ResponseMessage } from 'src/common/interfaces/responseMessage.interface';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('User')
 @ApiBearerAuth()
@@ -14,6 +15,16 @@ import { ResponseMessage } from 'src/common/interfaces/responseMessage.interface
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) { }
+
+  @Post()
+  async createUser(
+    @Body() createUserDto: CreateUserDto,    
+  ): Promise<ResponseMessage> {
+    return {
+      statusCode: 200,
+      data: await this.userService.createUser(createUserDto),
+    }
+  }
 
   @ApiQuery({ name: 'limit', type: 'number', required: false })
   @ApiQuery({ name: 'offset', type: 'number', required: false })
