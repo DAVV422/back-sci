@@ -22,12 +22,14 @@ import { PatientModule } from './patient/patient.module';
 import { ProvidedModule } from './provided/provided.module';
 import { RequestModule } from './request/request.module';
 import { ResourceModule } from './resource/resource.module';
+import { ChargesModule } from './charges/charges.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
     TypeOrmModule.forRoot({ ...DataSourceConfig }),
     MongooseModule.forRoot(process.env.URL_MONGO),
+    ChargesModule,
     ProvidersModule,
     CommonModule,
     UserModule,

@@ -7,7 +7,6 @@ import { Form201Entity } from "../../form-201/entities/form-201.entity";
 // import { SpecificDateEntity } from "../../specific-dates/entities/specific-date.entity";
 // import { Form211Entity } from "../../form-211/entities/form-211.entity";
 // import { ResourceEntity } from "../../resource/entities/resource.entity";
-import { IEmergency } from "../interface/emergency.interface";
 import { AttendEntity } from "src/attends/entities/attends.entity";
 
 @Entity({ name: 'emergency' })

@@ -2,14 +2,11 @@ import { Column, Entity, ManyToOne } from "typeorm";
 import { BaseEntity } from "../../common/entities/base.entity";
 import { UserEntity } from "../../user/entities/user.entity";
 import { Form201Entity } from "../../form-201/entities/form-201.entity";
-import { IAttend } from "../interfaces/attend.interface";
-import { EmergencyEntity } from "src/emergency/entities/emergency.entity";
+import { EmergencyEntity } from "../../emergency/entities/emergency.entity";
+import { ChargeEntity } from "../../charges/entities/charges.entity";
 
 @Entity({ name: 'attend' })
-export class AttendEntity extends BaseEntity implements IAttend {
-
-    @Column({ name: 'position', type: 'varchar', length: 100, nullable: false })
-    position: string;
+export class AttendEntity extends BaseEntity {
 
     @Column({ name: 'date', type: 'date', nullable: false })
     date: Date;
@@ -19,4 +16,7 @@ export class AttendEntity extends BaseEntity implements IAttend {
 
     @ManyToOne(() => EmergencyEntity, emergency => emergency.attends, { nullable: false, onDelete: 'CASCADE' })
     emergency: EmergencyEntity;
+
+    @ManyToOne(() => ChargeEntity, charge => charge.attends, { nullable: false, onDelete: 'CASCADE' })
+    charge: ChargeEntity;
 }
