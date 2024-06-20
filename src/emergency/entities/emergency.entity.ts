@@ -45,7 +45,7 @@ export class EmergencyEntity extends BaseEntity {
     @OneToMany(() => Form201Entity, (form201) => form201.emergency, { nullable: true, onDelete: 'CASCADE' })
     form201?: Form201Entity[];
 
-    @ManyToOne(() => UserEntity, (user) => user.emergencies, { nullable: false, onDelete: 'CASCADE' })
+    @ManyToOne(() => UserEntity, (user) => user.emergencies, { nullable: true, onDelete: 'CASCADE' })
     user: UserEntity;
 
     @OneToMany(() => AttendEntity, (attend) => attend.emergency, { nullable: true, onDelete: 'CASCADE' })

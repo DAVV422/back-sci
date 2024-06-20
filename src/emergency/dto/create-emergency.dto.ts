@@ -26,7 +26,6 @@ export class CreateEmergencyDto {
     description: 'Fecha de la emergencia',
   })
   @IsNotEmpty()
-  @IsString()
   date: Date;
 
   @ApiProperty({
@@ -80,6 +79,7 @@ export class CreateEmergencyDto {
     description: 'Id del usuario que creo la emergencia',
   })
   @IsNotEmpty()
+  @IsString()
   @IsUUID()
-  user: string;
+  user_id: string;
 }

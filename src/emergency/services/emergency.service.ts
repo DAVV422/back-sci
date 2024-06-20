@@ -8,6 +8,7 @@ import { EmergencyEntity } from '../entities/emergency.entity';
 import { handlerError } from '../../common/utils/handlerError.utils';
 import { QueryDto } from '../../common/dto/query.dto';
 import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
+import { UserService } from 'src/user/services/user.service';
 
 @Injectable()
 export class EmergencyService {
@@ -16,6 +17,7 @@ export class EmergencyService {
   constructor(
     @InjectRepository(EmergencyEntity)
     private readonly emergencyRepository: Repository<EmergencyEntity>,
+    private readonly userService: UserService
   ) { }
 
   public async findAll(queryDto: QueryDto): Promise<EmergencyEntity[]> {
@@ -34,7 +36,13 @@ export class EmergencyService {
 
   public async create(createEmergencyDto: CreateEmergencyDto): Promise<EmergencyEntity> {
     try {
-      const emergency_created: EmergencyEntity = await this.emergencyRepository.save(createEmergencyDto);
+      const { user_id, ...createEmergency} = createEmergencyDto;
+      const userEntity = await this.userService.findOne(user_id);
+      const emergency_create: EmergencyEntity = await this.emergencyRepository.create({
+        ...createEmergency, 
+        user: { id: userEntity.id }      
+      });
+      const emergency_created = await this.emergencyRepository.save(emergency_create);
       return await this.findOne(emergency_created.id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -54,7 +62,8 @@ export class EmergencyService {
   public async update(id: string, updateEmergencyDto: UpdateEmergencyDto): Promise<EmergencyEntity> {
     try {
       const emergency: EmergencyEntity = await this.findOne(id);
-      const emergencyUpdated = await this.emergencyRepository.update(emergency.id, updateEmergencyDto);
+      const { user_id, ...updateEmergency } = updateEmergencyDto;
+      const emergencyUpdated = await this.emergencyRepository.update(emergency.id, updateEmergency);
       if (emergencyUpdated.affected === 0) throw new NotFoundException('Emergencia no actualizada.');
       return await this.findOne(id);
     } catch (error) {
