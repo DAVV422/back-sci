@@ -56,6 +56,24 @@ export class CreateEmergencyDto {
   coordinates?: number[];
 
   @ApiProperty({
+    example: [ -68.150000, -16.500000 ],
+    type: [Number],
+    description: 'Coordenadas del área de espera (latitud y longitud)',
+  })
+  @IsOptional()
+  @IsArray()
+  coordinates_e?: number[];
+
+  @ApiProperty({
+    example: [ -68.150000, -16.500000 ],
+    type: [Number],
+    description: 'Coordenadas del puesto comando (latitud y longitud)',
+  })
+  @IsOptional()
+  @IsArray()
+  coordinates_pc?: number[];
+
+  @ApiProperty({
     example: 'en curso',
     type: String,
     description: 'Estado de la emergencia',

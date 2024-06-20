@@ -35,6 +35,22 @@ export class EmergencyEntity extends BaseEntity {
     })
     coordinates?: number[];
 
+    @Column({ 
+        name: 'coordinates_pc', 
+        type: 'simple-array', 
+        nullable: true, 
+        comment: 'Array with longitude and latitude'
+    })
+    coordinates_pc?: number[];
+
+    @Column({ 
+        name: 'coordinates_e', 
+        type: 'simple-array', 
+        nullable: true, 
+        comment: 'Array with longitude and latitude'
+    })
+    coordinates_e?: number[];
+
     @Column({ name: 'state', type: 'varchar', length: 50, default: 'en curso' })
     state: string;
 

@@ -31,21 +31,21 @@ export class Form201Entity extends BaseEntity{
     @Column({ name: 'tactics', type: 'varchar', length: 255, nullable: false })
     tactics: string;
 
-    @Column({ 
-        name: 'coordinates_pc', 
-        type: 'simple-array', 
-        nullable: true, 
-        comment: 'Array with longitude and latitude'
-    })
-    coordinates_pc?: number[];
+    // @Column({ 
+    //     name: 'coordinates_pc', 
+    //     type: 'simple-array', 
+    //     nullable: true, 
+    //     comment: 'Array with longitude and latitude'
+    // })
+    // coordinates_pc?: number[];
 
-    @Column({ 
-        name: 'coordinates_e', 
-        type: 'simple-array', 
-        nullable: true, 
-        comment: 'Array with longitude and latitude'
-    })
-    coordinates_e?: number[];
+    // @Column({ 
+    //     name: 'coordinates_e', 
+    //     type: 'simple-array', 
+    //     nullable: true, 
+    //     comment: 'Array with longitude and latitude'
+    // })
+    // coordinates_e?: number[];
 
     @Column({ name: 'egress_route', type: 'varchar', length: 255, default: '' })
     egress_route: string;
