@@ -24,6 +24,9 @@ export class EmergencyService {
     try {
       const { limit, offset, order = 'DESC', attr, value } = queryDto;
       const query = this.emergencyRepository.createQueryBuilder('emergency');
+      query.leftJoinAndSelect('emergency.user','user');
+      query.leftJoinAndSelect('emergency.attends','attend');
+      query.leftJoinAndSelect('emergency.form201','form201');
       if (limit) query.take(limit);
       if (offset) query.skip(offset);
       query.orderBy('emergency.date', order.toLocaleUpperCase() as any);
@@ -34,10 +37,10 @@ export class EmergencyService {
     }
   }
 
-  public async create(createEmergencyDto: CreateEmergencyDto): Promise<EmergencyEntity> {
+  public async create(createEmergencyDto: CreateEmergencyDto, userId: string): Promise<EmergencyEntity> {
     try {
-      const { user_id, ...createEmergency} = createEmergencyDto;
-      const userEntity = await this.userService.findOne(user_id);
+      const { ...createEmergency} = createEmergencyDto;
+      const userEntity = await this.userService.findOne(userId);
       const emergency_create: EmergencyEntity = await this.emergencyRepository.create({
         ...createEmergency, 
         user: { id: userEntity.id }      
@@ -62,7 +65,7 @@ export class EmergencyService {
   public async update(id: string, updateEmergencyDto: UpdateEmergencyDto): Promise<EmergencyEntity> {
     try {
       const emergency: EmergencyEntity = await this.findOne(id);
-      const { user_id, ...updateEmergency } = updateEmergencyDto;
+      const {...updateEmergency } = updateEmergencyDto;
       const emergencyUpdated = await this.emergencyRepository.update(emergency.id, updateEmergency);
       if (emergencyUpdated.affected === 0) throw new NotFoundException('Emergencia no actualizada.');
       return await this.findOne(id);

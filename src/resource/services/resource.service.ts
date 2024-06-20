@@ -23,7 +23,7 @@ export class ResourceService {
 
   public async findOne(id: string): Promise<ResourceEntity> {
     try {
-      const resource = await this.resourceRepository.findOne({ where: { id } });
+      const resource = await this.resourceRepository.findOne({ where: { id }, relations: ['equipement', 'emergency'] });
       if (!resource) throw new NotFoundException('Resource not found.');
       return resource;
     } catch (error) {

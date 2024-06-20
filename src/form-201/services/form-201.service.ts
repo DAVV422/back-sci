@@ -46,7 +46,11 @@ export class Form201Service {
 
   async findByEmergency(emergencyId: string): Promise<Form201Entity[]> {
     try {
-      return await this.form201Repository.find({ where: { emergency: { id: emergencyId } } });
+      const query = this.form201Repository.createQueryBuilder('form201');
+      query.leftJoinAndSelect('form201.emergency','emergency');
+      query.where('emergency.id = :id', {id: emergencyId});
+      return await query.getMany();
+      // this.form201Repository.find({ where: { emergency: { id: emergencyId } } });
     } catch (error) {
       this.logger.error(`Error finding Form201 by Emergency: ${error.message}`);
       throw new NotFoundException('Form201 not found.');
