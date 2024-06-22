@@ -23,7 +23,7 @@ export class EquipmentEntity extends BaseEntity {
     @Column({ name: 'state_actual', type: 'varchar', length: 50, nullable: false })
     stateActual: string;
 
-    @Column({ name: 'url_photo', type: 'varchar', length: 255, nullable: true })
+    @Column({ name: 'url_photo', type: 'varchar', nullable: true })
     urlPhoto: string;
 
     @OneToMany(() => ResourceEntity, (resource) => resource.equipment)

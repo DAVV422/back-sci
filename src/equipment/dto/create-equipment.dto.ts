@@ -31,7 +31,6 @@ export class CreateEquipmentDto {
     description: 'Fecha de adquisición del equipo',
   })
   @IsNotEmpty()
-  @IsDateString()
   acquisitionDate: Date;
 
   @ApiProperty({
