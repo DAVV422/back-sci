@@ -7,6 +7,7 @@ import { CreateEmergencyDto, UpdateEmergencyDto } from '../dto/';
 import { EmergencyService } from '../services/emergency.service';
 import { QueryDto } from '../../common/dto/query.dto';
 import { ResponseMessage } from 'src/common/interfaces/responseMessage.interface';
+import { GetUser } from 'src/auth/decorators';
 
 @ApiTags('Emergency')
 @ApiBearerAuth()
@@ -15,13 +16,14 @@ import { ResponseMessage } from 'src/common/interfaces/responseMessage.interface
 export class EmergencyController {
   constructor(private readonly emergencyService: EmergencyService) { }
 
-  @Post()
+  @Post()  
   async createEmergency(
     @Body() createEmergencyDto: CreateEmergencyDto,
-  ): Promise<ResponseMessage> {
+    @GetUser('id') userId: string
+  ): Promise<ResponseMessage> {    
     return {
       statusCode: 200,
-      data: await this.emergencyService.create(createEmergencyDto),
+      data: await this.emergencyService.create(createEmergencyDto, userId),
     }
   }
 

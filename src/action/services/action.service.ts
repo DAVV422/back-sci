@@ -19,7 +19,7 @@ export class ActionService {
 
   public async findOne(id: string): Promise<ActionEntity> {
     try {
-      const action: ActionEntity = await this.actionRepository.findOne({ where: { id } });
+      const action: ActionEntity = await this.actionRepository.findOne({ where: { id }, relations:['form201'] });
       if (!action) throw new NotFoundException('Acción no encontrada.');
       return action;
     } catch (error) {
