@@ -63,6 +63,15 @@ export class CreateUserDto {
   grade?: string;
 
   @ApiProperty({
+    example: 'https://scontent.fsrz1-1.fna.fbcdn.net/v/t39.30808-6/321514687_828263794936611_9117207435075792485_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=5f2048&_nc_ohc=DZ3kknwy0MYQ7kNvgGpd28s&_nc_ht=scontent.fsrz1-1.fna&oh=00_AYDVBsizxPljlSdcHXm_2eM9syvkH1X9sUTlOzLPSBbsNw&oe=667B65BB',
+    type: String,
+    description: 'Url de la imagen de foto de perfil',
+  })
+  @IsOptional()
+  @IsString()
+  url_image?: string;
+
+  @ApiProperty({
     example: '2000-04-18',
     type: String,
     description: 'Fecha de Nacimiento del usuario',

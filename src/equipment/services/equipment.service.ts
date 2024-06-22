@@ -43,8 +43,6 @@ export class EquipmentService {
       const query = this.equipmentRepository.createQueryBuilder('equipment');
       if (limit) query.take(limit);
       if (offset) query.skip(offset);
-      query.orderBy('equipment.date', order.toUpperCase() as any);
-      if (attr && value) query.where(`equipment.${attr} ILIKE :value`, { value: `%${value}%` });
       return await query.getMany();
     } catch (error) {
       handlerError(error, this.logger);

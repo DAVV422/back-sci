@@ -10,7 +10,7 @@ import { RolesAccess } from '../../auth/decorators/roles.decorator';
 
 @ApiTags('Equipment')
 @ApiBearerAuth()
-@UseGuards(AuthGuard, RolesGuard)
+// @UseGuards(AuthGuard, RolesGuard)
 @Controller('equipment')
 export class EquipmentController {
   constructor(private readonly equipmentService: EquipmentService) {}
