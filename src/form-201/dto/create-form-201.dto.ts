@@ -5,24 +5,21 @@ export class CreateForm201Dto {
   @ApiProperty({
     example: 'Objetivo de la form 201',
     description: 'Objetivo de la form 201',
-  })
-  @IsNotEmpty()
+  })  
   @IsString()
   objective: string;
 
   @ApiProperty({
     example: 'Estrategia de la form 201',
     description: 'Estrategia de la form 201',
-  })
-  @IsNotEmpty()
+  })  
   @IsString()
   strategy: string;
 
   @ApiProperty({
     example: 'Mensaje de seguridad de la form 201',
     description: 'Mensaje de seguridad de la form 201',
-  })
-  @IsNotEmpty()
+  })  
   @IsString()
   safety_message: string;
 
@@ -61,8 +58,7 @@ export class CreateForm201Dto {
   @ApiProperty({
     example: 'Tácticas de la form 201',
     description: 'Tácticas de la form 201',
-  })
-  @IsNotEmpty()
+  })  
   @IsString()
   tactics: string;
 
