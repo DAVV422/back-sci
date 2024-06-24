@@ -8,8 +8,7 @@ export class CreateAttendDto {
     description: 'Fecha de la asistencia a la emergencia',
   })
   @IsNotEmpty()
-  @IsDateString()
-  date: string;
+  date: Date;
 
   @ApiProperty({
     example: '01b9bbf4-41a6-4820-abd4-9df61a2d6356',

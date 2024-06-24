@@ -24,7 +24,7 @@ export class AttendService {
 
   public async findOne(id: string): Promise<AttendEntity> {
     try {
-      const attend: AttendEntity = await this.attendRepository.findOne({ where: { id }, relations: ['emergency', 'user'] });
+      const attend: AttendEntity = await this.attendRepository.findOne({ where: { id }, relations: ['emergency', 'user', 'charge'] });
       if (!attend) throw new NotFoundException('Asistencia no encontrada.');
       return attend;
     } catch (error) {
@@ -64,7 +64,7 @@ export class AttendService {
 
   public async findByEmergency(emergencyId: string): Promise<AttendEntity[]> {
     try {
-      const attends: AttendEntity[] = await this.attendRepository.find({ where: { emergency: { id: emergencyId } }, relations: ['emergency', 'user'] });
+      const attends: AttendEntity[] = await this.attendRepository.find({ where: { emergency: { id: emergencyId } }, relations: ['emergency', 'user', 'charge'] });
       if (!attends || attends.length === 0) throw new NotFoundException('No se encontraron asistencias para esta emergencia.');
       return attends;
     } catch (error) {

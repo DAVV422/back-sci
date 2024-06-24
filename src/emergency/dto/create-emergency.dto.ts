@@ -18,7 +18,7 @@ export class CreateEmergencyDto {
   })
   @IsOptional()
   @IsString()
-  locationDescription?: string;
+  location_description?: string;
 
   @ApiProperty({
     example: '2024-06-19',

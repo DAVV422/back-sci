@@ -23,7 +23,6 @@ export class CreateResourceDto {
     description: 'Date of the resource usage',
   })
   @IsNotEmpty()
-  @IsDateString()
   date: Date;
 
   @ApiProperty({

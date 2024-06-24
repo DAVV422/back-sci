@@ -28,6 +28,7 @@ export class CreateEquipmentDto {
 
   @ApiProperty({
     example: '2023-06-20',
+
     description: 'Fecha de adquisición del equipo',
   })
   @IsNotEmpty()
@@ -54,6 +55,5 @@ export class CreateEquipmentDto {
     description: 'URL de la foto del equipo',
   })
   @IsOptional()
-  @IsUrl()
   urlPhoto?: string;
 }

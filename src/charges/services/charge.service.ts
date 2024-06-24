@@ -25,8 +25,19 @@ export class ChargeService {
     }
   }
 
+  public async findByName(name: string): Promise<ChargeEntity> {
+    try {
+      const charge: ChargeEntity = await this.chargeRepository.findOne({ where: { name } });
+      if (!charge) throw new NotFoundException('Charge not found.');
+      return charge;
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
   public async create(createChargeDto: CreateChargeDto): Promise<ChargeEntity> {
     try {
+      createChargeDto.name = createChargeDto.name.toLowerCase();
       const charge_created: ChargeEntity = await this.chargeRepository.save(createChargeDto);
       return await this.findOne(charge_created.id);
     } catch (error) {
@@ -56,6 +67,9 @@ export class ChargeService {
   public async update(id: string, updateChargeDto: UpdateChargeDto): Promise<ChargeEntity> {
     try {
       const charge: ChargeEntity = await this.findOne(id);
+      if(updateChargeDto.name){
+        updateChargeDto.name = updateChargeDto.name.toLowerCase();
+      }
       await this.chargeRepository.update(charge.id, updateChargeDto);
       return await this.findOne(id);
     } catch (error) {

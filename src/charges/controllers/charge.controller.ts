@@ -40,6 +40,16 @@ export class ChargeController {
     };
   }
 
+  @Post('name')
+  public async findByName(
+    @Body() name: UpdateChargeDto,
+  ): Promise<ResponseMessage> {
+    return {
+      statusCode: 200,
+      data: await this.chargeService.findByName(name.name),
+    };
+  }
+
   @ApiParam({ name: 'id', type: 'string' })
   @Patch(':id')
   public async update(

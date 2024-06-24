@@ -77,7 +77,7 @@ export class ResourceService {
       const emergency = await this.emergencyService.findOne(emergencyId);
       if (!emergency) throw new NotFoundException('Emergency not found.');
 
-      return await this.resourceRepository.find({ where: { emergency } });
+      return await this.resourceRepository.find({ where: { emergency }, relations: ['equipement', 'emergency'] });
     } catch (error) {
       handlerError(error, this.logger);
     }
