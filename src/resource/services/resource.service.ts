@@ -23,7 +23,7 @@ export class ResourceService {
 
   public async findOne(id: string): Promise<ResourceEntity> {
     try {
-      const resource = await this.resourceRepository.findOne({ where: { id }, relations: ['equipement', 'emergency'] });
+      const resource = await this.resourceRepository.findOne({ where: { id }, relations: ['equipment', 'emergency'] });
       if (!resource) throw new NotFoundException('Resource not found.');
       return resource;
     } catch (error) {
@@ -75,8 +75,9 @@ export class ResourceService {
   public async findByEmergencyId(emergencyId: string): Promise<ResourceEntity[]> {
     try {
       const emergency = await this.emergencyService.findOne(emergencyId);
+      console.log(emergency);
       if (!emergency) throw new NotFoundException('Emergency not found.');
-      return await this.resourceRepository.find({ where: { emergency }, relations: ['equipement', 'emergency'] });
+      return await this.resourceRepository.find({ where: { emergency: { id: emergency.id } }, relations: ['equipment', 'emergency'] });
     } catch (error) {
       handlerError(error, this.logger);
     }
