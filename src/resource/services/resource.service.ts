@@ -88,7 +88,7 @@ export class ResourceService {
       const equipment = await this.equipmentService.findOne(equipmentId);
       if (!equipment) throw new NotFoundException('Equipment not found.');
 
-      return await this.resourceRepository.find({ where: { equipment } });
+      return await this.resourceRepository.find({ where: { equipment }, relations: ['equipment', 'emergency'] });
     } catch (error) {
       handlerError(error, this.logger);
     }

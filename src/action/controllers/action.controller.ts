@@ -48,17 +48,17 @@ export class ActionController {
     return { statusCode: 200, message: 'Acción eliminada.' };
   }
 
-  @Get('form201/:form201Id')
+  @Get('emergency/:emergencyId')
   @ApiQuery({ name: 'limit', type: 'number', required: false })
   @ApiQuery({ name: 'offset', type: 'number', required: false })
-  @ApiParam({ name: 'form201Id', type: 'string' })
-  public async findByForm201(
-    @Param('form201Id', ParseUUIDPipe) form201Id: string,
+  @ApiParam({ name: 'emergencyId', type: 'string' })
+  public async findByEmergency(
+    @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
     @Query() queryDto: QueryDto,
   ): Promise<ResponseMessage> {
     return {
       statusCode: 200,
-      data: await this.actionService.findByForm201(form201Id),
+      data: await this.actionService.findByEmergency(emergencyId),
     };
   }
 }

@@ -28,10 +28,10 @@ export class CreateActionDto {
   @ApiProperty({
     example: '01b9bbf4-41a6-4820-abd4-9df61a2d6356',
     type: String,
-    description: 'Id del formulario al que se asociará',
+    description: 'Id de la emergencia a la que se asociará',
   })
   @IsNotEmpty()
   @IsString()
   @IsUUID()
-  form201: string;
+  emergency: string;
 }
