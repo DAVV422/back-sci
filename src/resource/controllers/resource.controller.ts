@@ -50,18 +50,18 @@ export class ResourceController {
     return  await this.resourceService.delete(id);
   }
 
-  @ApiQuery({ name: 'emergencyId', type: 'string' })
-  @Get('by-emergency')
-  public async findByEmergencyId(@Query('emergencyId', ParseUUIDPipe) emergencyId: string): Promise<ResponseMessage> {
+  @ApiParam({ name: 'emergencyId', type: 'string' })
+  @Get('by-emergency/:emergencyId')
+  public async findByEmergencyId(@Param('emergencyId', ParseUUIDPipe) emergencyId: string): Promise<ResponseMessage> {
     return {
       statusCode: 200,
       data: await this.resourceService.findByEmergencyId(emergencyId),
     };
   }
 
-  @ApiQuery({ name: 'equipmentId', type: 'string' })
-  @Get('by-equipment')
-  public async findByEquipmentId(@Query('equipmentId', ParseUUIDPipe) equipmentId: string): Promise<ResponseMessage> {
+  @ApiParam({ name: 'equipmentId', type: 'string' })
+  @Get('by-equipment/:equipmentId')
+  public async findByEquipmentId(@Param('equipmentId', ParseUUIDPipe) equipmentId: string): Promise<ResponseMessage> {
     return {
       statusCode: 200,
       data: await this.resourceService.findByEquipmentId(equipmentId),
