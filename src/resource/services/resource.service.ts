@@ -36,8 +36,8 @@ export class ResourceService {
       const { emergencyId, equipmentId , ...resourceData } = createResourceDto;
       const emergency = await this.emergencyService.findOne(emergencyId);
       if (!emergency) throw new NotFoundException('Emergency not found.');
-      const equipment = await this.equipmentService.findOne(emergencyId);
-      if (!emergency) throw new NotFoundException('Equipment not found.');
+      const equipment = await this.equipmentService.findOne(equipmentId);
+      if (!equipment) throw new NotFoundException('Equipment not found.');
       const resource = this.resourceRepository.create({
         ...resourceData,
         emergency,
@@ -76,7 +76,6 @@ export class ResourceService {
     try {
       const emergency = await this.emergencyService.findOne(emergencyId);
       if (!emergency) throw new NotFoundException('Emergency not found.');
-
       return await this.resourceRepository.find({ where: { emergency }, relations: ['equipement', 'emergency'] });
     } catch (error) {
       handlerError(error, this.logger);
