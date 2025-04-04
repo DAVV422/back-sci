@@ -1,7 +1,7 @@
 import { Column, Entity, ManyToOne, OneToMany, OneToOne, JoinColumn } from "typeorm";
 import { BaseEntity } from "../../common/entities/base.entity";
 import { UserEntity } from "../../user/entities/user.entity";
-import { Form201Entity } from "../../form-201/entities/form-201.entity";
+import { Form201Entity } from "../../incident_module/form-201/entities/form-201.entity";
 // import { Form207Entity } from "../../form-207/entities/form-207.entity";
 // import { ImageEntity } from "../../media/entities/image.entity";
 // import { SpecificDateEntity } from "../../specific-dates/entities/specific-date.entity";
@@ -9,7 +9,7 @@ import { Form201Entity } from "../../form-201/entities/form-201.entity";
 // import { ResourceEntity } from "../../resource/entities/resource.entity";
 import { AttendEntity } from "src/attends/entities/attends.entity";
 import { ResourceEntity } from "src/resource/entities/resource.entity";
-import { ActionEntity } from "src/action/entities/action.entity";
+import { ActionEntity } from "../../incident_module/action/entities/action.entity";
 
 @Entity({ name: 'emergency' })
 export class EmergencyEntity extends BaseEntity {

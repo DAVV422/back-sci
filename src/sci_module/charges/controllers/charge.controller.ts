@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Delete, Param, Post, Patch, UseGuards, ParseUUIDPipe } from '@nestjs/common';
-import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { ChargeService } from '../services/charge.service';
 import { CreateChargeDto } from '../dto/create-charge.dto';
 import { UpdateChargeDto } from '../dto/update-charge.dto';
@@ -14,6 +14,7 @@ export class ChargeController {
   constructor(private readonly chargeService: ChargeService) {}
 
   @Post()
+  @ApiOperation({ summary: 'Crear Cargo del SCI', description: 'Este endpoint crea un cargo del sci.' })
   public async createCharge(
     @Body() createChargeDto: CreateChargeDto,
   ): Promise<ResponseMessage> {
