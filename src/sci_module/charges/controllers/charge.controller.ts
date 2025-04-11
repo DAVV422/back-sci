@@ -3,8 +3,8 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger'
 import { ChargeService } from '../services/charge.service';
 import { CreateChargeDto } from '../dto/create-charge.dto';
 import { UpdateChargeDto } from '../dto/update-charge.dto';
-import { AuthGuard, RolesGuard } from '../../auth/guards/';
-import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
+import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
 
 @ApiTags('Charge')
 @ApiBearerAuth()

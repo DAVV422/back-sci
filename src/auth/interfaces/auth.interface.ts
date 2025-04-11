@@ -1,9 +1,9 @@
-export interface AuthI {
+export interface IAuth {
     email: string;
     password: string;
   }
   
-  export interface AuthTokenResult {
+  export interface IAuthTokenResult {
     role: string;
     sub: string;
     iat: number;

@@ -53,6 +53,16 @@ export class UserService {
     }
   }
 
+  public async findByEmail(email: string): Promise<UserEntity> {
+    try {
+      const user: UserEntity = await this.userRepository.findOne({ where: { email } });
+      if (!user) throw new NotFoundException('Usuario no encontrado.');
+      return user;
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
   public async update(id: string, updateUserDto: UpdateUserDto,): Promise<UserEntity> {
     try {
       if (updateUserDto.password) updateUserDto.password = await this.encryptPassword(updateUserDto.password);

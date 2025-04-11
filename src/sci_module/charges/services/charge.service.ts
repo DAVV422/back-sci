@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { CreateChargeDto } from '../dto/create-charge.dto';
 import { UpdateChargeDto } from '../dto/update-charge.dto';
 import { ChargeEntity } from '../entities/charges.entity';
-import { handlerError } from '../../common/utils/handlerError.utils';
+import { handlerError } from '../../../common/utils/handlerError.utils';
 
 @Injectable()
 export class ChargeService {

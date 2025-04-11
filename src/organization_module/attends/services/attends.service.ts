@@ -4,11 +4,11 @@ import { Repository } from 'typeorm';
 
 import { CreateAttendDto } from '../dto/create-attend.dto';
 import { AttendEntity } from '../entities/attends.entity';
-import { handlerError } from '../../common/utils/handlerError.utils';
-import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
-import { UserService } from 'src/user/services/user.service';
-import { EmergencyService } from 'src/emergency/services/emergency.service';
-import { ChargeService } from 'src/charges/services/charge.service';
+import { handlerError } from '../../../common/utils/handlerError.utils';
+import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
+import { UserService } from '../../../user/services/user.service';
+import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
+import { ChargeService } from '../../../sci_module/charges/services/charge.service';
 
 @Injectable()
 export class AttendService {

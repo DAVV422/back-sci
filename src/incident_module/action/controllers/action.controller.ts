@@ -3,8 +3,8 @@ import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { CreateActionDto } from '../dto/create-action.dto';
 import { ActionService } from '../services/action.service';
-import { QueryDto } from '../../common/dto/query.dto';
-import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
+import { QueryDto } from '../../../common/dto/query.dto';
+import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
 
 @ApiTags('Action')
 @ApiBearerAuth()

@@ -5,10 +5,10 @@ import { Repository } from 'typeorm';
 import { CreateResourceDto } from '../dto/create-resource.dto';
 import { UpdateResourceDto } from '../dto/update-resource.dto';
 import { ResourceEntity } from '../entities/resource.entity';
-import { handlerError } from '../../common/utils/handlerError.utils';
-import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
-import { EmergencyService } from '../../emergency/services/emergency.service';
-import { EquipmentService } from '../../equipment/services/equipment.service';
+import { handlerError } from '../../../common/utils/handlerError.utils';
+import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
+import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
+import { EquipmentService } from '../../../organization_module/equipment/services/equipment.service';
 
 @Injectable()
 export class ResourceService {

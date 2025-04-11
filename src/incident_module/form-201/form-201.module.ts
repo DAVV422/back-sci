@@ -3,9 +3,9 @@ import { Form201Controller } from './controllers/form-201.controller';
 import { Form201Service } from './services/form-201.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Form201Entity } from './entities/form-201.entity';
-import { ChargesModule } from 'src/charges/charges.module';
-import { UserModule } from '../user/user.module';
-import { EmergencyModule } from '../emergency/emergency.module';
+import { ChargesModule } from '../../sci_module/charges/charges.module';
+import { UserModule } from '../../user/user.module';
+import { EmergencyModule } from '../../organization_module/emergency/emergency.module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Form201Entity]),

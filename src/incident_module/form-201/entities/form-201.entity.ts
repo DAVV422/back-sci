@@ -1,6 +1,6 @@
 import { Column, Entity, ManyToOne, OneToMany } from "typeorm";
-import { BaseEntity } from "../../common/entities/base.entity";
-import { EmergencyEntity } from "../../emergency/entities/emergency.entity";
+import { BaseEntity } from "../../../common/entities/base.entity";
+import { EmergencyEntity } from "../../../organization_module/emergency/entities/emergency.entity";
 
 @Entity({ name: 'form201' })
 export class Form201Entity extends BaseEntity{

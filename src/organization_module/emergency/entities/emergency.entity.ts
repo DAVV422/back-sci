@@ -1,15 +1,10 @@
 import { Column, Entity, ManyToOne, OneToMany, OneToOne, JoinColumn } from "typeorm";
-import { BaseEntity } from "../../common/entities/base.entity";
-import { UserEntity } from "../../user/entities/user.entity";
-import { Form201Entity } from "../../incident_module/form-201/entities/form-201.entity";
-// import { Form207Entity } from "../../form-207/entities/form-207.entity";
-// import { ImageEntity } from "../../media/entities/image.entity";
-// import { SpecificDateEntity } from "../../specific-dates/entities/specific-date.entity";
-// import { Form211Entity } from "../../form-211/entities/form-211.entity";
-// import { ResourceEntity } from "../../resource/entities/resource.entity";
-import { AttendEntity } from "src/attends/entities/attends.entity";
-import { ResourceEntity } from "src/resource/entities/resource.entity";
-import { ActionEntity } from "../../incident_module/action/entities/action.entity";
+import { BaseEntity } from "../../../common/entities/base.entity";
+import { UserEntity } from "src/user/entities/user.entity";
+import { Form201Entity } from "src/incident_module/form-201/entities/form-201.entity";
+import { AttendEntity } from "src/organization_module/attends/entities/attends.entity";
+import { ResourceEntity } from "src/resource_control_module/resource/entities/resource.entity";
+import { ActionEntity } from "src/incident_module/action/entities/action.entity";
 
 @Entity({ name: 'emergency' })
 export class EmergencyEntity extends BaseEntity {

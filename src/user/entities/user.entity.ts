@@ -2,8 +2,8 @@ import { Column, Entity, OneToMany } from "typeorm";
 import { Exclude } from "class-transformer";
 import { BaseEntity } from "../../common/entities/base.entity";
 import { ROLES } from "../../common/constants";
-import { EmergencyEntity } from "../../emergency/entities/emergency.entity";
-import { AttendEntity } from "../../attends/entities/attends.entity";
+import { EmergencyEntity } from "src/organization_module/emergency/entities/emergency.entity";
+import { AttendEntity } from "src/organization_module/attends/entities/attends.entity";
 import { IUser } from "../interfaces/user.interface";
 
 @Entity({ name: 'user' })

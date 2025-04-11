@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import { CreateForm201Dto } from '../dto/create-form-201.dto';
 import { UpdateForm201Dto } from '../dto/update-form-201.dto';
 import { Form201Entity } from '../entities/form-201.entity';
-import { EmergencyService } from '../../emergency/services/emergency.service';
+import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 
 @Injectable()
 export class Form201Service {

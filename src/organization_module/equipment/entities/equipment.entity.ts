@@ -1,6 +1,6 @@
 import { Column, Entity, OneToMany } from "typeorm";
-import { BaseEntity } from "../../common/entities/base.entity";
-import { ResourceEntity } from "../../resource/entities/resource.entity";
+import { BaseEntity } from "../../../common/entities/base.entity";
+import { ResourceEntity } from "../../../resource_control_module/resource/entities/resource.entity";
 
 @Entity({ name: 'equipment' })
 export class EquipmentEntity extends BaseEntity {

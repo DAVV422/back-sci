@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 
 import { AttendService } from '../services/attends.service';
 import { CreateAttendDto } from '../dto/create-attend.dto';
-import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
+import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
 
 @ApiTags('Attend')
 @ApiBearerAuth()

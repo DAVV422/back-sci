@@ -4,8 +4,8 @@ import { Repository } from 'typeorm';
 
 import { CreateActionDto } from '../dto/create-action.dto';
 import { ActionEntity } from '../entities/action.entity';
-import { handlerError } from '../../common/utils/handlerError.utils';
-import { EmergencyService } from 'src/emergency/services/emergency.service';
+import { handlerError } from '../../../common/utils/handlerError.utils';
+import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 
 @Injectable()
 export class ActionService {

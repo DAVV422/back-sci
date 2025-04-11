@@ -1,11 +1,11 @@
 import * as jwt from 'jsonwebtoken';
 
-import { AuthTokenResult } from '../../auth/interfaces/auth.interface';
+import { IAuthTokenResult } from '../../auth/interfaces/auth.interface';
 import { IUserToken } from '../../auth/interfaces/userToken.interface';
 
 export const userToken = (token: string): IUserToken | string => {
   try {
-    const decode = jwt.decode(token) as AuthTokenResult;
+    const decode = jwt.decode(token) as IAuthTokenResult;
     const currentDate = new Date();
     const expiresDate = new Date(decode.exp);
     const isExpired = +expiresDate <= +currentDate / 1000;

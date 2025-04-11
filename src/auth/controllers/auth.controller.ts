@@ -5,19 +5,20 @@ import { AuthDTO } from '../dto/auth.dto';
 import { AuthService } from '../services/auth.service';
 import { CreateUserDto } from '../../user/dto';
 import { ResponseMessage } from 'src/common/interfaces/responseMessage.interface';
+import { UserService } from '../../user/services/user.service';
 
 @ApiTags('Auth')
 @Controller()
 export class AuthController {
 
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService, private readonly userService: UserService) { }
 
   @Post('register')
   public async register(@Body() createUserDto: CreateUserDto): Promise<ResponseMessage> {    
     console.log(createUserDto);
     return {
       statusCode: 201,
-      data: await this.authService.register(createUserDto),
+      data: await this.userService.createUser(createUserDto),
     };
   }
 

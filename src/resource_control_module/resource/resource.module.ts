@@ -3,8 +3,8 @@ import { ResourceController } from './controllers/resource.controller';
 import { ResourceService } from './services/resource.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ResourceEntity } from './entities/resource.entity';
-import { EmergencyModule } from 'src/emergency/emergency.module';
-import { EquipmentModule } from 'src/equipment/equipment.module';
+import { EmergencyModule } from '../../organization_module/emergency/emergency.module';
+import { EquipmentModule } from '../../organization_module/equipment/equipment.module';
 import { UserModule } from 'src/user/user.module';
 
 @Module({

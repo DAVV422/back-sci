@@ -1,11 +1,11 @@
 import { Body, Controller, Get, Delete, Param, Patch, Post, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 
-import { AuthGuard } from '../../auth/guards/auth.guard';
+import { AuthGuard } from '../../../auth/guards';
 import { CreateForm201Dto } from '../dto/create-form-201.dto';
 import { UpdateForm201Dto } from '../dto/update-form-201.dto';
 import { Form201Service } from '../services/form-201.service';
-import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
+import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
 
 @ApiTags('Form201')
 @ApiBearerAuth()

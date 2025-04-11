@@ -5,8 +5,8 @@ import { ParseUUIDPipe } from '@nestjs/common/pipes';
 import { ResourceService } from '../services/resource.service';
 import { CreateResourceDto } from '../dto/create-resource.dto';
 import { UpdateResourceDto } from '../dto/update-resource.dto';
-import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
-import { AuthGuard, RolesGuard } from '../../auth/guards';
+import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
 
 @ApiTags('Resource')
 @ApiBearerAuth()

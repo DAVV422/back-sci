@@ -1,11 +1,11 @@
 import { Body, Controller, Get, Delete, Param, UseGuards, ParseUUIDPipe, Query, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 
-import { RolesAccess } from '../../auth/decorators/roles.decorator';
-import { AuthGuard, RolesGuard } from '../../auth/guards/';
+import { RolesAccess } from '../../../auth/decorators';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';  
+import { QueryDto } from '../../../common/dto/query.dto';
 import { CreateEmergencyDto, UpdateEmergencyDto } from '../dto/';
 import { EmergencyService } from '../services/emergency.service';
-import { QueryDto } from '../../common/dto/query.dto';
 import { ResponseMessage } from 'src/common/interfaces/responseMessage.interface';
 import { GetUser } from 'src/auth/decorators';
 

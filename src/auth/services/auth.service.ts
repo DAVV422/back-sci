@@ -1,87 +1,64 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NotFoundException, } from '@nestjs/common/exceptions';
-import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import * as jwt from 'jsonwebtoken';
 
 import { UserEntity } from '../../user/entities/user.entity';
 import { UserService } from '../../user/services/user.service';
 import { IPayload } from '../interfaces/payload.interface';
-import { userToken } from '../../common/utils/user.token';
-import { IUserToken } from '../interfaces/userToken.interface';
-import { CreateUserDto } from '../../user/dto';
+import { ILoginResponse } from '../interfaces/login.interface';
 import { handlerError } from '../../common/utils/handlerError.utils';
+import { TokenValidatorService } from './token-validator.service';
+import { JwtServiceAdapter } from './jwt.service';
 
 @Injectable()
 export class AuthService {
-
-  private readonly logger = new Logger('AuthService');
+  private readonly logger = new Logger(AuthService.name);
 
   constructor(
     private readonly userService: UserService,
-    private readonly configService: ConfigService,
-  ) { }
+    private readonly tokenValidator: TokenValidatorService,
+    private readonly jwtService: JwtServiceAdapter
+  ) {}
 
-  public async login(email: string, password: string): Promise<any> {
+  async login(email: string, password: string): Promise<ILoginResponse> {
     try {
-      const user = await this.userService.findOneBy({ key: 'email', value: email, });
-      if (!user || !(await bcrypt.compare(password, user.password))) throw new NotFoundException('Usuario o contraseña incorrectos');
+      const user = await this.userService.findByEmail(email);
+      if (!user) throw new NotFoundException('Usuario no encontrado');
+      
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) throw new NotFoundException('Contraseña incorrecta');
+
       return this.generateJWT(user);
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async checkToken(token: string) {
+  async checkToken(token: string): Promise<UserEntity | false> {
     try {
-      const managerToken: IUserToken | string = userToken(token);
-      if (typeof managerToken === 'string') return false;
-      if (managerToken.isExpired) return false;
-      const user = await this.userService.findOneAuth(managerToken.sub);
-      return user;
+      const userToken = await this.tokenValidator.validateToken(token);
+      if (!userToken) return false;
+
+      return await this.userService.findOneAuth(userToken.sub);
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async register(createUserDto: CreateUserDto): Promise<UserEntity> {
-    return await this.userService.createUser(createUserDto);
+  async generateJWT(user: UserEntity): Promise<ILoginResponse> {
+    const payload = this.getPayload(user);
+    const accessToken = this.jwtService.signToken(payload);
+    return { accessToken, user };
   }
 
-  public singJWT({ payload, secret, expiresIn, }: { payload: jwt.JwtPayload; secret: string; expiresIn: number | string; }) {
-    return jwt.sign(payload, secret, { expiresIn });
+  async recoverPassword(email: string): Promise<{ accessToken: string }> {
+    const user = await this.userService.findByEmail(email);
+    const payload = this.getPayload(user);
+    const accessToken = this.jwtService.signToken(payload);
+    return { accessToken };
   }
 
-  public async generateJWT(user: UserEntity): Promise<any> {
-    const getUser: UserEntity = await this.userService.findOne(user.id);
-    const payload: IPayload = {
-      sub: getUser.id,
-      role: getUser.role,
-    };
-    const accessToken = this.singJWT({
-      payload,
-      secret: this.configService.get('JWT_AUTH'),
-      expiresIn: '1d',
-    });
-    return {
-      accessToken,
-      User: getUser,
-    };
-  }
-
-  public async recoverPassword(email: string): Promise<any> {
-    const user = await this.userService.findOneBy({ key: 'email', value: email, });
-    const payload: IPayload = {
-      sub: user.id,
-      role: user.role,
-    };
-    const accessToken = this.singJWT({
-      payload,
-      secret: this.configService.get('JWT_AUTH'),
-      expiresIn: '1h',
-    });
-    return {
-      accessToken,
-    };
+  private getPayload(user: UserEntity): IPayload {
+    return { sub: user.id, role: user.role };
   }
 }

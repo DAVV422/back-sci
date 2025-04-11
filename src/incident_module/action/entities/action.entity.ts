@@ -1,6 +1,6 @@
 import { Column, Entity, ManyToOne } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
-import { EmergencyEntity } from 'src/emergency/entities/emergency.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
+import { EmergencyEntity } from '../../../organization_module/emergency/entities/emergency.entity';
 
 @Entity({ name: 'action' })
 export class ActionEntity extends BaseEntity {

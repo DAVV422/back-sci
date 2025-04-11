@@ -1,7 +1,7 @@
 import { Column, Entity, ManyToOne, OneToMany } from 'typeorm';
-import { BaseEntity } from '../../common/entities/base.entity';
-import { EmergencyEntity } from '../../emergency/entities/emergency.entity';
-import { EquipmentEntity } from '../../equipment/entities/equipment.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
+import { EmergencyEntity } from '../../../organization_module/emergency/entities/emergency.entity';
+import { EquipmentEntity } from '../../../organization_module/equipment/entities/equipment.entity';
 
 @Entity({ name: 'resource' })
 export class ResourceEntity extends BaseEntity {

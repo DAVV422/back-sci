@@ -5,10 +5,10 @@ import { Repository } from 'typeorm';
 import { CreateEmergencyDto } from '../dto/create-emergency.dto';
 import { UpdateEmergencyDto } from '../dto/update-emergency.dto';
 import { EmergencyEntity } from '../entities/emergency.entity';
-import { handlerError } from '../../common/utils/handlerError.utils';
-import { QueryDto } from '../../common/dto/query.dto';
-import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
-import { UserService } from 'src/user/services/user.service';
+import { handlerError } from '../../../common/utils/handlerError.utils';
+import { QueryDto } from '../../../common/dto/query.dto';
+import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
+import { UserService } from '../../../user/services/user.service';
 
 @Injectable()
 export class EmergencyService {

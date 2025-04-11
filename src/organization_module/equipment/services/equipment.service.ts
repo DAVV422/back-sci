@@ -4,9 +4,9 @@ import { Repository } from 'typeorm';
 import { CreateEquipmentDto } from '../dto/create-equipment.dto';
 import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
 import { EquipmentEntity } from '../entities/equipment.entity';
-import { handlerError } from '../../common/utils/handlerError.utils';
-import { QueryDto } from '../../common/dto/query.dto';
-import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
+import { handlerError } from '../../../common/utils/handlerError.utils';
+import { QueryDto } from '../../../common/dto/query.dto';
+import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
 
 @Injectable()
 export class EquipmentService {

@@ -3,10 +3,10 @@ import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { EquipmentService } from '../services/equipment.service';
 import { CreateEquipmentDto } from '../dto/create-equipment.dto';
 import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
-import { QueryDto } from '../../common/dto/query.dto';
-import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
-import { AuthGuard, RolesGuard } from '../../auth/guards';
-import { RolesAccess } from '../../auth/decorators/roles.decorator';
+import { QueryDto } from '../../../common/dto/query.dto';
+import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
+import { RolesAccess } from '../../../auth/decorators';
 
 @ApiTags('Equipment')
 @ApiBearerAuth()
