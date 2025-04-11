@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { JwtStrategy } from './services/implementacion/jwt.strategy';
 import { TokenValidatorService } from './services/token-validator.service';
 import { ITokenStrategy } from './services/token-strategy';
+import { JwtServiceAdapter } from './services/jwt.service';
 
 @Global()
 @Module({
@@ -23,7 +24,8 @@ import { ITokenStrategy } from './services/token-strategy';
       inject: ['ITokenStrategy'],
     },
     AuthService,
-    UserService
+    UserService,
+    JwtServiceAdapter,
   ],
   controllers: [AuthController],
 })
