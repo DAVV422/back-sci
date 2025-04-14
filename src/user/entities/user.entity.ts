@@ -31,7 +31,7 @@ export class UserEntity extends BaseEntity {
     @Column({ name: 'birthdate', type: 'date', nullable: true })
     birthdate?: Date;
 
-    @Column({ name: 'url_image', type: 'varchar', length: 255, nullable: true })
+    @Column({ name: 'url_image', type: 'varchar', nullable: true })
     url_image?: string;
 
     @Column({ name: 'is_active', type: 'boolean', default: true })
