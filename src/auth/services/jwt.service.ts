@@ -7,6 +7,6 @@ export class JwtServiceAdapter {
   constructor(private readonly configService: ConfigService) {}
 
   signToken(payload: jwt.JwtPayload): string {
-    return jwt.sign(payload, this.configService.get('JWT_AUTH'), this.configService.get('JWT_EXPIRATION'));
+    return jwt.sign(payload, this.configService.get('JWT_AUTH'), { expiresIn: this.configService.get('JWT_EXPIRATION')});
   }
 }

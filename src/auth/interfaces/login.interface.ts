@@ -1,7 +1,7 @@
-import { UserEntity } from "../../user/entities/user.entity";
+import { UserDTO } from "../../user/dto/user.dto";
 
 export interface ILoginResponse {
     accessToken: string;
-    user: UserEntity;
+    user: UserDTO;
   }
   

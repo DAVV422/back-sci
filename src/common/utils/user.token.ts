@@ -7,11 +7,15 @@ export const userToken = (token: string): IUserToken | string => {
   try {
     const decode = jwt.decode(token) as IAuthTokenResult;
     const currentDate = new Date();
-    const expiresDate = new Date(decode.exp);
-    const isExpired = +expiresDate <= +currentDate / 1000;
+    const expiresDate = new Date(decode.exp * 1000);
+
+    const isExpired = +expiresDate <= +currentDate;
+    const timeRemaining = Math.max(0, Math.floor((expiresDate.getTime() - currentDate.getTime()) / 1000));
+
     return {
       role: decode.role,
       sub: decode.sub,
+      time: timeRemaining,
       isExpired,
     };
   } catch (error) {

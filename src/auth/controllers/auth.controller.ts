@@ -17,7 +17,7 @@ export class AuthController {
   public async register(@Body() createUserDto: CreateUserDto): Promise<ResponseMessage> {    
     console.log(createUserDto);
     return {
-      statusCode: 201,
+      statusCode: 200,
       data: await this.userService.createUser(createUserDto),
     };
   }
