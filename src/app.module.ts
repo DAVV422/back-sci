@@ -4,10 +4,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSourceConfig } from './config/data.source';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
-import { ProvidersModule } from './providers/providers.module';
+// import { ProvidersModule } from './providers/providers.module';
 import { CommonModule } from './common/common.module';
 import { SeederModule } from './seeder/seeder.module';
-import { MongooseModule } from '@nestjs/mongoose';
+// import { MongooseModule } from '@nestjs/mongoose';
 import { ActionModule } from './incident_module/action/action.module';
 import { AttendsModule } from './organization_module/attends/attends.module';
 import { DetailEquipmentModule } from './organization_module/detail-equipment/detail-equipment.module';
@@ -26,9 +26,9 @@ import { ChargesModule } from './sci_module/charges/charges.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
     TypeOrmModule.forRoot({ ...DataSourceConfig }),
-    MongooseModule.forRoot(process.env.URL_MONGO),
+    // MongooseModule.forRoot(process.env.URL_MONGO),
     ChargesModule,
-    ProvidersModule,
+    // ProvidersModule,
     CommonModule,
     UserModule,
     AuthModule,

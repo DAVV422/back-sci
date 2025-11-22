@@ -6,17 +6,11 @@ import { EquipmentEntity } from '../../../organization_module/equipment/entities
 @Entity({ name: 'resource' })
 export class ResourceEntity extends BaseEntity {
 
-  @Column({ name: 'state_initial', type: 'varchar', length: 255, nullable: false })
-  state_initial: string;
+  @Column({ name: 'amount', type: 'int', nullable: false })
+  amount: number;
 
-  @Column({ name: 'state_end', type: 'varchar', length: 255, nullable: false })
-  state_end: string;
-
-  @Column({ name: 'date', type: 'date', nullable: false })
-  date: Date;
-
-  @Column({ name: 'hour', type: 'varchar', length: 5, nullable: false })
-  hour: string;
+  @Column({ name: 'note', type: 'varchar', length: 255, nullable: false })
+  note: string;
 
   @ManyToOne(() => EmergencyEntity, (emergency) => emergency.resources, { nullable: false, onDelete: 'CASCADE' })
   emergency: EmergencyEntity;

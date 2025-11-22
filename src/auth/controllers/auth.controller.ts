@@ -40,6 +40,15 @@ export class AuthController {
     };
   }
 
+  @ApiQuery({ name: 'token', type: 'string', required: true })
+  @Post('expiredToken')
+  public async expiredToken(@Query('token') token: string): Promise<ResponseMessage> {
+    return {
+      statusCode: 200,
+      data: await this.authService.expiredToken(token)
+    };
+  }
+
   // recover password
   // @Post('recover')
   // public async recover(@Body() { username }) {

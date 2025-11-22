@@ -1,0 +1,30 @@
+@startuml
+actor "Usuario (Móvil)" as Usuario
+participant "BitacoraController" as BC
+participant "BitacoraService" as BS
+participant "BitacoraRepository" as BR
+database "BD" as BD
+participant "NLPService" as NLP
+participant "Microservicio NLP" as IA
+
+Usuario -> Usuario : grabar audio
+Usuario -> Usuario : Speech-to-Text (Flutter plugin)
+Usuario -> BC : POST /bitacora {texto}
+
+BC -> BS : saveBitacora(texto, emergenciaId, usuarioId)
+BS -> BR : save(texto)
+BR -> BD : INSERT registro bitacora
+BD --> BR : OK
+BR --> BS : confirmación
+BS --> BC : guardado exitoso
+BC --> Usuario : ✅ "Bitácora guardada"
+
+== Proceso asíncrono ==
+
+BS -> NLP : analizarTextoAsync(texto)
+NLP -> IA : POST /analyze {texto}
+IA --> NLP : entidades extraídas (JSON sugerencias)
+NLP -> BS : UPDATE bitacora.sugerencias
+BS -> BC : notificar frontend (WebSocket/Push)
+BC --> Usuario : 🔔 sugerencias disponibles
+@enduml

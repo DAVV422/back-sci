@@ -47,6 +47,17 @@ export class AuthService {
     }
   }
 
+  async expiredToken(token: string): Promise<boolean> {
+    try {
+      const userToken = await this.tokenValidator.validateToken(token);
+      if (!userToken) return false;
+      return userToken.isExpired;
+    } catch (error) {
+      handlerError(error, this.logger);
+      return true;
+    }
+  }
+
   async generateJWT(user: UserEntity): Promise<ILoginResponse> {
     const payload = this.getPayload(user);
     const accessToken = this.jwtService.signToken(payload);

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsDateString, IsOptional, IsUrl } from 'class-validator';
+import { IsNotEmpty, IsString, IsNumber } from 'class-validator';
 
 export class CreateEquipmentDto {
   @ApiProperty({
@@ -11,49 +11,26 @@ export class CreateEquipmentDto {
   name: string;
 
   @ApiProperty({
-    example: 'Construcción',
-    description: 'Utilización del equipo',
-  })
-  @IsNotEmpty()
-  @IsString()
-  utilization: string;
-
-  @ApiProperty({
     example: 'Una excavadora usada para movimientos de tierra.',
     description: 'Descripción del equipo',
   })
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @ApiProperty({
-    example: '2023-06-20',
-
-    description: 'Fecha de adquisición del equipo',
-  })
-  @IsNotEmpty()
-  acquisitionDate: Date;
-
-  @ApiProperty({
-    example: 'Nuevo',
-    description: 'Estado del equipo al momento de la adquisición',
-  })
   @IsNotEmpty()
   @IsString()
-  stateAcquisition: string;
+  description: string;
 
   @ApiProperty({
-    example: 'Bueno',
-    description: 'Estado actual del equipo',
+    example: 5,
+    description: 'Cantidad total de este tipo de equipo',
   })
   @IsNotEmpty()
-  @IsString()
-  stateActual: string;
+  @IsNumber()
+  totalQuantity: number;
 
   @ApiProperty({
-    example: 'https://example.com/photo.jpg',
-    description: 'URL de la foto del equipo',
+    example: 3,
+    description: 'Cantidad de este tipo de equipo disponible',
   })
-  @IsOptional()
-  urlPhoto?: string;
+  @IsNotEmpty()
+  @IsNumber()
+  availableQuantity: number;
 }

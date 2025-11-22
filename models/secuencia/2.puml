@@ -1,0 +1,26 @@
+@startuml Predicción de Incendios
+actor "Usuario (Web)" as Usuario
+participant "PrediccionController" as PC
+participant "PrediccionService" as PS
+participant "FileService" as FS
+participant "ClimaAPI" as API
+participant "Microservicio Predicción" as IA
+database "BD" as BD
+
+Usuario -> PC : solicitar predicción (manual o API)
+PC -> PS : procesarPrediccion(params)
+
+alt Datos climáticos desde API
+  PS -> API : GET datos clima
+  API --> PS : JSON clima
+else Ingresados manualmente
+  Usuario -> PC : parámetros clima manuales
+end
+
+PS -> FS : cargar dataset JSON (incendios históricos)
+PS -> IA : POST /predict {dataset, clima}
+IA --> PS : resultado predicción (probabilidad, riesgo)
+PS -> BD : INSERT resultadoPrediccion
+PS --> PC : resultado predicción
+PC --> Usuario : mostrar probabilidad de incendio
+@enduml

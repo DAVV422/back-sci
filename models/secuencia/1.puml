@@ -1,0 +1,19 @@
+@startuml
+actor "Usuario (Web)" as Usuario
+participant "PrediccionController" as PC
+participant "EmergenciaService" as ES
+participant "EmergenciaRepository" as ER
+participant "FileService" as FS
+database "BD" as BD
+
+Usuario -> PC : solicitar generación de dataset incendios
+PC -> ES : getEmergenciasIncendios()
+ES -> ER : findByTipoEmergencia(incendio)
+ER -> BD : SELECT * FROM emergencias WHERE tipo='incendio'
+BD --> ER : lista emergencias
+ER --> ES : lista emergencias
+ES -> ES : transformar datos relevantes
+ES -> FS : guardar JSON con datos relevantes
+ES --> PC : confirmación y ruta del archivo JSON
+PC --> Usuario : JSON generado correctamente
+@enduml

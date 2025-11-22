@@ -26,6 +26,7 @@ export class UserService {
       if (offset) query.skip(offset);
       if (order) query.orderBy('user.createdAt', order.toLocaleUpperCase() as any);
       if (attr && value) query.where(`user.${attr} ILIKE :value`, { value: `%${value}%` });
+      query.where('user.is_deleted = false');
       return await query.getMany();
     } catch (error) {
       handlerError(error, this.logger);
@@ -78,7 +79,8 @@ export class UserService {
   public async delete(id: string): Promise<ResponseMessage> {
     try {
       const user = await this.findOne(id);
-      const deletedUser = await this.userRepository.delete(user.id);
+      user.is_deleted = true;
+      const deletedUser = await this.userRepository.update(user.id, user);
       if (deletedUser.affected === 0) throw new BadRequestException('Usuario no eliminado.');
       return { statusCode: 200, message: 'Usuario eliminado.' };
     } catch (error) {

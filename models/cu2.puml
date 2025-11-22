@@ -1,0 +1,36 @@
+@startuml
+left to right direction
+
+actor "Usuario" as Usuario
+actor "Usuario Básico" as Basico
+actor "Usuario Avanzado" as Avanzado
+actor "Manager" as Manager
+actor "Administrador" as Admin
+
+' Herencia
+Basico --|> Usuario
+Avanzado --|> Usuario
+Manager --|> Usuario
+Admin --|> Manager
+
+' Casos de uso principales
+usecase "Gestión de emergencias" as GE
+usecase "Gestión de usuarios" as GU
+usecase "Gestión de equipos" as GQ
+usecase "Gestión de formularios (201, 207)" as GF
+usecase "Gestión de víctimas" as GV
+usecase "Notificaciones" as GN
+usecase "Logs del sistema" as GL
+
+' Relaciones
+Usuario --> GE
+Usuario --> GV
+Manager --> GU
+Manager --> GQ
+Admin --> GL
+
+' Dependencias
+GE <.. GF : <<include>>
+GE <.. GN : <<extend>>
+
+@enduml

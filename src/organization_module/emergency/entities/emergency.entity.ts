@@ -1,10 +1,10 @@
-import { Column, Entity, ManyToOne, OneToMany, OneToOne, JoinColumn } from "typeorm";
+import { Column, Entity, ManyToOne, OneToMany } from "typeorm";
 import { BaseEntity } from "../../../common/entities/base.entity";
-import { UserEntity } from "src/user/entities/user.entity";
-import { Form201Entity } from "src/incident_module/form-201/entities/form-201.entity";
-import { AttendEntity } from "src/organization_module/attends/entities/attends.entity";
-import { ResourceEntity } from "src/resource_control_module/resource/entities/resource.entity";
-import { ActionEntity } from "src/incident_module/action/entities/action.entity";
+import { UserEntity } from "../../../user/entities/user.entity";
+import { Form201Entity } from "../../../incident_module/form-201/entities/form-201.entity";
+import { AttendEntity } from "../../attends/entities/attends.entity";
+import { ResourceEntity } from "../../resource/entities/resource.entity";
+import { ActionEntity } from "../../../incident_module/action/entities/action.entity";
 
 @Entity({ name: 'emergency' })
 export class EmergencyEntity extends BaseEntity {
@@ -24,26 +24,26 @@ export class EmergencyEntity extends BaseEntity {
     @Column({ name: 'type', type: 'varchar', length: 50, nullable: false })
     type: string;
 
-    @Column({ 
-        name: 'coordinates', 
-        type: 'simple-array', 
-        nullable: true, 
+    @Column({
+        name: 'coordinates',
+        type: 'simple-array',
+        nullable: true,
         comment: 'Array with latitude and longitude'
     })
     coordinates?: number[];
 
-    @Column({ 
-        name: 'coordinates_pc', 
-        type: 'simple-array', 
-        nullable: true, 
+    @Column({
+        name: 'coordinates_pc',
+        type: 'simple-array',
+        nullable: true,
         comment: 'Array with longitude and latitude'
     })
     coordinates_pc?: number[];
 
-    @Column({ 
-        name: 'coordinates_e', 
-        type: 'simple-array', 
-        nullable: true, 
+    @Column({
+        name: 'coordinates_e',
+        type: 'simple-array',
+        nullable: true,
         comment: 'Array with longitude and latitude'
     })
     coordinates_e?: number[];
@@ -66,7 +66,7 @@ export class EmergencyEntity extends BaseEntity {
     @OneToMany(() => ActionEntity, (action) => action.emergency)
     actions: ActionEntity[];
 
-    @OneToMany(() => ResourceEntity, (resource) => resource.equipment)
+    @OneToMany(() => ResourceEntity, (resource) => resource.emergency)
     resources?: ResourceEntity[];
 
     // @OneToMany(() => Form207Entity, form207 => form207.emergency)
@@ -74,14 +74,4 @@ export class EmergencyEntity extends BaseEntity {
 
     // @OneToMany(() => ImageEntity, image => image.emergency)
     // images: ImageEntity[];
-
-    // @OneToOne(() => SpecificDateEntity)
-    // @JoinColumn()
-    // specificDate: SpecificDateEntity;
-
-    // @OneToMany(() => Form211Entity, form211 => form211.emergency)
-    // form211: Form211Entity[];
-
-    // @OneToMany(() => ResourceEntity, resource => resource.emergency)
-    // resources: ResourceEntity[];
 }

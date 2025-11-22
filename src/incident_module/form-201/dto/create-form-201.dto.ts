@@ -5,21 +5,21 @@ export class CreateForm201Dto {
   @ApiProperty({
     example: 'Objetivo de la form 201',
     description: 'Objetivo de la form 201',
-  })  
+  })
   @IsString()
   objective: string;
 
   @ApiProperty({
     example: 'Estrategia de la form 201',
     description: 'Estrategia de la form 201',
-  })  
+  })
   @IsString()
   strategy: string;
 
   @ApiProperty({
     example: 'Mensaje de seguridad de la form 201',
     description: 'Mensaje de seguridad de la form 201',
-  })  
+  })
   @IsString()
   safety_message: string;
 
@@ -30,6 +30,13 @@ export class CreateForm201Dto {
   })
   @IsString()
   url_organization_chart?: string;
+
+  @ApiProperty({
+    example: 'Naturaleza del incidente de la form 201',
+    description: 'Naturaleza del incidente de la form 201',
+  })
+  @IsString()
+  nature: string;
 
   @ApiProperty({
     example: 'Hilo de discusión relacionado con la form 201',
@@ -58,9 +65,17 @@ export class CreateForm201Dto {
   @ApiProperty({
     example: 'Tácticas de la form 201',
     description: 'Tácticas de la form 201',
-  })  
+  })
   @IsString()
   tactics: string;
+
+  @ApiProperty({
+    example: 'Canal 108',
+    description: 'Canal de comunicación de la form 201',
+    default: '',
+  })
+  @IsString()
+  communications_channel?: string;
 
   @ApiProperty({
     example: 'Ruta de salida de la form 201',
@@ -79,18 +94,10 @@ export class CreateForm201Dto {
   entry_route?: string;
 
   @ApiProperty({
-    example: 'Áreas afectadas por el evento de la form 201',
-    description: 'Áreas afectadas por el evento de la form 201',
-    default: '',
-  })
-  @IsString()
-  affected_areasM?: string;
-
-  @ApiProperty({
     example: '2024-06-20',
     description: 'Fecha de la form 201',
   })
-  @IsNotEmpty()  
+  @IsNotEmpty()
   date: Date;
 
   @ApiProperty({

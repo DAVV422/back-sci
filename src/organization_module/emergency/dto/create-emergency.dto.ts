@@ -47,7 +47,7 @@ export class CreateEmergencyDto {
   type: string;
 
   @ApiProperty({
-    example: [ -68.150000, -16.500000 ],
+    example: [-68.150000, -16.500000],
     type: [Number],
     description: 'Coordenadas de la emergencia (latitud y longitud)',
   })
@@ -56,7 +56,7 @@ export class CreateEmergencyDto {
   coordinates?: number[];
 
   @ApiProperty({
-    example: [ -68.150000, -16.500000 ],
+    example: [-68.150000, -16.500000],
     type: [Number],
     description: 'Coordenadas del área de espera (latitud y longitud)',
   })
@@ -65,7 +65,7 @@ export class CreateEmergencyDto {
   coordinates_e?: number[];
 
   @ApiProperty({
-    example: [ -68.150000, -16.500000 ],
+    example: [-68.150000, -16.500000],
     type: [Number],
     description: 'Coordenadas del puesto comando (latitud y longitud)',
   })
@@ -90,4 +90,13 @@ export class CreateEmergencyDto {
   @IsOptional()
   @IsString()
   duration?: string;
+
+  @ApiProperty({
+    example: '01b9bbf4-41a6-4820-abd4-9df61a2d6356',
+    type: String,
+    description: 'ID del usuario que asistió a la emergencia',
+  })
+  @IsNotEmpty()
+  @IsUUID()
+  user: string;
 }

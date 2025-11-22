@@ -11,6 +11,15 @@ export class CreateAttendDto {
   date: Date;
 
   @ApiProperty({
+    example: '14:30',
+    type: String,
+    description: 'Hora de la asistencia a la emergencia',
+  })
+  @IsNotEmpty()
+  @IsString()
+  hour: string;
+
+  @ApiProperty({
     example: '01b9bbf4-41a6-4820-abd4-9df61a2d6356',
     type: String,
     description: 'ID del usuario que asistió a la emergencia',
