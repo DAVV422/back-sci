@@ -10,17 +10,14 @@ import { SeederModule } from './seeder/seeder.module';
 // import { MongooseModule } from '@nestjs/mongoose';
 import { ActionModule } from './incident_module/action/action.module';
 import { AttendsModule } from './organization_module/attends/attends.module';
-import { DetailEquipmentModule } from './organization_module/detail-equipment/detail-equipment.module';
 import { EmergencyModule } from './organization_module/emergency/emergency.module';
 import { EquipmentModule } from './organization_module/equipment/equipment.module';
 import { Form201Module } from './incident_module/form-201/form-201.module';
 import { Form207Module } from './victim_registry_module/form-207/form-207.module';
-import { Form211Module } from './resource_control_module/form-211/form-211.module'; 
-import { PatientModule } from './victim_registry_module/patient/patient.module';
-import { ProvidedModule } from './resource_control_module/provided/provided.module';
-import { RequestModule } from './resource_control_module/request/request.module';
-import { ResourceModule } from './resource_control_module/resource/resource.module';
+import { ResourceModule } from './organization_module/resource/resource.module';
 import { ChargesModule } from './sci_module/charges/charges.module';
+import { VictimModule } from './victim_registry_module/victim/victim.module';
+import { RegistrationModule } from './victim_registry_module/registration/registration.module';
 
 @Module({
   imports: [
@@ -35,16 +32,13 @@ import { ChargesModule } from './sci_module/charges/charges.module';
     SeederModule,
     ActionModule,
     AttendsModule,
-    DetailEquipmentModule,
     EmergencyModule,
     EquipmentModule,
     Form201Module,
     Form207Module,
-    Form211Module,
-    PatientModule,
-    ProvidedModule,
-    RequestModule,
     ResourceModule,
+    VictimModule,
+    RegistrationModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }

@@ -65,7 +65,7 @@ export class EmergencyService {
   public async update(id: string, updateEmergencyDto: UpdateEmergencyDto): Promise<EmergencyEntity> {
     try {
       const emergency: EmergencyEntity = await this.findOne(id);
-      const {...updateEmergency } = updateEmergencyDto;
+      const { user, ...updateEmergency } = updateEmergencyDto;
       const emergencyUpdated = await this.emergencyRepository.update(emergency.id, updateEmergency);
       if (emergencyUpdated.affected === 0) throw new NotFoundException('Emergencia no actualizada.');
       return await this.findOne(id);
