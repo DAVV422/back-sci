@@ -13,7 +13,8 @@ export class RegistrationService {
     ) { }
 
     async create(createRegistrationDto: CreateRegistrationDto): Promise<RegistrationEntity> {
-        const registration = this.registrationRepository.create(createRegistrationDto);
+        const { victim, form207, ...createRegistration} = createRegistrationDto;
+        const registration = this.registrationRepository.create({...createRegistration, victim: {id:victim}, form207: {id:form207}});
         return await this.registrationRepository.save(registration);
     }
 
@@ -31,7 +32,8 @@ export class RegistrationService {
 
     async update(id: string, updateRegistrationDto: UpdateRegistrationDto): Promise<RegistrationEntity> {
         const registration = await this.findOne(id);
-        this.registrationRepository.merge(registration, updateRegistrationDto);
+        const {victim, form207, ...updateRegistration} = updateRegistrationDto;
+        this.registrationRepository.merge(registration, {...updateRegistration, victim: {id:victim}, form207: {id:form207}});
         return await this.registrationRepository.save(registration);
     }
 

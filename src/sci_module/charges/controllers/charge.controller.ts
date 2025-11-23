@@ -1,10 +1,12 @@
 import { Body, Controller, Get, Delete, Param, Post, Patch, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { ChargeService } from '../services/charge.service';
-import { CreateChargeDto } from '../dto/create-charge.dto';
-import { UpdateChargeDto } from '../dto/update-charge.dto';
-import { AuthGuard, RolesGuard } from '../../../auth/guards';
-import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
+import { ChargeService } from './../services/charge.service';
+import { CreateChargeDto } from './../dto/create-charge.dto';
+import { UpdateChargeDto } from './../dto/update-charge.dto';
+import { AuthGuard, RolesGuard } from './../../../auth/guards';
+import { ResponseMessage } from './../../../common/interfaces/responseMessage.interface';
+import { RolesAccess } from './../../../auth/decorators';
+import { ROLES } from './../../../common/constants';
 
 @ApiTags('Charge')
 @ApiBearerAuth()
@@ -13,6 +15,7 @@ import { ResponseMessage } from '../../../common/interfaces/responseMessage.inte
 export class ChargeController {
   constructor(private readonly chargeService: ChargeService) {}
 
+  @RolesAccess(ROLES.ADMIN)
   @Post()
   @ApiOperation({ summary: 'Crear Cargo del SCI', description: 'Este endpoint crea un cargo del sci.' })
   public async createCharge(
@@ -41,16 +44,17 @@ export class ChargeController {
     };
   }
 
-  @Post('name')
+  @Get('/name/:name')
   public async findByName(
-    @Body() name: UpdateChargeDto,
+    @Param('name') name: string
   ): Promise<ResponseMessage> {
     return {
       statusCode: 200,
-      data: await this.chargeService.findByName(name.name),
+      data: await this.chargeService.findByName(name),
     };
   }
 
+  @RolesAccess(ROLES.ADMIN)
   @ApiParam({ name: 'id', type: 'string' })
   @Patch(':id')
   public async update(
@@ -63,6 +67,7 @@ export class ChargeController {
     };
   }
 
+  @RolesAccess(ROLES.ADMIN)
   @ApiParam({ name: 'id', type: 'string' })
   @Delete(':id')
   public async delete(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseMessage> {

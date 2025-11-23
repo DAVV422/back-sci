@@ -2,10 +2,11 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { CreateActionDto } from '../dto/create-action.dto';
-import { ActionEntity } from '../entities/action.entity';
-import { handlerError } from '../../../common/utils/handlerError.utils';
-import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
+import { CreateActionDto } from './../dto/create-action.dto';
+import { ActionEntity } from './../entities/action.entity';
+import { handlerError } from './../../../common/utils/handlerError.utils';
+import { EmergencyService } from './../../../organization_module/emergency/services/emergency.service';
+import { UserService } from './../../../user/services/user.service';
 
 @Injectable()
 export class ActionService {
@@ -14,7 +15,8 @@ export class ActionService {
   constructor(
     @InjectRepository(ActionEntity)
     private readonly actionRepository: Repository<ActionEntity>,
-    private readonly emergencyService: EmergencyService
+    private readonly emergencyService: EmergencyService,
+    private readonly userService: UserService
   ) { }
 
   public async findOne(id: string): Promise<ActionEntity> {
@@ -27,11 +29,12 @@ export class ActionService {
     }
   }
 
-  public async create(createActionDto: CreateActionDto): Promise<ActionEntity> {
+  public async create(createActionDto: CreateActionDto, userId: string): Promise<ActionEntity> {
     try {
       const { emergency, ... createAction } = createActionDto;
       const emergencyEntity = await this.emergencyService.findOne(emergency);
-      const action = await this.actionRepository.create({ ...createAction, emergency: { id: emergencyEntity.id}});
+      const user = await this.userService.findOne(userId);
+      const action = await this.actionRepository.create({ ...createAction, emergency: { id: emergencyEntity.id}, user: user});
       return await this.actionRepository.save(action);
     } catch (error) {
       handlerError(error, this.logger);

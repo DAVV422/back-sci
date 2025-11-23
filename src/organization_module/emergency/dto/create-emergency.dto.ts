@@ -90,13 +90,4 @@ export class CreateEmergencyDto {
   @IsOptional()
   @IsString()
   duration?: string;
-
-  @ApiProperty({
-    example: '01b9bbf4-41a6-4820-abd4-9df61a2d6356',
-    type: String,
-    description: 'ID del usuario que asistió a la emergencia',
-  })
-  @IsNotEmpty()
-  @IsUUID()
-  user: string;
 }

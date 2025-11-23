@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsDateString } from 'class-validator';
+import { IsNotEmpty, IsString, IsUUID, IsDate } from 'class-validator';
 
 export class CreateRegistrationDto {
     @ApiProperty({
@@ -14,7 +14,7 @@ export class CreateRegistrationDto {
         description: 'Date of the registration',
         example: '2023-10-27',
     })
-    @IsDateString()
+    @IsDate()
     @IsNotEmpty()
     date: Date;
 
@@ -49,4 +49,24 @@ export class CreateRegistrationDto {
     @IsString()
     @IsNotEmpty()
     cellphone_transfer_manager: string;
+
+    @ApiProperty({
+        example: '01b9bbf4-41a6-4820-abd4-9df61a2d6356',
+        type: String,
+        description: 'Id de la victima a la que pertencerá',
+    })
+    @IsNotEmpty()
+    @IsString()
+    @IsUUID()
+    victim: string;
+
+    @ApiProperty({
+        example: '01b9bbf4-41a6-4820-abd4-9df61a2d6356',
+        type: String,
+        description: 'Id del formulario 207 a la que pertencerá',
+    })
+    @IsNotEmpty()
+    @IsString()
+    @IsUUID()
+    form207: string;
 }

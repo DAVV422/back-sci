@@ -1,10 +1,12 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 
-import { CreateActionDto } from '../dto/create-action.dto';
-import { ActionService } from '../services/action.service';
-import { QueryDto } from '../../../common/dto/query.dto';
-import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
+import { CreateActionDto } from './../dto/create-action.dto';
+import { ActionService } from './../services/action.service';
+import { QueryDto } from './../../../common/dto/query.dto';
+import { ResponseMessage } from './../../../common/interfaces/responseMessage.interface';
+import { GetUser } from './../../../auth/decorators';
 
 @ApiTags('Action')
 @ApiBearerAuth()
@@ -21,11 +23,12 @@ export class ActionController {
     };
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Post()
-  public async create(@Body() createActionDto: CreateActionDto): Promise<ResponseMessage> {
+  public async create(@Body() createActionDto: CreateActionDto, @GetUser('id') userId: string): Promise<ResponseMessage> {
     return {
       statusCode: 200,
-      data: await this.actionService.create(createActionDto),
+      data: await this.actionService.create(createActionDto, userId),
     };
   }
 

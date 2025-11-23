@@ -13,14 +13,14 @@ export class AuthController {
 
   constructor(private readonly authService: AuthService, private readonly userService: UserService) { }
 
-  @Post('register')
-  public async register(@Body() createUserDto: CreateUserDto): Promise<ResponseMessage> {    
-    console.log(createUserDto);
-    return {
-      statusCode: 200,
-      data: await this.userService.createUser(createUserDto),
-    };
-  }
+  // @Post('register')
+  // public async register(@Body() createUserDto: CreateUserDto): Promise<ResponseMessage> {    
+  //   console.log(createUserDto);
+  //   return {
+  //     statusCode: 200,
+  //     data: await this.userService.createUser(createUserDto),
+  //   };
+  // }
 
   @Post('login')
   public async login(@Body() authDto: AuthDTO): Promise<ResponseMessage> {

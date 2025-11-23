@@ -5,6 +5,7 @@ import { Form201Entity } from "../../../incident_module/form-201/entities/form-2
 import { AttendEntity } from "../../attends/entities/attends.entity";
 import { ResourceEntity } from "../../resource/entities/resource.entity";
 import { ActionEntity } from "../../../incident_module/action/entities/action.entity";
+import { Form207Entity } from "./../../../victim_registry_module/form-207/entities/form-207.entity";
 
 @Entity({ name: 'emergency' })
 export class EmergencyEntity extends BaseEntity {
@@ -69,8 +70,8 @@ export class EmergencyEntity extends BaseEntity {
     @OneToMany(() => ResourceEntity, (resource) => resource.emergency)
     resources?: ResourceEntity[];
 
-    // @OneToMany(() => Form207Entity, form207 => form207.emergency)
-    // form207: Form207Entity[];
+    @OneToMany(() => Form207Entity, form207 => form207.emergency)
+    form207: Form207Entity[];
 
     // @OneToMany(() => ImageEntity, image => image.emergency)
     // images: ImageEntity[];

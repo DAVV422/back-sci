@@ -35,7 +35,7 @@ export class UserService {
 
   public async createUser(createUserDto: CreateUserDto): Promise<UserEntity> {
     try {
-      createUserDto.password = await this.encryptPassword(createUserDto.password);   
+      createUserDto.password = await this.encryptPassword(createUserDto.password);
       createUserDto.birthdate = new Date(createUserDto.birthdate);
       const user_created: UserEntity = await this.userRepository.save(createUserDto);
       return await this.findOneBy({ key: 'email', value: createUserDto.email, });
@@ -76,6 +76,30 @@ export class UserService {
     }
   }
 
+  public async deactivate(id: string): Promise<ResponseMessage> {
+    try {
+      const user = await this.findOne(id);
+      user.is_active = false;
+      const deletedUser = await this.userRepository.update(user.id, user);
+      if (deletedUser.affected === 0) throw new BadRequestException('No se pudo cambiar el estado del usuario.');
+      return { statusCode: 200, message: 'Estado del usuario cambiado.' };
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
+  public async activate(id: string): Promise<ResponseMessage> {
+    try {
+      const user = await this.findOne(id);
+      user.is_active = true;
+      const deletedUser = await this.userRepository.update(user.id, user);
+      if (deletedUser.affected === 0) throw new BadRequestException('No se pudo cambiar el estado del usuario.');
+      return { statusCode: 200, message: 'Estado del usuario cambiado.' };
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
   public async delete(id: string): Promise<ResponseMessage> {
     try {
       const user = await this.findOne(id);
@@ -106,6 +130,10 @@ export class UserService {
     } catch (error) {
       handlerError(error, this.logger);
     }
+  }
+
+  async countUsers(): Promise<number> {
+    return await this.userRepository.count();
   }
 
   private async encryptPassword(password: string): Promise<string> {

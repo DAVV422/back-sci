@@ -23,7 +23,7 @@ export class AttendController {
   @Post()
   public async create(@Body() createAttendDto: CreateAttendDto): Promise<ResponseMessage> {
     return {
-      statusCode: 200,
+      statusCode: 201,
       data: await this.attendService.create(createAttendDto),
     };
   }

@@ -6,8 +6,8 @@ import { AuthGuard, RolesGuard } from '../../auth/guards/';
 import { CreateUserDto, UpdateUserDto } from '../dto/';
 import { UserService } from '../services/user.service';
 import { QueryDto } from '../../common/dto/query.dto';
-import { ResponseMessage } from 'src/common/interfaces/responseMessage.interface';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { ResponseMessage } from './../../common/interfaces/responseMessage.interface';
+import { ROLES } from './../../common/constants';
 
 @ApiTags('User')
 @ApiBearerAuth()
@@ -16,16 +16,18 @@ import { FileInterceptor } from '@nestjs/platform-express';
 export class UserController {
   constructor(private readonly userService: UserService) { }
 
+  @RolesAccess(ROLES.MANAGER)
   @Post()
   async createUser(
     @Body() createUserDto: CreateUserDto,    
   ): Promise<ResponseMessage> {
     return {
-      statusCode: 200,
+      statusCode: 201,
       data: await this.userService.createUser(createUserDto),
     }
   }
-
+  
+  @RolesAccess(ROLES.MANAGER)
   @ApiQuery({ name: 'limit', type: 'number', required: false })
   @ApiQuery({ name: 'offset', type: 'number', required: false })
   @ApiQuery({ name: 'order', type: 'string', required: false })
@@ -59,7 +61,21 @@ export class UserController {
     };
   }
 
-  @RolesAccess('ADMIN')
+  @RolesAccess(ROLES.MANAGER)
+  @ApiParam({ name: 'id', type: 'string' })
+  @Get('/deactivate/:id')
+  public async deactivate(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseMessage> {
+    return await this.userService.deactivate(id);
+  }
+
+  @RolesAccess(ROLES.MANAGER)
+  @ApiParam({ name: 'id', type: 'string' })
+  @Get('/deactivate/:id')
+  public async activate(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseMessage> {
+    return await this.userService.activate(id);
+  }
+
+  @RolesAccess(ROLES.ADMIN)
   @ApiParam({ name: 'id', type: 'string' })
   @Delete(':id')
   public async delete(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseMessage> {

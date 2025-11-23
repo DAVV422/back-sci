@@ -28,5 +28,5 @@ export class RegistrationEntity extends BaseEntity{
     victim: VictimEntity;
 
     @ManyToOne(() => Form207Entity, (form207) => form207.registrations, { nullable: false, onDelete: 'CASCADE' })
-    form_207: Form207Entity;
+    form207: Form207Entity;
 }

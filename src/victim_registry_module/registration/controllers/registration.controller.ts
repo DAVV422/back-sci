@@ -13,38 +13,53 @@ export class RegistrationController {
     @Post()
     @ApiOperation({ summary: 'Create a new registration' })
     @ApiResponse({ status: 201, description: 'The registration has been successfully created.', type: RegistrationEntity })
-    create(@Body() createRegistrationDto: CreateRegistrationDto) {
-        return this.registrationService.create(createRegistrationDto);
+    async create(@Body() createRegistrationDto: CreateRegistrationDto) {
+        return {
+            statusCode: 201,
+            data: await this.registrationService.create(createRegistrationDto),
+        };
     }
 
     @Get()
     @ApiOperation({ summary: 'Get all registrations' })
     @ApiResponse({ status: 200, description: 'Return all registrations.', type: [RegistrationEntity] })
-    findAll() {
-        return this.registrationService.findAll();
+    async findAll() {
+        return {
+            statusCode: 200,
+            data: await this.registrationService.findAll(),
+        };
     }
 
     @Get(':id')
     @ApiOperation({ summary: 'Get a registration by ID' })
     @ApiResponse({ status: 200, description: 'Return the registration.', type: RegistrationEntity })
     @ApiResponse({ status: 404, description: 'Registration not found.' })
-    findOne(@Param('id') id: string) {
-        return this.registrationService.findOne(id);
+    async findOne(@Param('id') id: string) {
+        return {
+            statusCode: 200,
+            data: await this.registrationService.findOne(id),
+        };
     }
 
     @Patch(':id')
     @ApiOperation({ summary: 'Update a registration' })
     @ApiResponse({ status: 200, description: 'The registration has been successfully updated.', type: RegistrationEntity })
     @ApiResponse({ status: 404, description: 'Registration not found.' })
-    update(@Param('id') id: string, @Body() updateRegistrationDto: UpdateRegistrationDto) {
-        return this.registrationService.update(id, updateRegistrationDto);
+    async update(@Param('id') id: string, @Body() updateRegistrationDto: UpdateRegistrationDto) {
+        return {
+            statusCode: 200,
+            data: await this.registrationService.update(id, updateRegistrationDto),
+        };
     }
 
     @Delete(':id')
     @ApiOperation({ summary: 'Delete a registration' })
     @ApiResponse({ status: 200, description: 'The registration has been successfully deleted.' })
     @ApiResponse({ status: 404, description: 'Registration not found.' })
-    remove(@Param('id') id: string) {
-        return this.registrationService.remove(id);
+    async remove(@Param('id') id: string) {
+        return {
+            statusCode: 200,
+            data: await this.registrationService.remove(id),
+        };
     }
 }

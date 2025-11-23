@@ -13,38 +13,53 @@ export class VictimController {
     @Post()
     @ApiOperation({ summary: 'Create a new victim' })
     @ApiResponse({ status: 201, description: 'The victim has been successfully created.', type: VictimEntity })
-    create(@Body() createVictimDto: CreateVictimDto) {
-        return this.victimService.create(createVictimDto);
+    async create(@Body() createVictimDto: CreateVictimDto) {
+        return {
+            statusCode: 201,
+            data: await this.victimService.create(createVictimDto),
+        };
     }
 
     @Get()
     @ApiOperation({ summary: 'Get all victims' })
     @ApiResponse({ status: 200, description: 'Return all victims.', type: [VictimEntity] })
-    findAll() {
-        return this.victimService.findAll();
+    async findAll() {
+        return {
+            statusCode: 200,
+            data: await this.victimService.findAll(),
+        };
     }
 
     @Get(':id')
     @ApiOperation({ summary: 'Get a victim by ID' })
     @ApiResponse({ status: 200, description: 'Return the victim.', type: VictimEntity })
     @ApiResponse({ status: 404, description: 'Victim not found.' })
-    findOne(@Param('id') id: string) {
-        return this.victimService.findOne(id);
+    async findOne(@Param('id') id: string) {
+        return {
+            statusCode: 200,
+            data: await this.victimService.findOne(id),
+        };
     }
 
     @Patch(':id')
     @ApiOperation({ summary: 'Update a victim' })
     @ApiResponse({ status: 200, description: 'The victim has been successfully updated.', type: VictimEntity })
     @ApiResponse({ status: 404, description: 'Victim not found.' })
-    update(@Param('id') id: string, @Body() updateVictimDto: UpdateVictimDto) {
-        return this.victimService.update(id, updateVictimDto);
+    async update(@Param('id') id: string, @Body() updateVictimDto: UpdateVictimDto) {
+        return {
+            statusCode: 200,
+            data: await this.victimService.update(id, updateVictimDto),
+        };
     }
 
     @Delete(':id')
     @ApiOperation({ summary: 'Delete a victim' })
     @ApiResponse({ status: 200, description: 'The victim has been successfully deleted.' })
     @ApiResponse({ status: 404, description: 'Victim not found.' })
-    remove(@Param('id') id: string) {
-        return this.victimService.remove(id);
+    async remove(@Param('id') id: string) {
+        return {
+            statusCode: 200,
+            data: await this.victimService.remove(id),
+        };
     }
 }

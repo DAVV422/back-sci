@@ -1,13 +1,21 @@
-import { Injectable } from '@nestjs/common';
-import { ITokenStrategy } from '../token-strategy';
-import { userToken } from '../../../common/utils/user.token';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
 import { IUserToken } from '../../interfaces/userToken.interface';
 
 @Injectable()
-export class JwtStrategy implements ITokenStrategy {
-  async validate(token: string): Promise<IUserToken | false> {
-    const result = userToken(token);
-    if (typeof result === 'string' || result.isExpired) return false;
-    return result;
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
+  constructor() {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      secretOrKey: process.env.JWT_AUTH,
+    });
+  }
+
+  async validate(payload: IUserToken): Promise<IUserToken> {
+    if (!payload || payload.isExpired) {
+      throw new UnauthorizedException('Token inválido o expirado');
+    }
+    return payload;
   }
 }

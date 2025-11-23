@@ -5,12 +5,13 @@ import { CreateEquipmentDto } from '../dto/create-equipment.dto';
 import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
 import { QueryDto } from '../../../common/dto/query.dto';
 import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
-import { AuthGuard, RolesGuard } from '../../../auth/guards';
 import { RolesAccess } from '../../../auth/decorators';
+import { ROLES } from './../../../common/constants';
+import { AuthGuard, RolesGuard } from './../../../auth/guards';
 
 @ApiTags('Equipment')
 @ApiBearerAuth()
-// @UseGuards(AuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard)
 @Controller('equipment')
 export class EquipmentController {
   constructor(private readonly equipmentService: EquipmentService) {}
@@ -63,7 +64,7 @@ export class EquipmentController {
     };
   }
 
-  @RolesAccess('ADMIN')
+  @RolesAccess(ROLES.MANAGER)
   @ApiParam({ name: 'id', type: 'string' })
   @Delete(':id')
   async delete(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseMessage> {

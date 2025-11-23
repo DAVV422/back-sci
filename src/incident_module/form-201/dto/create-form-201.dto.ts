@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsDateString, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsDateString, IsString, IsUUID, IsOptional } from 'class-validator';
 
 export class CreateForm201Dto {
   @ApiProperty({
@@ -14,20 +14,23 @@ export class CreateForm201Dto {
     description: 'Estrategia de la form 201',
   })
   @IsString()
-  strategy: string;
+  @IsOptional()
+  strategy?: string;
 
   @ApiProperty({
     example: 'Mensaje de seguridad de la form 201',
     description: 'Mensaje de seguridad de la form 201',
   })
   @IsString()
-  safety_message: string;
+  @IsOptional()
+  safety_message?: string;
 
   @ApiProperty({
     example: 'https://example.com/organization_chart.png',
     description: 'URL del organigrama de la organización',
     default: '',
   })
+  @IsOptional()
   @IsString()
   url_organization_chart?: string;
 
@@ -36,13 +39,15 @@ export class CreateForm201Dto {
     description: 'Naturaleza del incidente de la form 201',
   })
   @IsString()
-  nature: string;
+  @IsOptional()
+  nature?: string;
 
   @ApiProperty({
     example: 'Hilo de discusión relacionado con la form 201',
     description: 'Hilo de discusión relacionado con la form 201',
     default: '',
   })
+  @IsOptional()
   @IsString()
   thread?: string;
 
@@ -51,6 +56,7 @@ export class CreateForm201Dto {
     description: 'Medidas de aislamiento de la form 201',
     default: '',
   })
+  @IsOptional()
   @IsString()
   isolation?: string;
 
@@ -66,8 +72,9 @@ export class CreateForm201Dto {
     example: 'Tácticas de la form 201',
     description: 'Tácticas de la form 201',
   })
+  @IsOptional()
   @IsString()
-  tactics: string;
+  tactics?: string;
 
   @ApiProperty({
     example: 'Canal 108',
@@ -75,6 +82,7 @@ export class CreateForm201Dto {
     default: '',
   })
   @IsString()
+  @IsOptional()
   communications_channel?: string;
 
   @ApiProperty({
@@ -82,6 +90,7 @@ export class CreateForm201Dto {
     description: 'Ruta de salida de la form 201',
     default: '',
   })
+  @IsOptional()
   @IsString()
   egress_route?: string;
 
@@ -91,6 +100,7 @@ export class CreateForm201Dto {
     default: '',
   })
   @IsString()
+  @IsOptional()
   entry_route?: string;
 
   @ApiProperty({

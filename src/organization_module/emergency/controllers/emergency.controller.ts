@@ -1,13 +1,14 @@
 import { Body, Controller, Get, Delete, Param, UseGuards, ParseUUIDPipe, Query, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 
-import { RolesAccess } from '../../../auth/decorators';
-import { AuthGuard, RolesGuard } from '../../../auth/guards';  
-import { QueryDto } from '../../../common/dto/query.dto';
+import { RolesAccess } from './../../../auth/decorators';
+import { AuthGuard, RolesGuard } from './../../../auth/guards';  
+import { QueryDto } from './../../../common/dto/query.dto';
 import { CreateEmergencyDto, UpdateEmergencyDto } from '../dto/';
-import { EmergencyService } from '../services/emergency.service';
-import { ResponseMessage } from 'src/common/interfaces/responseMessage.interface';
-import { GetUser } from 'src/auth/decorators';
+import { EmergencyService } from './../services/emergency.service';
+import { ResponseMessage } from './../../../common/interfaces/responseMessage.interface';
+import { GetUser } from './../../../auth/decorators';
+import { ROLES } from './../../../common/constants';
 
 @ApiTags('Emergency')
 @ApiBearerAuth()
@@ -22,7 +23,7 @@ export class EmergencyController {
     @GetUser('id') userId: string
   ): Promise<ResponseMessage> {    
     return {
-      statusCode: 200,
+      statusCode: 201,
       data: await this.emergencyService.create(createEmergencyDto, userId),
     }
   }
@@ -55,7 +56,7 @@ export class EmergencyController {
     };
   }
 
-  @RolesAccess('ADMIN')
+  @RolesAccess(ROLES.ADMIN)
   @ApiParam({ name: 'id', type: 'string' })
   @Delete(':id')
   public async delete(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseMessage> {

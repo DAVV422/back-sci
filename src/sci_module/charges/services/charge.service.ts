@@ -13,7 +13,7 @@ export class ChargeService {
   constructor(
     @InjectRepository(ChargeEntity)
     private readonly chargeRepository: Repository<ChargeEntity>,
-  ) {}
+  ) { }
 
   public async findOne(id: string): Promise<ChargeEntity> {
     try {
@@ -67,7 +67,7 @@ export class ChargeService {
   public async update(id: string, updateChargeDto: UpdateChargeDto): Promise<ChargeEntity> {
     try {
       const charge: ChargeEntity = await this.findOne(id);
-      if(updateChargeDto.name){
+      if (updateChargeDto.name) {
         updateChargeDto.name = updateChargeDto.name.toLowerCase();
       }
       await this.chargeRepository.update(charge.id, updateChargeDto);
@@ -76,4 +76,9 @@ export class ChargeService {
       handlerError(error, this.logger);
     }
   }
+
+  async countCharges(): Promise<number> {
+    return await this.chargeRepository.count();
+  }
+
 }
