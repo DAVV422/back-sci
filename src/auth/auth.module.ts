@@ -9,10 +9,12 @@ import { JwtStrategy } from './services/implementacion/jwt.strategy';
 import { TokenValidatorService } from './services/token-validator.service';
 import { ITokenStrategy } from './services/token-strategy';
 import { JwtServiceAdapter } from './services/jwt.service';
+import { PassportModule } from '@nestjs/passport';
+import { JwtService } from '@nestjs/jwt';
 
 @Global()
 @Module({
-  imports: [UserModule, ConfigModule],
+  imports: [UserModule, ConfigModule, PassportModule.register({ defaultStrategy: 'jwt' })],
   providers: [
     {
       provide: 'ITokenStrategy',
@@ -20,7 +22,7 @@ import { JwtServiceAdapter } from './services/jwt.service';
     },
     {
       provide: TokenValidatorService,
-      useFactory: (strategy: ITokenStrategy) => new TokenValidatorService(strategy),
+      useFactory: (strategy: JwtStrategy) => new TokenValidatorService(strategy, new JwtService()),
       inject: ['ITokenStrategy'],
     },
     AuthService,
@@ -28,5 +30,6 @@ import { JwtServiceAdapter } from './services/jwt.service';
     JwtServiceAdapter,
   ],
   controllers: [AuthController],
+  exports: [PassportModule]
 })
 export class AuthModule { }
