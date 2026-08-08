@@ -221,6 +221,95 @@ describe('ResourceService', () => {
     });
   });
 
+  describe('returnResource - devolución de recursos (F1-016)', () => {
+    const baseResource = {
+      id: 'res-1',
+      amount: 5,
+      amount_returned: 0,
+      emergency: { id: 'emg-1' },
+      equipment: { id: 'eq-1', name: 'Casco' },
+    };
+    const lockedEquipment = {
+      id: 'eq-1',
+      name: 'Casco',
+      availableQuantity: 10,
+      totalQuantity: 20,
+    };
+
+    beforeEach(() => {
+      mockResourceRepo.findOne.mockResolvedValue({ ...baseResource });
+      mockManager.findOne.mockResolvedValue({ ...lockedEquipment });
+    });
+
+    it('suma amountReturned a availableQuantity y a amount_returned (AC1/AC2)', async () => {
+      await service.returnResource('res-1', 3, 'user-1');
+
+      expect(mockManager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ availableQuantity: 13 }),
+      );
+      expect(mockManager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ amount_returned: 3 }),
+      );
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+    });
+
+    it('lanza BadRequestException si amountReturned excede lo asignado (AC3)', async () => {
+      await expect(
+        service.returnResource('res-1', 6, 'user-1'),
+      ).rejects.toThrow('Cantidad a devolver excede lo asignado');
+      expect(mockQueryRunner.commitTransaction).not.toHaveBeenCalled();
+    });
+
+    it('rechaza devoluciones acumuladas que excedan lo asignado (AC3)', async () => {
+      const resource = { ...baseResource };
+      mockResourceRepo.findOne.mockResolvedValue(resource);
+
+      await service.returnResource('res-1', 3, 'user-1');
+      await expect(
+        service.returnResource('res-1', 3, 'user-1'),
+      ).rejects.toThrow('Cantidad a devolver excede lo asignado');
+    });
+
+    it('permite la devolución con emergencia finalizada (AC6)', async () => {
+      mockResourceRepo.findOne.mockResolvedValue({
+        ...baseResource,
+        emergency: { id: 'emg-1', state: EmergencyStatus.Finished },
+      });
+
+      const result = await service.returnResource('res-1', 2, 'user-1');
+
+      expect(mockEmergencyService.assertEditable).not.toHaveBeenCalled();
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+      expect(result.id).toBe('res-1');
+    });
+
+    it('registra ActionEntity con la descripción de la devolución (AC4)', async () => {
+      await service.returnResource('res-1', 3, 'user-1');
+
+      expect(mockManager.create).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          description: 'Devolución de recurso: Casco x3',
+          user: { id: 'user-1' },
+          emergency: { id: 'emg-1' },
+        }),
+      );
+    });
+
+    it('hace rollback si la devolución supera totalQuantity (AC8)', async () => {
+      mockManager.findOne.mockResolvedValue({
+        ...lockedEquipment,
+        availableQuantity: 19,
+      });
+
+      await expect(
+        service.returnResource('res-1', 3, 'user-1'),
+      ).rejects.toThrow('La devolución supera la cantidad total del equipo');
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.commitTransaction).not.toHaveBeenCalled();
+    });
+  });
+
   describe('update - bloqueo de edición (F1-011)', () => {
     it('lanza BadRequestException al actualizar recurso de emergencia finalizada', async () => {
       mockResourceRepo.findOne.mockResolvedValue({

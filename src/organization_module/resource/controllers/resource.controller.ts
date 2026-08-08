@@ -17,8 +17,10 @@ import { CreateResourceDto } from '../dto/create-resource.dto';
 import { UpdateResourceDto } from '../dto/update-resource.dto';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { AuthGuard, RolesGuard } from '../../../auth/guards';
-import { GetUser } from '../../../auth/decorators';
+import { GetUser, RolesAccess } from '../../../auth/decorators';
+import { ROLES } from '../../../common/constants';
 import { ResourceEntity } from '../entities/resource.entity';
+import { ReturnResourceDto } from '../dto/return-resource.dto';
 
 @ApiTags('Resource')
 @ApiBearerAuth()
@@ -48,6 +50,25 @@ export class ResourceController {
       success: true,
       statusCode: 201,
       data: await this.resourceService.create(createResourceDto, userId),
+    };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
+  @Patch(':id/return')
+  @RolesAccess(ROLES.MANAGER)
+  public async returnResource(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() returnResourceDto: ReturnResourceDto,
+    @GetUser('id') userId: string,
+  ): Promise<ApiResponse<ResourceEntity>> {
+    return {
+      success: true,
+      statusCode: 200,
+      data: await this.resourceService.returnResource(
+        id,
+        returnResourceDto.amountReturned,
+        userId,
+      ),
     };
   }
 

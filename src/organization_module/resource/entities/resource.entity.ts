@@ -11,6 +11,9 @@ export class ResourceEntity extends BaseEntity {
   @Column({ name: 'note', type: 'varchar', length: 255, nullable: false })
   note: string;
 
+  @Column({ name: 'amount_returned', type: 'int', default: 0 })
+  amount_returned: number;
+
   @ManyToOne(() => EmergencyEntity, (emergency) => emergency.resources, {
     nullable: false,
     onDelete: 'CASCADE',

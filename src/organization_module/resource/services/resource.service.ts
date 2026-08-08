@@ -109,6 +109,69 @@ export class ResourceService {
     }
   }
 
+  public async returnResource(
+    id: string,
+    amountReturned: number,
+    userId: string,
+  ): Promise<ResourceEntity> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    try {
+      const resource = await this.findOne(id);
+      const pending = resource.amount - resource.amount_returned;
+      if (amountReturned > pending)
+        throw new BadRequestException('Cantidad a devolver excede lo asignado');
+
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const lockedEquipment = await queryRunner.manager.findOne(
+          EquipmentEntity,
+          {
+            where: { id: resource.equipment.id, isDeleted: false },
+            lock: { mode: 'pessimistic_write' },
+          },
+        );
+        if (!lockedEquipment)
+          throw new NotFoundException('Equipment not found.');
+        if (
+          lockedEquipment.availableQuantity + amountReturned >
+          lockedEquipment.totalQuantity
+        )
+          throw new BadRequestException(
+            'La devolución supera la cantidad total del equipo',
+          );
+
+        lockedEquipment.availableQuantity += amountReturned;
+        await queryRunner.manager.save(lockedEquipment);
+
+        resource.amount_returned += amountReturned;
+        await queryRunner.manager.save(resource);
+
+        const now = new Date();
+        const action = queryRunner.manager.create(ActionEntity, {
+          description: `Devolución de recurso: ${resource.equipment.name} x${amountReturned}`,
+          date: now,
+          hour: `${String(now.getHours()).padStart(2, '0')}:${String(
+            now.getMinutes(),
+          ).padStart(2, '0')}`,
+          user: { id: userId },
+          emergency: { id: resource.emergency.id },
+        });
+        await queryRunner.manager.save(action);
+
+        await queryRunner.commitTransaction();
+        return await this.findOne(id);
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      }
+    } catch (error) {
+      handlerError(error, this.logger);
+    } finally {
+      if (queryRunner.isReleased === false) await queryRunner.release();
+    }
+  }
+
   public async update(
     id: string,
     updateResourceDto: UpdateResourceDto,
