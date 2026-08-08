@@ -17,6 +17,10 @@ import {
   ApiResponse,
   PaginatedResult,
 } from '../../common/interfaces/responseMessage.interface';
+import {
+  USER_ALLOWED_ATTRS,
+  validateAllowedAttrs,
+} from '../../common/decorators/allowed-query-attrs.decorator';
 
 @Injectable()
 export class UserService {
@@ -32,6 +36,7 @@ export class UserService {
   ): Promise<PaginatedResult<UserEntity>> {
     try {
       const { limit, offset, order, attr, value } = queryDto;
+      validateAllowedAttrs(attr, USER_ALLOWED_ATTRS);
       const query = this.userRepository.createQueryBuilder('user');
       if (limit) query.take(limit);
       if (offset) query.skip(offset);

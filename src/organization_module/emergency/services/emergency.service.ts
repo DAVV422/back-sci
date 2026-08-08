@@ -16,6 +16,10 @@ import {
   ApiResponse,
   PaginatedResult,
 } from '../../../common/interfaces/responseMessage.interface';
+import {
+  EMERGENCY_ALLOWED_ATTRS,
+  validateAllowedAttrs,
+} from '../../../common/decorators/allowed-query-attrs.decorator';
 import { UserService } from '../../../user/services/user.service';
 
 @Injectable()
@@ -33,6 +37,7 @@ export class EmergencyService {
   ): Promise<PaginatedResult<EmergencyEntity>> {
     try {
       const { limit, offset, order = 'DESC', attr, value } = queryDto;
+      validateAllowedAttrs(attr, EMERGENCY_ALLOWED_ATTRS);
       const query = this.emergencyRepository.createQueryBuilder('emergency');
       query.leftJoinAndSelect('emergency.user', 'user');
       query.leftJoinAndSelect('emergency.attends', 'attend');
