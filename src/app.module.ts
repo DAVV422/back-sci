@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSourceConfig } from './config/data.source';
@@ -8,6 +8,7 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 // import { ProvidersModule } from './providers/providers.module';
 import { CommonModule } from './common/common.module';
+import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 import { SeederModule } from './seeder/seeder.module';
 // import { MongooseModule } from '@nestjs/mongoose';
 import { ActionModule } from './incident_module/action/action.module';
@@ -53,6 +54,10 @@ import { RegistrationModule } from './victim_registry_module/registration/regist
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditLogInterceptor,
     },
   ],
 })
