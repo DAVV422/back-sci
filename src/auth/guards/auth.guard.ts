@@ -39,7 +39,9 @@ export class AuthGuard implements CanActivate {
       if (error instanceof HttpException) {
         throw error;
       }
-      throw new InternalServerErrorException('Error al validar el token');
+      throw new InternalServerErrorException(
+        'Error interno al validar el token',
+      );
     }
   }
 }
