@@ -19,6 +19,15 @@ export class ChargeEntity extends BaseEntity {
   })
   weight: number;
 
+  @Column({
+    name: 'system_name',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+    unique: true,
+  })
+  system_name?: string;
+
   @OneToMany(() => AttendEntity, (attend) => attend.charge)
   attends: AttendEntity[];
 }

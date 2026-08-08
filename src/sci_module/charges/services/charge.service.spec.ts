@@ -80,4 +80,30 @@ describe('ChargeService', () => {
       });
     });
   });
+
+  describe('create - system_name (F1-013)', () => {
+    it('persiste el system_name enviado', async () => {
+      mockRepo.save.mockImplementation(async (data: any) => ({
+        id: 'charge-1',
+        ...data,
+      }));
+      mockRepo.findOne.mockResolvedValue({
+        id: 'charge-1',
+        name: 'comandante del incidente',
+        system_name: 'incident_commander',
+      });
+
+      const result = await service.create({
+        name: 'comandante del incidente',
+        level: 1,
+        weight: 1,
+        system_name: 'incident_commander',
+      });
+
+      expect(mockRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ system_name: 'incident_commander' }),
+      );
+      expect(result.system_name).toBe('incident_commander');
+    });
+  });
 });

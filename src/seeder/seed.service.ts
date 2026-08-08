@@ -6,6 +6,7 @@ import { CreateUserDto } from './../user/dto';
 import { UserService } from './../user/services/user.service';
 import { CreateChargeDto } from './../sci_module/charges/dto/create-charge.dto';
 import { ChargeService } from './../sci_module/charges/services/charge.service';
+import { ChargeEntity } from './../sci_module/charges/entities/charges.entity';
 
 @Injectable()
 export class SeedService {
@@ -89,7 +90,12 @@ export class SeedService {
   async cargarChargeSCI(): Promise<void> {
     const cargos: CreateChargeDto[] = [
       // ================= NIVEL 1 =================
-      { name: 'Comandante del Incidente', level: 1, weight: 1 },
+      {
+        name: 'Comandante del Incidente',
+        level: 1,
+        weight: 1,
+        system_name: 'incident_commander',
+      },
 
       // ================= NIVEL 2 =================
       // Estado Mayor de Comando
@@ -98,10 +104,30 @@ export class SeedService {
       { name: 'Oficial de Información Pública', level: 2, weight: 4 },
 
       // Jefes de Sección
-      { name: 'Jefe de Operaciones', level: 2, weight: 5 },
-      { name: 'Jefe de Planificación', level: 2, weight: 6 },
-      { name: 'Jefe de Logística', level: 2, weight: 7 },
-      { name: 'Jefe de Administración y Finanzas', level: 2, weight: 8 },
+      {
+        name: 'Jefe de Operaciones',
+        level: 2,
+        weight: 5,
+        system_name: 'operations_chief',
+      },
+      {
+        name: 'Jefe de Planificación',
+        level: 2,
+        weight: 6,
+        system_name: 'planning_chief',
+      },
+      {
+        name: 'Jefe de Logística',
+        level: 2,
+        weight: 7,
+        system_name: 'logistics_chief',
+      },
+      {
+        name: 'Jefe de Administración y Finanzas',
+        level: 2,
+        weight: 8,
+        system_name: 'admin_finance_chief',
+      },
 
       // ================= NIVEL 3 =================
       // Operaciones
@@ -139,7 +165,20 @@ export class SeedService {
 
     for (const cargo of cargos) {
       try {
-        await this.chargeService.create(cargo);
+        let existing: ChargeEntity | null = null;
+        try {
+          existing = await this.chargeService.findByName(cargo.name);
+        } catch (error) {
+          existing = null;
+        }
+
+        if (existing) {
+          await this.chargeService.update(existing.id, {
+            system_name: cargo.system_name,
+          });
+        } else {
+          await this.chargeService.create(cargo);
+        }
       } catch (error) {
         this.logger.error(`Error al crear cargo SCI: ${cargo.name}`, error);
       }

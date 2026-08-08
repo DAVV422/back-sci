@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateChargeDto {
   @ApiProperty({
@@ -28,4 +28,14 @@ export class CreateChargeDto {
   @IsNotEmpty()
   @IsNumber()
   weight: number;
+
+  @ApiPropertyOptional({
+    example: 'incident_commander',
+    type: String,
+    description:
+      'Identificador programático del cargo (ej. incident_commander). Único entre cargos que lo definen.',
+  })
+  @IsOptional()
+  @IsString()
+  system_name?: string;
 }
