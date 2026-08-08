@@ -48,3 +48,67 @@ describe('UserService - whitelist QueryDto.attr', () => {
     });
   });
 });
+
+describe('UserService - updateStatus', () => {
+  let service: UserService;
+  let mockRepo: any;
+
+  beforeEach(async () => {
+    mockRepo = {
+      createQueryBuilder: jest.fn(),
+      update: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+  });
+
+  it('changes is_active to false and returns the updated user', async () => {
+    const user = { id: 'uuid', name: 'John', is_active: true } as UserEntity;
+    const updated = { ...user, is_active: false } as UserEntity;
+    jest
+      .spyOn(service, 'findOne')
+      .mockResolvedValueOnce(user)
+      .mockResolvedValueOnce(updated);
+    mockRepo.update.mockResolvedValue({ affected: 1 });
+
+    const result = await service.updateStatus('uuid', { is_active: false });
+
+    expect(mockRepo.update).toHaveBeenCalledWith('uuid', {
+      is_active: false,
+    });
+    expect(result.is_active).toBe(false);
+  });
+
+  it('changes is_active to true', async () => {
+    const user = { id: 'uuid', name: 'John', is_active: false } as UserEntity;
+    const updated = { ...user, is_active: true } as UserEntity;
+    jest
+      .spyOn(service, 'findOne')
+      .mockResolvedValueOnce(user)
+      .mockResolvedValueOnce(updated);
+    mockRepo.update.mockResolvedValue({ affected: 1 });
+
+    const result = await service.updateStatus('uuid', { is_active: true });
+
+    expect(mockRepo.update).toHaveBeenCalledWith('uuid', { is_active: true });
+    expect(result.is_active).toBe(true);
+  });
+
+  it('throws BadRequestException when the update affects 0 rows', async () => {
+    jest
+      .spyOn(service, 'findOne')
+      .mockResolvedValue({ id: 'uuid' } as UserEntity);
+    mockRepo.update.mockResolvedValue({ affected: 0 });
+
+    await expect(
+      service.updateStatus('uuid', { is_active: false }),
+    ).rejects.toThrow(BadRequestException);
+  });
+});

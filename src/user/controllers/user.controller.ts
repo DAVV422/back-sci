@@ -21,7 +21,7 @@ import {
 
 import { RolesAccess } from '../../auth/decorators/roles.decorator';
 import { AuthGuard, RolesGuard } from '../../auth/guards/';
-import { CreateUserDto, UpdateUserDto } from '../dto/';
+import { CreateUserDto, UpdateUserDto, UpdateUserStatusDto } from '../dto/';
 import { UserService } from '../services/user.service';
 import { QueryDto } from '../../common/dto/query.dto';
 import { ApiResponse } from './../../common/interfaces/responseMessage.interface';
@@ -97,20 +97,17 @@ export class UserController {
 
   @RolesAccess(ROLES.MANAGER)
   @ApiParam({ name: 'id', type: 'string' })
-  @Get('/deactivate/:id')
-  public async deactivate(
+  @Patch('status/:id')
+  public async updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<ApiResponse<null>> {
-    return await this.userService.deactivate(id);
-  }
-
-  @RolesAccess(ROLES.MANAGER)
-  @ApiParam({ name: 'id', type: 'string' })
-  @Get('/deactivate/:id')
-  public async activate(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<ApiResponse<null>> {
-    return await this.userService.activate(id);
+    @Body() updateUserStatusDto: UpdateUserStatusDto,
+  ): Promise<ApiResponse<UserEntity>> {
+    return {
+      success: true,
+      statusCode: 200,
+      message: 'Estado del usuario actualizado.',
+      data: await this.userService.updateStatus(id, updateUserStatusDto),
+    };
   }
 
   @RolesAccess(ROLES.ADMIN)

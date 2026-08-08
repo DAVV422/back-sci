@@ -9,7 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 
-import { CreateUserDto, UpdateUserDto } from '../dto/';
+import { CreateUserDto, UpdateUserDto, UpdateUserStatusDto } from '../dto/';
 import { UserEntity } from '../entities/user.entity';
 import { handlerError } from '../../common/utils/handlerError.utils';
 import { QueryDto } from '../../common/dto/query.dto';
@@ -113,41 +113,20 @@ export class UserService {
     }
   }
 
-  public async deactivate(id: string): Promise<ApiResponse<null>> {
+  public async updateStatus(
+    id: string,
+    updateUserStatusDto: UpdateUserStatusDto,
+  ): Promise<UserEntity> {
     try {
-      const user = await this.findOne(id);
-      user.is_active = false;
-      const deletedUser = await this.userRepository.update(user.id, user);
-      if (deletedUser.affected === 0)
+      await this.findOne(id);
+      const userUpdated = await this.userRepository.update(id, {
+        is_active: updateUserStatusDto.is_active,
+      });
+      if (userUpdated.affected === 0)
         throw new BadRequestException(
           'No se pudo cambiar el estado del usuario.',
         );
-      return {
-        success: true,
-        statusCode: 200,
-        message: 'Estado del usuario cambiado.',
-        data: null,
-      };
-    } catch (error) {
-      handlerError(error, this.logger);
-    }
-  }
-
-  public async activate(id: string): Promise<ApiResponse<null>> {
-    try {
-      const user = await this.findOne(id);
-      user.is_active = true;
-      const deletedUser = await this.userRepository.update(user.id, user);
-      if (deletedUser.affected === 0)
-        throw new BadRequestException(
-          'No se pudo cambiar el estado del usuario.',
-        );
-      return {
-        success: true,
-        statusCode: 200,
-        message: 'Estado del usuario cambiado.',
-        data: null,
-      };
+      return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
     }

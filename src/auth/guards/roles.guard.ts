@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -51,8 +52,6 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    throw new UnauthorizedException(
-      'No tienes permisos para acceder a esta ruta',
-    );
+    throw new ForbiddenException('No tienes permisos para acceder a esta ruta');
   }
 }
