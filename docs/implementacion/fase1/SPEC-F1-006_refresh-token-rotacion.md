@@ -37,7 +37,7 @@ Actualmente el sistema solo genera un `accessToken` al hacer login. Se debe impl
 |:---|:---|:---|
 | `id` | UUID, PK | Hereda de `BaseEntity` |
 | `user_id` | UUID, FK → user | Relación `@ManyToOne` |
-| `token_hash` | varchar(255) | Hash bcrypt del refresh token |
+| `token_hash` | varchar(255) | Hash SHA-256 (hex) del refresh token |
 | `is_revoked` | boolean, default false | Se marca `true` al rotar |
 | `expires_at` | timestamp | Fecha de expiración del token |
 | `created_at` | timestamp | Hereda de `BaseEntity` |
@@ -47,13 +47,17 @@ Actualmente el sistema solo genera un `accessToken` al hacer login. Se debe impl
 
 ```
 1. POST /api/login → genera accessToken (corta duración) + refreshToken (larga duración)
-2. Persistir bcrypt.hash(refreshToken) en RefreshTokenEntity
+2. Persistir sha256(refreshToken) en RefreshTokenEntity
 3. POST /api/refresh-token { refreshToken }
    a. Buscar token por user_id donde is_revoked = false
-   b. bcrypt.compare(refreshToken, token_hash)
+   b. Comparar sha256(refreshToken) con token_hash
    c. Si válido: revocar token anterior (is_revoked = true), generar nuevos tokens
    d. Si inválido/revocado: HTTP 401
 ```
+
+> **Nota:** se usa SHA-256 en lugar de bcrypt para el hash del refresh token porque bcrypt
+> trunca la entrada en 72 bytes. Los JWT comparten los primeros 72 bytes (header + `sub` + `role` + `iat`),
+> por lo que dos tokens distintos podrían validarse como el mismo, rompiendo la rotación.
 
 ## Criterios de aceptación
 

@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthService } from './services/auth.service';
 import { AuthController } from './controllers/auth.controller';
@@ -11,12 +12,14 @@ import { ITokenStrategy } from './services/token-strategy';
 import { JwtServiceAdapter } from './services/jwt.service';
 import { PassportModule } from '@nestjs/passport';
 import { JwtService } from '@nestjs/jwt';
+import { RefreshTokenEntity } from './entities/refresh-token.entity';
 
 @Global()
 @Module({
   imports: [
     UserModule,
     ConfigModule,
+    TypeOrmModule.forFeature([RefreshTokenEntity]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
   ],
   providers: [

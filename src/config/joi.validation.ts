@@ -22,4 +22,5 @@ export const configValidationSchema = Joi.object({
   HASH_SALT: Joi.number().default(10),
   JWT_AUTH: Joi.string().default('secret'),
   JWT_RECOVERY: Joi.string().default('secret'),
+  JWT_REFRESH_EXPIRATION: Joi.string().default('7d'),
 });

@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Post, Query } from '@nestjs/common';
 import { ApiQuery, ApiTags } from '@nestjs/swagger/dist/decorators';
 import { Throttle } from '@nestjs/throttler';
 
 import { AuthDTO } from '../dto/auth.dto';
+import { RefreshTokenDTO } from '../dto/refresh-token.dto';
 import { AuthService } from '../services/auth.service';
-import { CreateUserDto } from '../../user/dto';
 import { ApiResponse } from 'src/common/interfaces/responseMessage.interface';
 import { UserService } from '../../user/services/user.service';
 import { ILoginResponse } from '../interfaces/login.interface';
@@ -37,6 +37,18 @@ export class AuthController {
       success: true,
       statusCode: 200,
       data: await this.authService.login(email, password),
+    };
+  }
+
+  @Throttle({ short: { ttl: 60000, limit: 10 } }) // 10 intentos/min
+  @Post('refresh-token')
+  public async refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDTO,
+  ): Promise<ApiResponse<ILoginResponse>> {
+    return {
+      success: true,
+      statusCode: 200,
+      data: await this.authService.refreshToken(refreshTokenDto.refreshToken),
     };
   }
 

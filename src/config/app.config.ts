@@ -20,4 +20,5 @@ export const EnvConfig = () => ({
   HASH_SALT: process.env.HASH_SALT || 10,
   JWT_AUTH: process.env.JWT_AUTH || 'secret',
   JWT_RECOVERY: process.env.JWT_RECOVERY || 'secret',
+  JWT_REFRESH_EXPIRATION: process.env.JWT_REFRESH_EXPIRATION || '7d',
 });

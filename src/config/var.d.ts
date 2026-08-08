@@ -19,5 +19,6 @@ declare namespace NodeJS {
     HASH_SALT: number;
     JWT_AUTH: string;
     JWT_RECOVERY: string;
+    JWT_REFRESH_EXPIRATION: string;
   }
 }
