@@ -34,6 +34,7 @@ export class DataFireService {
     try {
       const { limit, offset } = queryDto;
       const query = this.dataFireRepository.createQueryBuilder('dataFire');
+      query.andWhere('dataFire.is_deleted = false');
       if (limit) query.take(limit);
       if (offset) query.skip(offset);
       const [items, total] = await query.getManyAndCount();
@@ -68,7 +69,7 @@ export class DataFireService {
   ): Promise<DataFireEntity[]> {
     try {
       const dataFires: DataFireEntity[] = await this.dataFireRepository.find({
-        where: { emergency: { id: emergencyId } },
+        where: { emergency: { id: emergencyId }, isDeleted: false },
       });
       if (!dataFires || dataFires.length === 0)
         throw new NotFoundException(
@@ -83,7 +84,7 @@ export class DataFireService {
   public async findOne(id: string): Promise<DataFireEntity> {
     try {
       const dataFire: DataFireEntity = await this.dataFireRepository.findOne({
-        where: { id },
+        where: { id, isDeleted: false },
       });
       if (!dataFire)
         throw new NotFoundException('Datos de incendio no encontrado.');
@@ -115,8 +116,9 @@ export class DataFireService {
   public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const dataFire = await this.findOne(id);
-      const deletedEmergency = await this.dataFireRepository.delete(
+      const deletedEmergency = await this.dataFireRepository.update(
         dataFire.id,
+        { isDeleted: true },
       );
       if (deletedEmergency.affected === 0)
         throw new BadRequestException('Datos de incendio no eliminado.');

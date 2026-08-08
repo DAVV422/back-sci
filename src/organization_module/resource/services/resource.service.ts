@@ -24,7 +24,7 @@ export class ResourceService {
   public async findOne(id: string): Promise<ResourceEntity> {
     try {
       const resource = await this.resourceRepository.findOne({
-        where: { id },
+        where: { id, isDeleted: false },
         relations: ['equipment', 'emergency'],
       });
       if (!resource) throw new NotFoundException('Resource not found.');
@@ -80,7 +80,7 @@ export class ResourceService {
   public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const resource = await this.findOne(id);
-      await this.resourceRepository.delete(resource.id);
+      await this.resourceRepository.update(resource.id, { isDeleted: true });
       return {
         success: true,
         statusCode: 200,
@@ -100,7 +100,7 @@ export class ResourceService {
       console.log(emergency);
       if (!emergency) throw new NotFoundException('Emergency not found.');
       return await this.resourceRepository.find({
-        where: { emergency: { id: emergency.id } },
+        where: { emergency: { id: emergency.id }, isDeleted: false },
         relations: ['equipment', 'emergency'],
       });
     } catch (error) {
@@ -116,7 +116,7 @@ export class ResourceService {
       if (!equipment) throw new NotFoundException('Equipment not found.');
 
       return await this.resourceRepository.find({
-        where: { equipment },
+        where: { equipment, isDeleted: false },
         relations: ['equipment', 'emergency'],
       });
     } catch (error) {

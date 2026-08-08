@@ -30,7 +30,7 @@ export class AttendService {
   public async findOne(id: string): Promise<AttendEntity> {
     try {
       const attend: AttendEntity = await this.attendRepository.findOne({
-        where: { id },
+        where: { id, isDeleted: false },
         relations: ['emergency', 'user', 'charge'],
       });
       if (!attend) throw new NotFoundException('Asistencia no encontrada.');
@@ -65,7 +65,9 @@ export class AttendService {
       const attend = await this.findOne(id);
       if (attend.emergency)
         this.emergencyService.assertEditable(attend.emergency);
-      const deletedAttend = await this.attendRepository.delete(attend.id);
+      const deletedAttend = await this.attendRepository.update(attend.id, {
+        isDeleted: true,
+      });
       if (deletedAttend.affected === 0)
         throw new BadRequestException('Asistencia no eliminada.');
       return {
@@ -82,7 +84,7 @@ export class AttendService {
   public async findByEmergency(emergencyId: string): Promise<AttendEntity[]> {
     try {
       const attends: AttendEntity[] = await this.attendRepository.find({
-        where: { emergency: { id: emergencyId } },
+        where: { emergency: { id: emergencyId }, isDeleted: false },
         relations: ['emergency', 'user', 'charge'],
       });
       if (!attends || attends.length === 0)
@@ -98,7 +100,7 @@ export class AttendService {
   public async findByUser(userId: string): Promise<AttendEntity[]> {
     try {
       const attends: AttendEntity[] = await this.attendRepository.find({
-        where: { user: { id: userId } },
+        where: { user: { id: userId }, isDeleted: false },
         relations: ['emergency', 'user'],
       });
       if (!attends || attends.length === 0)

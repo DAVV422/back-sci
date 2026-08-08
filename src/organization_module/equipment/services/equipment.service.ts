@@ -57,6 +57,7 @@ export class EquipmentService {
     try {
       const { limit, offset, order = 'DESC', attr, value } = queryDto;
       const query = this.equipmentRepository.createQueryBuilder('equipment');
+      query.andWhere('equipment.is_deleted = false');
       if (limit) query.take(limit);
       if (offset) query.skip(offset);
       const [items, total] = await query.getManyAndCount();
@@ -69,7 +70,7 @@ export class EquipmentService {
   public async findOne(id: string): Promise<EquipmentEntity> {
     try {
       const equipment = await this.equipmentRepository.findOne({
-        where: { id },
+        where: { id, isDeleted: false },
       });
       if (!equipment) throw new NotFoundException('Equipo no encontrado.');
       return equipment;
@@ -81,8 +82,9 @@ export class EquipmentService {
   public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const equipment = await this.findOne(id);
-      const deletedEquipment = await this.equipmentRepository.delete(
+      const deletedEquipment = await this.equipmentRepository.update(
         equipment.id,
+        { isDeleted: true },
       );
       if (deletedEquipment.affected === 0)
         throw new BadRequestException('Equipo no eliminado.');

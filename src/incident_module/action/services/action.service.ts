@@ -27,7 +27,7 @@ export class ActionService {
   public async findOne(id: string): Promise<ActionEntity> {
     try {
       const action: ActionEntity = await this.actionRepository.findOne({
-        where: { id },
+        where: { id, isDeleted: false },
         relations: ['emergency'],
       });
       if (!action) throw new NotFoundException('Acción no encontrada.');
@@ -74,7 +74,9 @@ export class ActionService {
   public async delete(id: string): Promise<void> {
     try {
       const action = await this.findOne(id);
-      const deletedAction = await this.actionRepository.delete(action.id);
+      const deletedAction = await this.actionRepository.update(action.id, {
+        isDeleted: true,
+      });
       if (deletedAction.affected === 0)
         throw new BadRequestException('Acción no eliminada.');
     } catch (error) {
@@ -85,7 +87,7 @@ export class ActionService {
   public async findByEmergency(emergencyId: string): Promise<ActionEntity[]> {
     try {
       return await this.actionRepository.find({
-        where: { emergency: { id: emergencyId } },
+        where: { emergency: { id: emergencyId }, isDeleted: false },
         relations: ['emergency'],
       });
     } catch (error) {

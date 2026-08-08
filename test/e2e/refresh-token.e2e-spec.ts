@@ -52,7 +52,7 @@ describe('Refresh token rotation (e2e)', () => {
           email: 'john@live.com',
           password: bcrypt.hashSync(password, 10),
           role: ROLES.BASIC,
-          is_deleted: false,
+          isDeleted: false,
         }),
       ),
       findOne: jest.fn().mockResolvedValue(

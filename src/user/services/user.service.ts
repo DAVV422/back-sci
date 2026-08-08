@@ -169,7 +169,7 @@ export class UserService {
   public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const user = await this.findOne(id);
-      user.is_deleted = true;
+      user.isDeleted = true;
       const deletedUser = await this.userRepository.update(user.id, user);
       if (deletedUser.affected === 0)
         throw new BadRequestException('Usuario no eliminado.');

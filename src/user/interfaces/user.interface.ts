@@ -9,6 +9,6 @@ export interface IUser {
   birthdate?: Date;
   url_image?: string;
   is_active: boolean;
-  is_deleted: boolean;
+  isDeleted: boolean;
   role: string;
 }

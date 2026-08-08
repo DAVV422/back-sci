@@ -33,12 +33,15 @@ describe('EmergencyService', () => {
       skip: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
       getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
     };
     mockRepo = {
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
       findOne: jest.fn(),
       save: jest.fn(),
+      delete: jest.fn(),
+      update: jest.fn(),
     };
     mockUserService = {
       findOne: jest.fn(),
@@ -550,6 +553,44 @@ describe('EmergencyService', () => {
       expect(() =>
         service.assertEditable(makeEmergency(EmergencyStatus.Canceled) as any),
       ).toThrow(BadRequestException);
+    });
+  });
+
+  describe('delete - soft delete (F1-012)', () => {
+    it('marca is_deleted = true en vez de borrar físicamente', async () => {
+      mockRepo.findOne.mockResolvedValue({
+        id: 'emg-1',
+        code: 'EMG-001',
+        state: EmergencyStatus.Pending,
+      });
+      mockRepo.update = jest.fn().mockResolvedValue({ affected: 1 });
+
+      const result = await service.delete('emg-1');
+
+      expect(mockRepo.update).toHaveBeenCalledWith('emg-1', {
+        isDeleted: true,
+      });
+      expect(mockRepo.delete).not.toHaveBeenCalled();
+      expect(result.success).toBe(true);
+    });
+
+    it('lanza BadRequestException si el update no afecta filas', async () => {
+      mockRepo.findOne.mockResolvedValue({ id: 'emg-1' });
+      mockRepo.update = jest.fn().mockResolvedValue({ affected: 0 });
+
+      await expect(service.delete('emg-1')).rejects.toThrow(
+        'Emergencia no eliminada.',
+      );
+    });
+  });
+
+  describe('findAll - excluye registros soft-deleted (F1-012)', () => {
+    it('agrega filtro is_deleted = false a la query', async () => {
+      await service.findAll({} as QueryDto);
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'emergency.is_deleted = false',
+      );
     });
   });
 });

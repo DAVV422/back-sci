@@ -142,4 +142,39 @@ describe('ResourceService', () => {
       expect(result.amount).toBe(5);
     });
   });
+
+  describe('delete - soft delete (F1-012)', () => {
+    it('marca is_deleted = true en vez de borrar físicamente', async () => {
+      mockResourceRepo.findOne.mockResolvedValue({
+        id: 'res-1',
+        emergency: { id: 'emg-1', state: EmergencyStatus.Active },
+      });
+
+      const result = await service.delete('res-1');
+
+      expect(mockResourceRepo.update).toHaveBeenCalledWith('res-1', {
+        isDeleted: true,
+      });
+      expect(mockResourceRepo.delete).not.toHaveBeenCalled();
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('findByEmergencyId - excluye recursos soft-deleted (F1-012)', () => {
+    it('filtra por isDeleted: false', async () => {
+      mockEmergencyService.findOne.mockResolvedValue({ id: 'emg-1' });
+      mockResourceRepo.find.mockResolvedValue([]);
+
+      await service.findByEmergencyId('emg-1');
+
+      expect(mockResourceRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            emergency: { id: 'emg-1' },
+            isDeleted: false,
+          },
+        }),
+      );
+    });
+  });
 });

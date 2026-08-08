@@ -27,7 +27,7 @@ describe('AttendService', () => {
       }),
       create: jest.fn((data: any) => ({ ...data })),
       save: jest.fn(async (data: any) => ({ id: 'att-1', ...data })),
-      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
       find: jest.fn(),
     };
 
@@ -110,7 +110,7 @@ describe('AttendService', () => {
       await expect(service.delete('att-1')).rejects.toThrow(
         'La emergencia está finalizada. No se permiten ediciones.',
       );
-      expect(mockAttendRepo.delete).not.toHaveBeenCalled();
+      expect(mockAttendRepo.update).not.toHaveBeenCalled();
     });
 
     it('permite eliminar asistencia de emergencia activa', async () => {
@@ -122,7 +122,9 @@ describe('AttendService', () => {
 
       const result = await service.delete('att-1');
 
-      expect(mockAttendRepo.delete).toHaveBeenCalledWith('att-1');
+      expect(mockAttendRepo.update).toHaveBeenCalledWith('att-1', {
+        isDeleted: true,
+      });
       expect(result.success).toBe(true);
     });
   });

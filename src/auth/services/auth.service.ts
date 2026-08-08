@@ -34,7 +34,7 @@ export class AuthService {
       const user = await this.userService.findByEmail(email);
       if (!user)
         throw new NotFoundException('Usuario o contraseña incorrecta.');
-      if (user.is_deleted) throw new NotFoundException('Ocurrió un problema.');
+      if (user.isDeleted) throw new NotFoundException('Ocurrió un problema.');
 
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch)

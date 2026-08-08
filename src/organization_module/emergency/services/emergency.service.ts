@@ -53,6 +53,7 @@ export class EmergencyService {
       query.leftJoinAndSelect('emergency.attends', 'attend');
       query.leftJoinAndSelect('attend.charge', 'charge');
       query.leftJoinAndSelect('emergency.form201', 'form201');
+      query.andWhere('emergency.is_deleted = false');
       if (limit) query.take(limit);
       if (offset) query.skip(offset);
       query.orderBy('emergency.date', order.toLocaleUpperCase() as any);
@@ -109,7 +110,7 @@ export class EmergencyService {
   public async findOne(id: string): Promise<EmergencyEntity> {
     try {
       const emergency: EmergencyEntity = await this.emergencyRepository.findOne(
-        { where: { id } },
+        { where: { id, isDeleted: false } },
       );
       if (!emergency) throw new NotFoundException('Emergencia no encontrada.');
       return emergency;
@@ -159,7 +160,7 @@ export class EmergencyService {
   ): Promise<EmergencyEntity> {
     try {
       const emergency = await this.emergencyRepository.findOne({
-        where: { id },
+        where: { id, isDeleted: false },
         relations: ['form201', 'form207'],
       });
       if (!emergency) throw new NotFoundException('Emergencia no encontrada.');
@@ -228,8 +229,9 @@ export class EmergencyService {
   public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const emergency = await this.findOne(id);
-      const deletedEmergency = await this.emergencyRepository.delete(
+      const deletedEmergency = await this.emergencyRepository.update(
         emergency.id,
+        { isDeleted: true },
       );
       if (deletedEmergency.affected === 0)
         throw new BadRequestException('Emergencia no eliminada.');

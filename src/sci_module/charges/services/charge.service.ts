@@ -24,7 +24,7 @@ export class ChargeService {
   public async findOne(id: string): Promise<ChargeEntity> {
     try {
       const charge: ChargeEntity = await this.chargeRepository.findOne({
-        where: { id },
+        where: { id, isDeleted: false },
       });
       if (!charge) throw new NotFoundException('Charge not found.');
       return charge;
@@ -36,7 +36,7 @@ export class ChargeService {
   public async findByName(name: string): Promise<ChargeEntity> {
     try {
       const charge: ChargeEntity = await this.chargeRepository.findOne({
-        where: { name },
+        where: { name, isDeleted: false },
       });
       if (!charge) throw new NotFoundException('Charge not found.');
       return charge;
@@ -60,7 +60,9 @@ export class ChargeService {
   public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const charge = await this.findOne(id);
-      const deletedCharge = await this.chargeRepository.delete(charge.id);
+      const deletedCharge = await this.chargeRepository.update(charge.id, {
+        isDeleted: true,
+      });
       if (deletedCharge.affected === 0)
         throw new BadRequestException('Charge not deleted.');
       return {
@@ -76,7 +78,9 @@ export class ChargeService {
 
   public async findAll(): Promise<ChargeEntity[]> {
     try {
-      return await this.chargeRepository.find();
+      return await this.chargeRepository.find({
+        where: { isDeleted: false },
+      });
     } catch (error) {
       handlerError(error, this.logger);
     }
@@ -99,6 +103,8 @@ export class ChargeService {
   }
 
   async countCharges(): Promise<number> {
-    return await this.chargeRepository.count();
+    return await this.chargeRepository.count({
+      where: { isDeleted: false },
+    });
   }
 }

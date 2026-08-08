@@ -101,4 +101,30 @@ describe('ActionService', () => {
       expect(result.id).toBe('act-1');
     });
   });
+
+  describe('delete - soft delete (F1-012)', () => {
+    it('marca is_deleted = true en vez de borrar físicamente', async () => {
+      mockActionRepo.findOne.mockResolvedValue({
+        id: 'act-1',
+        emergency: { id: 'emg-1' },
+      });
+      mockActionRepo.update.mockResolvedValue({ affected: 1 });
+
+      await service.delete('act-1');
+
+      expect(mockActionRepo.update).toHaveBeenCalledWith('act-1', {
+        isDeleted: true,
+      });
+      expect(mockActionRepo.delete).not.toHaveBeenCalled();
+    });
+
+    it('lanza BadRequestException si el update no afecta filas', async () => {
+      mockActionRepo.findOne.mockResolvedValue({ id: 'act-1' });
+      mockActionRepo.update.mockResolvedValue({ affected: 0 });
+
+      await expect(service.delete('act-1')).rejects.toThrow(
+        'Acción no eliminada.',
+      );
+    });
+  });
 });
