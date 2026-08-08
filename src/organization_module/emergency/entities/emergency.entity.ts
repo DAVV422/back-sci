@@ -10,6 +10,15 @@ import { EmergencyStatus } from '../enums/emergency-status.enum';
 
 @Entity({ name: 'emergency' })
 export class EmergencyEntity extends BaseEntity {
+  @Column({
+    name: 'code',
+    type: 'varchar',
+    length: 20,
+    unique: true,
+    nullable: false,
+  })
+  code: string;
+
   @Column({ name: 'name', type: 'varchar', length: 100, nullable: false })
   name: string;
 

@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 
 import { CreateEmergencyDto } from '../dto/create-emergency.dto';
 import { UpdateEmergencyDto } from '../dto/update-emergency.dto';
@@ -30,6 +30,7 @@ export class EmergencyService {
     @InjectRepository(EmergencyEntity)
     private readonly emergencyRepository: Repository<EmergencyEntity>,
     private readonly userService: UserService,
+    private readonly dataSource: DataSource,
   ) {}
 
   public async findAll(
@@ -62,15 +63,34 @@ export class EmergencyService {
     try {
       const { ...createEmergency } = createEmergencyDto;
       const userEntity = await this.userService.findOne(userId);
-      const emergency_create: EmergencyEntity =
-        await this.emergencyRepository.create({
-          ...createEmergency,
-          user: { id: userEntity.id },
-        });
-      const emergency_created = await this.emergencyRepository.save(
-        emergency_create,
-      );
-      return await this.findOne(emergency_created.id);
+
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const result = await queryRunner.query(
+          `SELECT COALESCE(MAX(CAST(SUBSTRING(code FROM 5) AS INTEGER)), 0) + 1 AS next_val FROM emergency`,
+        );
+        const nextCode = `EMG-${String(result[0].next_val).padStart(3, '0')}`;
+        const emergencyCreate: EmergencyEntity = queryRunner.manager.create(
+          EmergencyEntity,
+          {
+            ...createEmergency,
+            code: nextCode,
+            user: { id: userEntity.id },
+          },
+        );
+        const emergencyCreated = await queryRunner.manager.save(
+          emergencyCreate,
+        );
+        await queryRunner.commitTransaction();
+        return await this.findOne(emergencyCreated.id);
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      } finally {
+        await queryRunner.release();
+      }
     } catch (error) {
       handlerError(error, this.logger);
     }
