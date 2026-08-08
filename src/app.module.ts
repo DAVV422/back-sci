@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSourceConfig } from './config/data.source';
 import { UserModule } from './user/user.module';
@@ -23,6 +25,13 @@ import { RegistrationModule } from './victim_registry_module/registration/regist
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
     TypeOrmModule.forRoot({ ...DataSourceConfig }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'short',
+        ttl: 60000, // 1 minuto
+        limit: 10, // 10 requests por defecto
+      },
+    ]),
     // MongooseModule.forRoot(process.env.URL_MONGO),
     ChargesModule,
     // ProvidersModule,
@@ -39,6 +48,12 @@ import { RegistrationModule } from './victim_registry_module/registration/regist
     ResourceModule,
     VictimModule,
     RegistrationModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

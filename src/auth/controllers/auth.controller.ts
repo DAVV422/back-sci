@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiQuery, ApiTags } from '@nestjs/swagger/dist/decorators';
+import { Throttle } from '@nestjs/throttler';
 
 import { AuthDTO } from '../dto/auth.dto';
 import { AuthService } from '../services/auth.service';
@@ -26,6 +27,7 @@ export class AuthController {
   //   };
   // }
 
+  @Throttle({ short: { ttl: 60000, limit: 5 } }) // 5 intentos/min
   @Post('login')
   public async login(
     @Body() authDto: AuthDTO,
