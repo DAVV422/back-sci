@@ -44,11 +44,10 @@ export class InitialAssessmentEntity extends BaseEntity {
 
   @Column({
     name: 'affected_people_estimated',
-    type: 'varchar',
-    length: 255,
+    type: 'int',
     nullable: true,
   })
-  affected_people_estimated?: string;
+  affected_people_estimated?: number;
 
   @Column({ name: 'situation_description', type: 'text', nullable: true })
   situation_description?: string;
