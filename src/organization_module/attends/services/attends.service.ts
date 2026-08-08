@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { CreateAttendDto } from '../dto/create-attend.dto';
+import { UpdateAttendDto } from '../dto/update-attend.dto';
 import { AttendEntity } from '../entities/attends.entity';
 import { handlerError } from '../../../common/utils/handlerError.utils';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
@@ -83,6 +84,53 @@ export class AttendService {
         throw error;
       }
       return await this.findOne(attend_created.id);
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
+  public async update(
+    id: string,
+    updateAttendDto: UpdateAttendDto,
+  ): Promise<AttendEntity> {
+    try {
+      const attend = await this.findOne(id);
+      if (attend.emergency)
+        this.emergencyService.assertEditable(attend.emergency);
+      const { chargeId } = updateAttendDto;
+      const chargeEntity = await this.chargeService.findOne(chargeId);
+
+      if (chargeEntity.system_name === 'incident_commander') {
+        const activeCI = await this.attendRepository.findOne({
+          where: {
+            emergency: { id: attend.emergency.id },
+            charge_system_name: 'incident_commander',
+            is_active: true,
+            isDeleted: false,
+          },
+        });
+        if (activeCI && activeCI.id !== attend.id)
+          throw new ConflictException(
+            'Ya existe un Comandante del Incidente activo para esta emergencia.',
+          );
+      }
+
+      let updated;
+      try {
+        updated = await this.attendRepository.update(attend.id, {
+          charge: { id: chargeEntity.id },
+          charge_system_name: chargeEntity.system_name ?? null,
+        });
+      } catch (error) {
+        if (error?.code === '23505')
+          throw new ConflictException(
+            'Ya existe un Comandante del Incidente activo para esta emergencia.',
+          );
+        throw error;
+      }
+      if (updated.affected === 0)
+        throw new BadRequestException('Asistencia no actualizada.');
+      return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
     }

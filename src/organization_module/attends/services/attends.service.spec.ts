@@ -196,6 +196,93 @@ describe('AttendService', () => {
     });
   });
 
+  describe('update - cambio de cargo (F1-018)', () => {
+    const baseAttend = {
+      id: 'att-1',
+      emergency: { id: 'emg-1', state: EmergencyStatus.Active },
+      charge: { id: 'charge-1' },
+    };
+
+    beforeEach(() => {
+      mockEmergencyService.assertEditable.mockReturnValue(undefined);
+    });
+
+    it('actualiza el cargo asignado y su charge_system_name (AC4)', async () => {
+      mockAttendRepo.findOne.mockResolvedValue({
+        ...baseAttend,
+        emergency: { id: 'emg-1', state: EmergencyStatus.Active },
+      });
+      mockChargeService.findOne.mockResolvedValue({
+        id: 'charge-2',
+        system_name: 'safety_officer',
+      });
+      mockAttendRepo.update.mockResolvedValue({ affected: 1 });
+
+      await service.update('att-1', { chargeId: 'charge-2' } as any);
+
+      expect(mockAttendRepo.update).toHaveBeenCalledWith('att-1', {
+        charge: { id: 'charge-2' },
+        charge_system_name: 'safety_officer',
+      });
+    });
+
+    it('rechaza asignar CI si ya existe otro activo en la emergencia (F1-014)', async () => {
+      mockAttendRepo.findOne.mockResolvedValueOnce({ ...baseAttend });
+      mockChargeService.findOne.mockResolvedValue({
+        id: 'ci-charge',
+        system_name: 'incident_commander',
+      });
+      mockAttendRepo.findOne.mockResolvedValue({
+        id: 'att-ci-2',
+        is_active: true,
+      });
+
+      await expect(
+        service.update('att-1', { chargeId: 'ci-charge' } as any),
+      ).rejects.toThrow(ConflictException);
+      expect(mockAttendRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('permite asignar CI cuando el activo existente es el mismo attend', async () => {
+      mockAttendRepo.findOne.mockResolvedValueOnce({ ...baseAttend });
+      mockChargeService.findOne.mockResolvedValue({
+        id: 'ci-charge',
+        system_name: 'incident_commander',
+      });
+      mockAttendRepo.findOne.mockResolvedValue({
+        id: 'att-1',
+        is_active: true,
+      });
+      mockAttendRepo.update.mockResolvedValue({ affected: 1 });
+
+      const result = await service.update('att-1', {
+        chargeId: 'ci-charge',
+      } as any);
+
+      expect(mockAttendRepo.update).toHaveBeenCalled();
+      expect(result.id).toBe('att-1');
+    });
+
+    it('bloquea el cambio de cargo en emergencia finalizada (F1-011)', async () => {
+      mockAttendRepo.findOne.mockResolvedValue({
+        ...baseAttend,
+        emergency: { id: 'emg-1', state: EmergencyStatus.Finished },
+      });
+      mockEmergencyService.assertEditable.mockImplementation(() => {
+        throw new BadRequestException(
+          'La emergencia está finalizada. No se permiten ediciones.',
+        );
+      });
+
+      await expect(
+        service.update('att-1', { chargeId: 'charge-2' } as any),
+      ).rejects.toThrow(
+        'La emergencia está finalizada. No se permiten ediciones.',
+      );
+      expect(mockAttendRepo.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('delete - bloqueo de edición (F1-011)', () => {
     it('lanza BadRequestException al eliminar asistencia de emergencia finalizada', async () => {
       mockAttendRepo.findOne.mockResolvedValue({
