@@ -94,7 +94,6 @@ describe('EmergencyService', () => {
       date: new Date('2024-06-19'),
       hour: '14:30',
       type: 'Incendio',
-      state: EmergencyStatus.Active,
     } as CreateEmergencyDto;
     let lastSaved: any;
 
@@ -170,10 +169,65 @@ describe('EmergencyService', () => {
     });
   });
 
+  describe('create - default state', () => {
+    let lastSaved: any;
+
+    beforeEach(() => {
+      lastSaved = null;
+      mockUserService.findOne.mockResolvedValue({ id: 'user-1' });
+      queryRunner.query.mockResolvedValue([{ next_val: 1 }]);
+      mockManager.create.mockImplementation((entity: any, data: any) => ({
+        ...data,
+      }));
+      mockManager.save.mockImplementation(async (data: any) => {
+        lastSaved = { id: 'emg-1', ...data };
+        return lastSaved;
+      });
+      mockRepo.findOne.mockImplementation(async ({ where }: any) => ({
+        id: where.id,
+        ...lastSaved,
+      }));
+    });
+
+    it('asigna state = p (Pending) al crear una emergencia sin el campo state', async () => {
+      await service.create(
+        {
+          name: 'Incendio',
+          date: new Date('2024-06-19'),
+          hour: '14:30',
+          type: 'Incendio',
+        } as CreateEmergencyDto,
+        'user-1',
+      );
+
+      expect(lastSaved.state).toBe(EmergencyStatus.Pending);
+    });
+
+    it('ignora el state enviado por el cliente y asigna p (Pending)', async () => {
+      await service.create(
+        {
+          name: 'Incendio',
+          date: new Date('2024-06-19'),
+          hour: '14:30',
+          type: 'Incendio',
+          state: EmergencyStatus.Active,
+        } as any,
+        'user-1',
+      );
+
+      expect(lastSaved.state).toBe(EmergencyStatus.Pending);
+    });
+  });
+
   describe('CreateEmergencyDto', () => {
     it('no acepta el campo code del cliente', () => {
       const instance = new CreateEmergencyDto();
       expect(instance).not.toHaveProperty('code');
+    });
+
+    it('no acepta el campo state del cliente', () => {
+      const instance = new CreateEmergencyDto();
+      expect(instance).not.toHaveProperty('state');
     });
   });
 });

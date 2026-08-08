@@ -1,13 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsArray,
-  IsEnum,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  IsUUID,
-} from 'class-validator';
-import { EmergencyStatus } from '../enums/emergency-status.enum';
+import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateEmergencyDto {
   @ApiProperty({
@@ -80,16 +72,6 @@ export class CreateEmergencyDto {
   @IsOptional()
   @IsArray()
   coordinates_pc?: number[];
-
-  @ApiProperty({
-    example: 'en curso',
-    type: String,
-    description: 'Estado de la emergencia',
-  })
-  @IsNotEmpty()
-  @IsEnum(EmergencyStatus)
-  @IsString()
-  state: EmergencyStatus;
 
   @ApiProperty({
     example: '2 horas',

@@ -1,4 +1,11 @@
-import { Column, Entity, ManyToOne, OneToMany } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  OneToOne,
+} from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { UserEntity } from '../../../user/entities/user.entity';
 import { Form201Entity } from '../../../incident_module/form-201/entities/form-201.entity';
@@ -7,6 +14,7 @@ import { ResourceEntity } from '../../resource/entities/resource.entity';
 import { ActionEntity } from '../../../incident_module/action/entities/action.entity';
 import { Form207Entity } from './../../../victim_registry_module/form-207/entities/form-207.entity';
 import { EmergencyStatus } from '../enums/emergency-status.enum';
+import { InitialAssessmentEntity } from './initial-assessment.entity';
 
 @Entity({ name: 'emergency' })
 export class EmergencyEntity extends BaseEntity {
@@ -63,11 +71,18 @@ export class EmergencyEntity extends BaseEntity {
   })
   coordinates_e?: number[];
 
-  @Column({ name: 'state', type: 'varchar', length: 1, default: 'a' })
+  @Column({ name: 'state', type: 'varchar', length: 1, default: 'p' })
   state: EmergencyStatus;
 
   @Column({ name: 'duration', type: 'varchar', length: 50, default: '' })
   duration: string;
+
+  @OneToOne(() => InitialAssessmentEntity, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'initial_assessment_id' })
+  initialAssessment?: InitialAssessmentEntity;
 
   @OneToMany(() => Form201Entity, (form201) => form201.emergency, {
     nullable: true,

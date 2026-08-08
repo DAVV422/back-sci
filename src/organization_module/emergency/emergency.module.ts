@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { EmergencyController } from './controllers/emergency.controller';
 import { EmergencyService } from './services/emergency.service';
 import { EmergencyEntity } from './entities/emergency.entity';
+import { InitialAssessmentEntity } from './entities/initial-assessment.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './../../user/user.module';
 import { DataFireEntity } from './entities/dataFires.entity';
@@ -10,7 +11,11 @@ import { DataFireService } from './services/dataFire.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([EmergencyEntity, DataFireEntity]),
+    TypeOrmModule.forFeature([
+      EmergencyEntity,
+      DataFireEntity,
+      InitialAssessmentEntity,
+    ]),
     UserModule,
   ],
   controllers: [EmergencyController, DataFireController],

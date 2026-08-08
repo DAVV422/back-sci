@@ -10,6 +10,7 @@ import { DataSource, Repository } from 'typeorm';
 import { CreateEmergencyDto } from '../dto/create-emergency.dto';
 import { UpdateEmergencyDto } from '../dto/update-emergency.dto';
 import { EmergencyEntity } from '../entities/emergency.entity';
+import { EmergencyStatus } from '../enums/emergency-status.enum';
 import { handlerError } from '../../../common/utils/handlerError.utils';
 import { QueryDto } from '../../../common/dto/query.dto';
 import {
@@ -77,6 +78,7 @@ export class EmergencyService {
           {
             ...createEmergency,
             code: nextCode,
+            state: EmergencyStatus.Pending,
             user: { id: userEntity.id },
           },
         );
