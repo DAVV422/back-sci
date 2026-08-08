@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { EmergencyController } from './controllers/emergency.controller';
 import { InitialAssessmentController } from './controllers/initial-assessment.controller';
 import { EmergencyService } from './services/emergency.service';
+import { EmergencyStateMachine } from './services/emergency-state-machine';
 import { InitialAssessmentService } from './services/initial-assessment.service';
 import { EmergencyEntity } from './entities/emergency.entity';
 import { InitialAssessmentEntity } from './entities/initial-assessment.entity';
@@ -27,7 +28,12 @@ import { DataFireService } from './services/dataFire.service';
     DataFireController,
     InitialAssessmentController,
   ],
-  providers: [EmergencyService, DataFireService, InitialAssessmentService],
+  providers: [
+    EmergencyService,
+    EmergencyStateMachine,
+    DataFireService,
+    InitialAssessmentService,
+  ],
   exports: [TypeOrmModule, EmergencyService, DataFireService],
 })
 export class EmergencyModule {}

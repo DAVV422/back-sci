@@ -14,6 +14,10 @@ export class Form207Entity extends BaseEntity {
   @Column({ name: 'date', type: 'timestamp', nullable: false })
   date: Date;
 
+  @Column({ name: 'is_finalized', type: 'boolean', default: false })
+  //Formulario finalizado
+  is_finalized: boolean;
+
   @OneToMany(() => RegistrationEntity, (registration) => registration.victim)
   registrations: RegistrationEntity[];
 

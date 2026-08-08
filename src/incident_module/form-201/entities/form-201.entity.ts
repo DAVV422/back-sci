@@ -112,6 +112,10 @@ export class Form201Entity extends BaseEntity {
   //Fecha de la emergencia
   date: Date;
 
+  @Column({ name: 'is_finalized', type: 'boolean', default: false })
+  //Formulario finalizado
+  is_finalized: boolean;
+
   @ManyToOne(() => EmergencyEntity, (emergency) => emergency.form201, {
     nullable: false,
     onDelete: 'CASCADE',

@@ -3,14 +3,17 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 
 import { CreateEmergencyDto } from '../dto/create-emergency.dto';
 import { UpdateEmergencyDto } from '../dto/update-emergency.dto';
+import { ChangeEmergencyStateDto } from '../dto/change-emergency-state.dto';
 import { EmergencyEntity } from '../entities/emergency.entity';
 import { EmergencyStatus } from '../enums/emergency-status.enum';
+import { ActionEntity } from './../../../incident_module/action/entities/action.entity';
 import { handlerError } from '../../../common/utils/handlerError.utils';
 import { QueryDto } from '../../../common/dto/query.dto';
 import {
@@ -22,6 +25,8 @@ import {
   validateAllowedAttrs,
 } from '../../../common/decorators/allowed-query-attrs.decorator';
 import { UserService } from '../../../user/services/user.service';
+import { ROLES } from '../../../common/constants';
+import { EmergencyStateMachine } from './emergency-state-machine';
 
 @Injectable()
 export class EmergencyService {
@@ -30,8 +35,11 @@ export class EmergencyService {
   constructor(
     @InjectRepository(EmergencyEntity)
     private readonly emergencyRepository: Repository<EmergencyEntity>,
+    @InjectRepository(ActionEntity)
+    private readonly actionRepository: Repository<ActionEntity>,
     private readonly userService: UserService,
     private readonly dataSource: DataSource,
+    private readonly stateMachine: EmergencyStateMachine,
   ) {}
 
   public async findAll(
@@ -129,6 +137,80 @@ export class EmergencyService {
     }
   }
 
+  public async changeState(
+    id: string,
+    changeStateDto: ChangeEmergencyStateDto,
+    userId: string,
+    userRole: string,
+  ): Promise<EmergencyEntity> {
+    try {
+      const emergency = await this.emergencyRepository.findOne({
+        where: { id },
+        relations: ['form201', 'form207'],
+      });
+      if (!emergency) throw new NotFoundException('Emergencia no encontrada.');
+
+      const from = emergency.state;
+      const to = changeStateDto.state;
+      this.stateMachine.assertTransition(from, to);
+
+      if (
+        (from === EmergencyStatus.Pending || from === EmergencyStatus.Active) &&
+        to === EmergencyStatus.Canceled
+      ) {
+        if (!changeStateDto.cancellation_reason)
+          throw new BadRequestException(
+            'El motivo de cancelación es obligatorio.',
+          );
+      }
+
+      if (from === EmergencyStatus.Active && to === EmergencyStatus.Finished) {
+        const pendingForms = this.getPendingForms(emergency);
+        if (pendingForms.length)
+          throw new BadRequestException(
+            `No se puede finalizar la emergencia. Formularios pendientes de finalizar: ${pendingForms.join(
+              ', ',
+            )}`,
+          );
+      }
+
+      if (from === EmergencyStatus.Finished && to === EmergencyStatus.Active) {
+        if (userRole !== ROLES.MANAGER && userRole !== ROLES.ADMIN)
+          throw new ForbiddenException(
+            'Solo un usuario MANAGER puede reabrir una emergencia finalizada.',
+          );
+      }
+
+      emergency.state = to;
+      await this.emergencyRepository.save(emergency);
+
+      const actionDescription = this.buildTransitionActionDescription(
+        from,
+        to,
+        changeStateDto,
+      );
+      if (actionDescription) {
+        const user = await this.userService.findOne(userId);
+        const now = new Date();
+        await this.actionRepository.save(
+          this.actionRepository.create({
+            description: actionDescription,
+            date: now,
+            hour: `${String(now.getHours()).padStart(2, '0')}:${String(
+              now.getMinutes(),
+            ).padStart(2, '0')}`,
+            user,
+            emergency,
+          }),
+        );
+      }
+
+      return this.findOne(id);
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
   public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const emergency = await this.findOne(id);
@@ -146,5 +228,33 @@ export class EmergencyService {
     } catch (error) {
       handlerError(error, this.logger);
     }
+  }
+
+  private getPendingForms(emergency: EmergencyEntity): string[] {
+    const pending: string[] = [];
+    emergency.form201?.forEach((form) => {
+      if (!form.is_finalized) pending.push(`F201 (${form.id})`);
+    });
+    emergency.form207?.forEach((form) => {
+      if (!form.is_finalized) pending.push(`F207 (${form.id})`);
+    });
+    return pending;
+  }
+
+  private buildTransitionActionDescription(
+    from: EmergencyStatus,
+    to: EmergencyStatus,
+    changeStateDto: ChangeEmergencyStateDto,
+  ): string | null {
+    if (from === EmergencyStatus.Pending && to === EmergencyStatus.Active)
+      return 'Emergencia activada';
+    if (
+      (from === EmergencyStatus.Pending || from === EmergencyStatus.Active) &&
+      to === EmergencyStatus.Canceled
+    )
+      return `Emergencia cancelada: ${changeStateDto.cancellation_reason}`;
+    if (from === EmergencyStatus.Finished && to === EmergencyStatus.Active)
+      return 'Emergencia reabierta';
+    return null;
   }
 }

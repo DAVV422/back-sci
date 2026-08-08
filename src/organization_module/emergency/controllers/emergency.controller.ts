@@ -15,7 +15,11 @@ import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { RolesAccess } from './../../../auth/decorators';
 import { AuthGuard, RolesGuard } from './../../../auth/guards';
 import { QueryDto } from './../../../common/dto/query.dto';
-import { CreateEmergencyDto, UpdateEmergencyDto } from '../dto/';
+import {
+  CreateEmergencyDto,
+  UpdateEmergencyDto,
+  ChangeEmergencyStateDto,
+} from '../dto/';
 import { EmergencyService } from './../services/emergency.service';
 import { ApiResponse } from './../../../common/interfaces/responseMessage.interface';
 import { GetUser } from './../../../auth/decorators';
@@ -80,6 +84,26 @@ export class EmergencyController {
       success: true,
       statusCode: 200,
       data: await this.emergencyService.update(id, updateEmergencyDto),
+    };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
+  @Patch(':id/state')
+  public async changeState(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() changeStateDto: ChangeEmergencyStateDto,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
+  ): Promise<ApiResponse<EmergencyEntity>> {
+    return {
+      success: true,
+      statusCode: 200,
+      data: await this.emergencyService.changeState(
+        id,
+        changeStateDto,
+        userId,
+        userRole,
+      ),
     };
   }
 
