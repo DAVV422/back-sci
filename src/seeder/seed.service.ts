@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { handlerError } from './../common/utils/handlerError.utils';
 import { ROLES } from './../common/constants';
@@ -15,6 +16,7 @@ export class SeedService {
   constructor(
     private readonly userService: UserService,
     private readonly chargeService: ChargeService,
+    private readonly configService: ConfigService,
   ) {}
 
   public async runAllSeeders() {
@@ -23,41 +25,44 @@ export class SeedService {
     }
 
     try {
-      // 🔍 Verificar si ya existen usuarios
-      const totalUsers = await this.userService.countUsers();
-      if (totalUsers > 0) {
-        return {
-          message: 'Ya existen usuarios en la base de datos. Seeder cancelado.',
-        };
+      const adminEmail = this.configService.get<string>('ADMIN_EMAIL');
+      const adminPassword = this.configService.get<string>('ADMIN_PASSWORD');
+      if (!adminEmail || !adminPassword) {
+        throw new BadRequestException(
+          'Variables de entorno ADMIN_EMAIL y ADMIN_PASSWORD son requeridas para el seeder',
+        );
       }
 
-      // 🔍 Verificar si ya existen cargos SCI
-      const totalCharges = await this.chargeService.countCharges();
-      if (totalCharges > 0) {
-        return {
-          message:
-            'Ya existen cargos SCI en la base de datos. Seeder cancelado.',
-        };
+      // 🔍 Crear usuario admin solo si no existe previamente (idempotente)
+      let adminExists = false;
+      try {
+        await this.userService.findByEmail(adminEmail);
+        adminExists = true;
+      } catch (error) {
+        adminExists = false;
       }
 
-      // ================= CREAR USUARIO ADMIN =================
-      const user: CreateUserDto = {
-        name: 'diego',
-        last_name: 'vargas',
-        cellphone: '67303324',
-        birthdate: new Date('2000-04-18'),
-        grade: 'Bombero I 3er Año',
-        email: 'diego@live.com',
-        password: '123456789',
-        role: ROLES.ADMIN,
-      };
+      if (!adminExists) {
+        const user: CreateUserDto = {
+          name:
+            this.configService.get<string>('ADMIN_NAME') ?? 'Administrador',
+          last_name:
+            this.configService.get<string>('ADMIN_LAST_NAME') ?? 'Sistema',
+          cellphone: '00000000',
+          grade: 'Administrador del Sistema',
+          birthdate: new Date('2000-01-01'),
+          email: adminEmail,
+          password: adminPassword,
+          role: ROLES.ADMIN,
+        };
 
-      await this.userService.createUser(user);
+        await this.userService.createUser(user);
+      }
 
       // ================= CARGAR CARGOS SCI =================
       await this.cargarChargeSCI();
 
-      return { message: 'Seeders ejecutados correctamente ✅' };
+      return { message: 'Seeders ejecutados correctamente' };
     } catch (error) {
       handlerError(error, this.logger);
     }
