@@ -21,7 +21,13 @@ import {
 
 import { RolesAccess } from '../../auth/decorators/roles.decorator';
 import { AuthGuard, RolesGuard } from '../../auth/guards/';
-import { CreateUserDto, UpdateUserDto, UpdateUserStatusDto } from '../dto/';
+import { GetUser } from '../../auth/decorators';
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  UpdateUserStatusDto,
+  UpdateProfileDto,
+} from '../dto/';
 import { UserService } from '../services/user.service';
 import { QueryDto } from '../../common/dto/query.dto';
 import { ApiResponse } from './../../common/interfaces/responseMessage.interface';
@@ -67,6 +73,30 @@ export class UserController {
         limit: queryDto.limit ?? items.length,
         offset: queryDto.offset ?? 0,
       },
+    };
+  }
+
+  @Get('me')
+  public async myProfile(
+    @GetUser('id') userId: string,
+  ): Promise<ApiResponse<UserEntity>> {
+    return {
+      success: true,
+      statusCode: 200,
+      data: await this.userService.findOne(userId),
+    };
+  }
+
+  @Patch('me')
+  public async updateMyProfile(
+    @GetUser('id') userId: string,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ): Promise<ApiResponse<UserEntity>> {
+    return {
+      success: true,
+      statusCode: 200,
+      message: 'Perfil actualizado.',
+      data: await this.userService.updateProfile(userId, updateProfileDto),
     };
   }
 

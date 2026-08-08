@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  HttpException,
   Injectable,
   InternalServerErrorException,
   UnauthorizedException,
@@ -19,21 +20,25 @@ export class AuthGuard implements CanActivate {
     private readonly reflector: Reflector,
   ) {}
   async canActivate(context: ExecutionContext) {
+    const request: any = context.switchToHttp().getRequest<Request>();
+    const token = request.headers.authorization?.split(' ')[1];
+    if (!token || Array.isArray(token))
+      throw new UnauthorizedException('Token no encontrado');
+    const managerToken: IUserToken | string = userToken(token);
+    if (typeof managerToken === 'string')
+      throw new UnauthorizedException(managerToken);
+    if (managerToken.isExpired)
+      throw new UnauthorizedException('Token expirado');
     try {
-      const request: any = context.switchToHttp().getRequest<Request>();
-      const token = request.headers.authorization?.split(' ')[1];
-      if (!token || Array.isArray(token))
-        throw new UnauthorizedException('Token no encontrado');
-      const managerToken: IUserToken | string = userToken(token);
-      if (typeof managerToken === 'string')
-        throw new UnauthorizedException(managerToken);
-      if (managerToken.isExpired)
-        throw new UnauthorizedException('Token expirado');
       const user = await this.userService.findOneAuth(managerToken.sub);
       request.idUser = user.id;
       request.roleUser = user.role;
+      request.user = { id: user.id, role: user.role };
       return true;
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new InternalServerErrorException('Error al validar el token');
     }
   }

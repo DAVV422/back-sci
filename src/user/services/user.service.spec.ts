@@ -112,3 +112,75 @@ describe('UserService - updateStatus', () => {
     ).rejects.toThrow(BadRequestException);
   });
 });
+
+describe('UserService - updateProfile', () => {
+  let service: UserService;
+  let mockRepo: any;
+
+  beforeEach(async () => {
+    mockRepo = {
+      createQueryBuilder: jest.fn(),
+      update: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+  });
+
+  it('only updates the editable fields passed in the DTO', async () => {
+    const user = {
+      id: 'uuid',
+      name: 'John',
+      last_name: 'Doe',
+      role: 'basic',
+    } as UserEntity;
+    jest.spyOn(service, 'findOne').mockResolvedValue(user);
+    mockRepo.update.mockResolvedValue({ affected: 1 });
+
+    await service.updateProfile('uuid', {
+      name: 'Nuevo',
+      cellphone: '67303349',
+    } as any);
+
+    expect(mockRepo.update).toHaveBeenCalledWith('uuid', {
+      name: 'Nuevo',
+      cellphone: '67303349',
+    });
+  });
+
+  it('never passes role, email, password or is_active to the repository', async () => {
+    jest
+      .spyOn(service, 'findOne')
+      .mockResolvedValue({ id: 'uuid' } as UserEntity);
+    mockRepo.update.mockResolvedValue({ affected: 1 });
+
+    await service.updateProfile('uuid', {
+      name: 'Nuevo',
+      role: 'ADMIN',
+      email: 'hack@x.com',
+      password: '123456',
+      is_active: false,
+    } as any);
+
+    expect(mockRepo.update).toHaveBeenCalledWith('uuid', {
+      name: 'Nuevo',
+    });
+  });
+
+  it('throws BadRequestException when the update affects 0 rows', async () => {
+    jest
+      .spyOn(service, 'findOne')
+      .mockResolvedValue({ id: 'uuid' } as UserEntity);
+    mockRepo.update.mockResolvedValue({ affected: 0 });
+
+    await expect(
+      service.updateProfile('uuid', { name: 'Nuevo' } as any),
+    ).rejects.toThrow(BadRequestException);
+  });
+});

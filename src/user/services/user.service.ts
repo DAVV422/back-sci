@@ -9,7 +9,12 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 
-import { CreateUserDto, UpdateUserDto, UpdateUserStatusDto } from '../dto/';
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  UpdateUserStatusDto,
+  UpdateProfileDto,
+} from '../dto/';
 import { UserEntity } from '../entities/user.entity';
 import { handlerError } from '../../common/utils/handlerError.utils';
 import { QueryDto } from '../../common/dto/query.dto';
@@ -107,6 +112,35 @@ export class UserService {
       );
       if (userUpdated.affected === 0)
         throw new NotFoundException('Usuario no actualizado.');
+      return await this.findOne(id);
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
+  public async updateProfile(
+    id: string,
+    updateProfileDto: UpdateProfileDto,
+  ): Promise<UserEntity> {
+    try {
+      await this.findOne(id);
+      const editableFields: Partial<UpdateProfileDto> = {
+        ...(updateProfileDto.name !== undefined && {
+          name: updateProfileDto.name,
+        }),
+        ...(updateProfileDto.last_name !== undefined && {
+          last_name: updateProfileDto.last_name,
+        }),
+        ...(updateProfileDto.cellphone !== undefined && {
+          cellphone: updateProfileDto.cellphone,
+        }),
+        ...(updateProfileDto.grade !== undefined && {
+          grade: updateProfileDto.grade,
+        }),
+      };
+      const userUpdated = await this.userRepository.update(id, editableFields);
+      if (userUpdated.affected === 0)
+        throw new BadRequestException('Perfil no actualizado.');
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
