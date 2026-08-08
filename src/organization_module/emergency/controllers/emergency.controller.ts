@@ -1,56 +1,83 @@
-import { Body, Controller, Get, Delete, Param, UseGuards, ParseUUIDPipe, Query, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Delete,
+  Param,
+  UseGuards,
+  ParseUUIDPipe,
+  Query,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { RolesAccess } from './../../../auth/decorators';
-import { AuthGuard, RolesGuard } from './../../../auth/guards';  
+import { AuthGuard, RolesGuard } from './../../../auth/guards';
 import { QueryDto } from './../../../common/dto/query.dto';
 import { CreateEmergencyDto, UpdateEmergencyDto } from '../dto/';
 import { EmergencyService } from './../services/emergency.service';
-import { ResponseMessage } from './../../../common/interfaces/responseMessage.interface';
+import { ApiResponse } from './../../../common/interfaces/responseMessage.interface';
 import { GetUser } from './../../../auth/decorators';
 import { ROLES } from './../../../common/constants';
+import { EmergencyEntity } from '../entities/emergency.entity';
 
 @ApiTags('Emergency')
 @ApiBearerAuth()
 @UseGuards(AuthGuard, RolesGuard)
 @Controller('emergency')
 export class EmergencyController {
-  constructor(private readonly emergencyService: EmergencyService) { }
+  constructor(private readonly emergencyService: EmergencyService) {}
 
-  @Post()  
+  @Post()
   async createEmergency(
     @Body() createEmergencyDto: CreateEmergencyDto,
-    @GetUser('id') userId: string
-  ): Promise<ResponseMessage> {    
+    @GetUser('id') userId: string,
+  ): Promise<ApiResponse<EmergencyEntity>> {
     return {
+      success: true,
       statusCode: 201,
       data: await this.emergencyService.create(createEmergencyDto, userId),
-    }
+    };
   }
 
   @Get()
-  public async findAll(@Query() queryDto: QueryDto): Promise<ResponseMessage> {
+  public async findAll(
+    @Query() queryDto: QueryDto,
+  ): Promise<ApiResponse<EmergencyEntity[]>> {
+    const { items, total } = await this.emergencyService.findAll(queryDto);
     return {
+      success: true,
       statusCode: 200,
-      data: await this.emergencyService.findAll(queryDto),
+      data: items,
+      meta: {
+        total,
+        limit: queryDto.limit ?? items.length,
+        offset: queryDto.offset ?? 0,
+      },
     };
   }
 
   @ApiParam({ name: 'id', type: 'string' })
   @Get(':id')
-  public async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseMessage> {
+  public async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ApiResponse<EmergencyEntity>> {
     return {
+      success: true,
       statusCode: 200,
       data: await this.emergencyService.findOne(id),
-    }
+    };
   }
 
   @ApiParam({ name: 'id', type: 'string' })
   @Patch(':id')
   public async update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateEmergencyDto: UpdateEmergencyDto): Promise<ResponseMessage> {
+    @Body() updateEmergencyDto: UpdateEmergencyDto,
+  ): Promise<ApiResponse<EmergencyEntity>> {
     return {
+      success: true,
       statusCode: 200,
       data: await this.emergencyService.update(id, updateEmergencyDto),
     };
@@ -59,7 +86,9 @@ export class EmergencyController {
   @RolesAccess(ROLES.ADMIN)
   @ApiParam({ name: 'id', type: 'string' })
   @Delete(':id')
-  public async delete(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseMessage> {
+  public async delete(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ApiResponse<null>> {
     return await this.emergencyService.delete(id);
   }
 }

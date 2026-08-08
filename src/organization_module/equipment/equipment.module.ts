@@ -6,12 +6,9 @@ import { EquipmentEntity } from './entities/equipment.entity';
 import { UserModule } from 'src/user/user.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([EquipmentEntity]),
-    UserModule
-  ],
+  imports: [TypeOrmModule.forFeature([EquipmentEntity]), UserModule],
   controllers: [EquipmentController],
   providers: [EquipmentService],
-  exports: [EquipmentService]
+  exports: [EquipmentService],
 })
 export class EquipmentModule {}

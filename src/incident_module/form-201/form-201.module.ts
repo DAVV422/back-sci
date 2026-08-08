@@ -8,11 +8,14 @@ import { UserModule } from '../../user/user.module';
 import { EmergencyModule } from '../../organization_module/emergency/emergency.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Form201Entity]),
-    ChargesModule, UserModule, EmergencyModule
+  imports: [
+    TypeOrmModule.forFeature([Form201Entity]),
+    ChargesModule,
+    UserModule,
+    EmergencyModule,
   ],
   controllers: [Form201Controller],
   providers: [Form201Service],
-  exports: [TypeOrmModule, Form201Service]
+  exports: [TypeOrmModule, Form201Service],
 })
 export class Form201Module {}

@@ -4,16 +4,21 @@ import { AttendEntity } from '../../../organization_module/attends/entities/atte
 
 @Entity({ name: 'charge' })
 export class ChargeEntity extends BaseEntity {
-  
   @Column({ name: 'name', type: 'varchar', length: 100, nullable: false })
   name: string;
-  
+
   @Column({ name: 'level', type: 'int', nullable: false })
   level: number;
-  
-  @Column({ name: 'weight', type: 'decimal', precision: 5, scale: 2, nullable: false })
+
+  @Column({
+    name: 'weight',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    nullable: false,
+  })
   weight: number;
-  
+
   @OneToMany(() => AttendEntity, (attend) => attend.charge)
   attends: AttendEntity[];
 }

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { NotFoundException, } from '@nestjs/common/exceptions';
+import { NotFoundException } from '@nestjs/common/exceptions';
 import * as bcrypt from 'bcrypt';
 
 import { UserEntity } from '../../user/entities/user.entity';
@@ -19,17 +19,19 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly tokenValidator: TokenValidatorService,
-    private readonly jwtService: JwtServiceAdapter
+    private readonly jwtService: JwtServiceAdapter,
   ) {}
 
   async login(email: string, password: string): Promise<ILoginResponse> {
     try {
       const user = await this.userService.findByEmail(email);
-      if (!user) throw new NotFoundException('Usuario o contraseña incorrecta.');
+      if (!user)
+        throw new NotFoundException('Usuario o contraseña incorrecta.');
       if (user.is_deleted) throw new NotFoundException('Ocurrió un problema.');
-      
+
       const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) throw new NotFoundException('Usuario o contraseña incorrecta.');
+      if (!isMatch)
+        throw new NotFoundException('Usuario o contraseña incorrecta.');
 
       return this.generateJWT(user);
     } catch (error) {

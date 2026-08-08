@@ -6,13 +6,14 @@ import { ActionEntity } from './entities/action.entity';
 import { UserModule } from './../../user/user.module';
 import { EmergencyModule } from './../../organization_module/emergency/emergency.module';
 
-@Module({  
+@Module({
   imports: [
     TypeOrmModule.forFeature([ActionEntity]),
-    UserModule, EmergencyModule
+    UserModule,
+    EmergencyModule,
   ],
   controllers: [ActionController],
   providers: [ActionService],
-  exports: [ActionService, TypeOrmModule]
+  exports: [ActionService, TypeOrmModule],
 })
 export class ActionModule {}

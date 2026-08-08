@@ -5,16 +5,21 @@ import { EquipmentEntity } from '../../../organization_module/equipment/entities
 
 @Entity({ name: 'resource' })
 export class ResourceEntity extends BaseEntity {
-
   @Column({ name: 'amount', type: 'int', nullable: false })
   amount: number;
 
   @Column({ name: 'note', type: 'varchar', length: 255, nullable: false })
   note: string;
 
-  @ManyToOne(() => EmergencyEntity, (emergency) => emergency.resources, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => EmergencyEntity, (emergency) => emergency.resources, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   emergency: EmergencyEntity;
 
-  @ManyToOne(() => EquipmentEntity, (equipment) => equipment.resources, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => EquipmentEntity, (equipment) => equipment.resources, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   equipment: EquipmentEntity;
 }

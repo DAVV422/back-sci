@@ -1,12 +1,23 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { ParseUUIDPipe } from '@nestjs/common/pipes';
 
 import { ResourceService } from '../services/resource.service';
 import { CreateResourceDto } from '../dto/create-resource.dto';
 import { UpdateResourceDto } from '../dto/update-resource.dto';
-import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
+import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { AuthGuard, RolesGuard } from '../../../auth/guards';
+import { ResourceEntity } from '../entities/resource.entity';
 
 @ApiTags('Resource')
 @ApiBearerAuth()
@@ -17,16 +28,22 @@ export class ResourceController {
 
   @ApiParam({ name: 'id', type: 'string' })
   @Get(':id')
-  public async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseMessage> {
+  public async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ApiResponse<ResourceEntity>> {
     return {
+      success: true,
       statusCode: 200,
       data: await this.resourceService.findOne(id),
     };
   }
 
   @Post()
-  public async create(@Body() createResourceDto: CreateResourceDto): Promise<ResponseMessage> {
+  public async create(
+    @Body() createResourceDto: CreateResourceDto,
+  ): Promise<ApiResponse<ResourceEntity>> {
     return {
+      success: true,
       statusCode: 201,
       data: await this.resourceService.create(createResourceDto),
     };
@@ -37,8 +54,9 @@ export class ResourceController {
   public async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateResourceDto: UpdateResourceDto,
-  ): Promise<ResponseMessage> {
+  ): Promise<ApiResponse<ResourceEntity>> {
     return {
+      success: true,
       statusCode: 200,
       data: await this.resourceService.update(id, updateResourceDto),
     };
@@ -46,14 +64,19 @@ export class ResourceController {
 
   @ApiParam({ name: 'id', type: 'string' })
   @Delete(':id')
-  public async delete(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseMessage> {
-    return  await this.resourceService.delete(id);
+  public async delete(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ApiResponse<null>> {
+    return await this.resourceService.delete(id);
   }
 
   @ApiParam({ name: 'emergencyId', type: 'string' })
   @Get('by-emergency/:emergencyId')
-  public async findByEmergencyId(@Param('emergencyId', ParseUUIDPipe) emergencyId: string): Promise<ResponseMessage> {
+  public async findByEmergencyId(
+    @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
+  ): Promise<ApiResponse<ResourceEntity[]>> {
     return {
+      success: true,
       statusCode: 200,
       data: await this.resourceService.findByEmergencyId(emergencyId),
     };
@@ -61,8 +84,11 @@ export class ResourceController {
 
   @ApiParam({ name: 'equipmentId', type: 'string' })
   @Get('by-equipment/:equipmentId')
-  public async findByEquipmentId(@Param('equipmentId', ParseUUIDPipe) equipmentId: string): Promise<ResponseMessage> {
+  public async findByEquipmentId(
+    @Param('equipmentId', ParseUUIDPipe) equipmentId: string,
+  ): Promise<ApiResponse<ResourceEntity[]>> {
     return {
+      success: true,
       statusCode: 200,
       data: await this.resourceService.findByEquipmentId(equipmentId),
     };

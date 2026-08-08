@@ -11,7 +11,10 @@ import { ChargeService } from './../sci_module/charges/services/charge.service';
 export class SeedService {
   private readonly logger = new Logger('SeederService');
 
-  constructor(private readonly userService: UserService, private readonly chargeService: ChargeService) { }
+  constructor(
+    private readonly userService: UserService,
+    private readonly chargeService: ChargeService,
+  ) {}
 
   public async runAllSeeders() {
     if (process.env.APP_PROD === true) {
@@ -22,13 +25,18 @@ export class SeedService {
       // 🔍 Verificar si ya existen usuarios
       const totalUsers = await this.userService.countUsers();
       if (totalUsers > 0) {
-        return { message: 'Ya existen usuarios en la base de datos. Seeder cancelado.' };
+        return {
+          message: 'Ya existen usuarios en la base de datos. Seeder cancelado.',
+        };
       }
 
       // 🔍 Verificar si ya existen cargos SCI
       const totalCharges = await this.chargeService.countCharges();
       if (totalCharges > 0) {
-        return { message: 'Ya existen cargos SCI en la base de datos. Seeder cancelado.' };
+        return {
+          message:
+            'Ya existen cargos SCI en la base de datos. Seeder cancelado.',
+        };
       }
 
       // ================= CREAR USUARIO ADMIN =================
@@ -63,7 +71,10 @@ export class SeedService {
       // 🔍 Verificar si ya existen cargos SCI
       const totalCharges = await this.chargeService.countCharges();
       if (totalCharges > 0) {
-        return { message: 'Ya existen cargos SCI en la base de datos. Seeder cancelado.' };
+        return {
+          message:
+            'Ya existen cargos SCI en la base de datos. Seeder cancelado.',
+        };
       }
 
       // ================= CARGAR CARGOS SCI =================
@@ -74,7 +85,6 @@ export class SeedService {
       handlerError(error, this.logger);
     }
   }
-
 
   async cargarChargeSCI(): Promise<void> {
     const cargos: CreateChargeDto[] = [
@@ -124,7 +134,7 @@ export class SeedService {
       // ================= NIVEL 5 =================
       { name: 'Rescatista', level: 5, weight: 2 },
       { name: 'Paramédico', level: 5, weight: 1 },
-      { name: 'Voluntario de Apoyo', level: 5, weight: 0 }
+      { name: 'Voluntario de Apoyo', level: 5, weight: 0 },
     ];
 
     for (const cargo of cargos) {
@@ -135,5 +145,4 @@ export class SeedService {
       }
     }
   }
-
 }

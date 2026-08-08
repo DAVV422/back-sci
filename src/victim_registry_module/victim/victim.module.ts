@@ -5,9 +5,9 @@ import { VictimController } from './controllers/victim.controller';
 import { VictimEntity } from './entities/victim.entity';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([VictimEntity])],
-    controllers: [VictimController],
-    providers: [VictimService],
-    exports: [VictimService],
+  imports: [TypeOrmModule.forFeature([VictimEntity])],
+  controllers: [VictimController],
+  providers: [VictimService],
+  exports: [VictimService],
 })
-export class VictimModule { }
+export class VictimModule {}

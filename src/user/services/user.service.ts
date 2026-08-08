@@ -1,5 +1,11 @@
 import { Repository } from 'typeorm';
-import { BadRequestException, Injectable, Logger, NotFoundException, UnauthorizedException, } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 
@@ -7,7 +13,10 @@ import { CreateUserDto, UpdateUserDto } from '../dto/';
 import { UserEntity } from '../entities/user.entity';
 import { handlerError } from '../../common/utils/handlerError.utils';
 import { QueryDto } from '../../common/dto/query.dto';
-import { ResponseMessage } from '../../common/interfaces/responseMessage.interface';
+import {
+  ApiResponse,
+  PaginatedResult,
+} from '../../common/interfaces/responseMessage.interface';
 
 @Injectable()
 export class UserService {
@@ -16,18 +25,23 @@ export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
-  ) { }
+  ) {}
 
-  public async findAll(queryDto: QueryDto): Promise<UserEntity[]> {
+  public async findAll(
+    queryDto: QueryDto,
+  ): Promise<PaginatedResult<UserEntity>> {
     try {
       const { limit, offset, order, attr, value } = queryDto;
       const query = this.userRepository.createQueryBuilder('user');
       if (limit) query.take(limit);
       if (offset) query.skip(offset);
-      if (order) query.orderBy('user.createdAt', order.toLocaleUpperCase() as any);
-      if (attr && value) query.where(`user.${attr} ILIKE :value`, { value: `%${value}%` });
+      if (order)
+        query.orderBy('user.createdAt', order.toLocaleUpperCase() as any);
+      if (attr && value)
+        query.where(`user.${attr} ILIKE :value`, { value: `%${value}%` });
       query.where('user.is_deleted = false');
-      return await query.getMany();
+      const [items, total] = await query.getManyAndCount();
+      return { items, total };
     } catch (error) {
       handlerError(error, this.logger);
     }
@@ -35,10 +49,14 @@ export class UserService {
 
   public async createUser(createUserDto: CreateUserDto): Promise<UserEntity> {
     try {
-      createUserDto.password = await this.encryptPassword(createUserDto.password);
+      createUserDto.password = await this.encryptPassword(
+        createUserDto.password,
+      );
       createUserDto.birthdate = new Date(createUserDto.birthdate);
-      const user_created: UserEntity = await this.userRepository.save(createUserDto);
-      return await this.findOneBy({ key: 'email', value: createUserDto.email, });
+      const user_created: UserEntity = await this.userRepository.save(
+        createUserDto,
+      );
+      return await this.findOneBy({ key: 'email', value: createUserDto.email });
     } catch (error) {
       handlerError(error, this.logger);
     }
@@ -46,7 +64,9 @@ export class UserService {
 
   public async findOne(id: string): Promise<UserEntity> {
     try {
-      const user: UserEntity = await this.userRepository.findOne({ where: { id } });
+      const user: UserEntity = await this.userRepository.findOne({
+        where: { id },
+      });
       if (!user) throw new NotFoundException('Usuario no encontrado.');
       return user;
     } catch (error) {
@@ -56,7 +76,9 @@ export class UserService {
 
   public async findByEmail(email: string): Promise<UserEntity> {
     try {
-      const user: UserEntity = await this.userRepository.findOne({ where: { email } });
+      const user: UserEntity = await this.userRepository.findOne({
+        where: { email },
+      });
       if (!user) throw new NotFoundException('Usuario no encontrado.');
       return user;
     } catch (error) {
@@ -64,57 +86,97 @@ export class UserService {
     }
   }
 
-  public async update(id: string, updateUserDto: UpdateUserDto,): Promise<UserEntity> {
+  public async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<UserEntity> {
     try {
-      if (updateUserDto.password) updateUserDto.password = await this.encryptPassword(updateUserDto.password);
+      if (updateUserDto.password)
+        updateUserDto.password = await this.encryptPassword(
+          updateUserDto.password,
+        );
       const user: UserEntity = await this.findOne(id);
-      const userUpdated = await this.userRepository.update(user.id, updateUserDto,);
-      if (userUpdated.affected === 0) throw new NotFoundException('Usuario no actualizado.');
+      const userUpdated = await this.userRepository.update(
+        user.id,
+        updateUserDto,
+      );
+      if (userUpdated.affected === 0)
+        throw new NotFoundException('Usuario no actualizado.');
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async deactivate(id: string): Promise<ResponseMessage> {
+  public async deactivate(id: string): Promise<ApiResponse<null>> {
     try {
       const user = await this.findOne(id);
       user.is_active = false;
       const deletedUser = await this.userRepository.update(user.id, user);
-      if (deletedUser.affected === 0) throw new BadRequestException('No se pudo cambiar el estado del usuario.');
-      return { statusCode: 200, message: 'Estado del usuario cambiado.' };
+      if (deletedUser.affected === 0)
+        throw new BadRequestException(
+          'No se pudo cambiar el estado del usuario.',
+        );
+      return {
+        success: true,
+        statusCode: 200,
+        message: 'Estado del usuario cambiado.',
+        data: null,
+      };
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async activate(id: string): Promise<ResponseMessage> {
+  public async activate(id: string): Promise<ApiResponse<null>> {
     try {
       const user = await this.findOne(id);
       user.is_active = true;
       const deletedUser = await this.userRepository.update(user.id, user);
-      if (deletedUser.affected === 0) throw new BadRequestException('No se pudo cambiar el estado del usuario.');
-      return { statusCode: 200, message: 'Estado del usuario cambiado.' };
+      if (deletedUser.affected === 0)
+        throw new BadRequestException(
+          'No se pudo cambiar el estado del usuario.',
+        );
+      return {
+        success: true,
+        statusCode: 200,
+        message: 'Estado del usuario cambiado.',
+        data: null,
+      };
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async delete(id: string): Promise<ResponseMessage> {
+  public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const user = await this.findOne(id);
       user.is_deleted = true;
       const deletedUser = await this.userRepository.update(user.id, user);
-      if (deletedUser.affected === 0) throw new BadRequestException('Usuario no eliminado.');
-      return { statusCode: 200, message: 'Usuario eliminado.' };
+      if (deletedUser.affected === 0)
+        throw new BadRequestException('Usuario no eliminado.');
+      return {
+        success: true,
+        statusCode: 200,
+        message: 'Usuario eliminado.',
+        data: null,
+      };
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async findOneBy({ key, value, }: { key: keyof CreateUserDto; value: any; }) {
+  public async findOneBy({
+    key,
+    value,
+  }: {
+    key: keyof CreateUserDto;
+    value: any;
+  }) {
     try {
-      const user: UserEntity = await this.userRepository.findOne({ where: { [key]: value } });
+      const user: UserEntity = await this.userRepository.findOne({
+        where: { [key]: value },
+      });
       if (!user) throw new NotFoundException('Usuario no encontrado.');
       return user;
     } catch (error) {
@@ -124,8 +186,13 @@ export class UserService {
 
   public async findOneAuth(id: string): Promise<UserEntity> {
     try {
-      const user: UserEntity = await this.userRepository.findOne({ where: { id }, });
-      if (!user) throw new UnauthorizedException('Usuario asociado al token no encontrado.',);
+      const user: UserEntity = await this.userRepository.findOne({
+        where: { id },
+      });
+      if (!user)
+        throw new UnauthorizedException(
+          'Usuario asociado al token no encontrado.',
+        );
       return user;
     } catch (error) {
       handlerError(error, this.logger);

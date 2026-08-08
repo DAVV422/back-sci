@@ -8,11 +8,14 @@ import { EquipmentModule } from '../../organization_module/equipment/equipment.m
 import { UserModule } from 'src/user/user.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ResourceEntity]),
-    EmergencyModule, EquipmentModule, UserModule
+  imports: [
+    TypeOrmModule.forFeature([ResourceEntity]),
+    EmergencyModule,
+    EquipmentModule,
+    UserModule,
   ],
   controllers: [ResourceController],
   providers: [ResourceService],
-  exports: [ResourceService]
+  exports: [ResourceService],
 })
 export class ResourceModule {}

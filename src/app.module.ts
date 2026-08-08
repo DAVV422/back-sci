@@ -41,4 +41,4 @@ import { RegistrationModule } from './victim_registry_module/registration/regist
     RegistrationModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}

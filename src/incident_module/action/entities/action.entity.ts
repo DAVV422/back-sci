@@ -5,19 +5,29 @@ import { UserEntity } from './../../../user/entities/user.entity';
 
 @Entity({ name: 'action' })
 export class ActionEntity extends BaseEntity {
-  
-  @Column({ name: 'description', type: 'varchar', length: 255, nullable: false })
+  @Column({
+    name: 'description',
+    type: 'varchar',
+    length: 255,
+    nullable: false,
+  })
   description: string;
-  
+
   @Column({ name: 'date', type: 'date', nullable: false })
   date: Date;
-  
+
   @Column({ name: 'hour', type: 'varchar', length: 10, nullable: false })
   hour: string;
 
-  @ManyToOne(() => UserEntity, () => '', { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => UserEntity, () => '', {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   user: UserEntity;
-  
-  @ManyToOne(() => EmergencyEntity, (emergency) => emergency.actions, { nullable: false, onDelete: 'CASCADE' })
+
+  @ManyToOne(() => EmergencyEntity, (emergency) => emergency.actions, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   emergency: EmergencyEntity;
 }

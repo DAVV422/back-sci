@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -16,12 +21,15 @@ export class ActionService {
     @InjectRepository(ActionEntity)
     private readonly actionRepository: Repository<ActionEntity>,
     private readonly emergencyService: EmergencyService,
-    private readonly userService: UserService
-  ) { }
+    private readonly userService: UserService,
+  ) {}
 
   public async findOne(id: string): Promise<ActionEntity> {
     try {
-      const action: ActionEntity = await this.actionRepository.findOne({ where: { id }, relations: ['emergency'] });
+      const action: ActionEntity = await this.actionRepository.findOne({
+        where: { id },
+        relations: ['emergency'],
+      });
       if (!action) throw new NotFoundException('Acción no encontrada.');
       return action;
     } catch (error) {
@@ -29,19 +37,29 @@ export class ActionService {
     }
   }
 
-  public async create(createActionDto: CreateActionDto, userId: string): Promise<ActionEntity> {
+  public async create(
+    createActionDto: CreateActionDto,
+    userId: string,
+  ): Promise<ActionEntity> {
     try {
-      const { emergency, ... createAction } = createActionDto;
+      const { emergency, ...createAction } = createActionDto;
       const emergencyEntity = await this.emergencyService.findOne(emergency);
       const user = await this.userService.findOne(userId);
-      const action = await this.actionRepository.create({ ...createAction, emergency: { id: emergencyEntity.id}, user: user});
+      const action = await this.actionRepository.create({
+        ...createAction,
+        emergency: { id: emergencyEntity.id },
+        user: user,
+      });
       return await this.actionRepository.save(action);
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async update(id: string, updateActionDto: CreateActionDto): Promise<ActionEntity> {
+  public async update(
+    id: string,
+    updateActionDto: CreateActionDto,
+  ): Promise<ActionEntity> {
     try {
       const { emergency, ...updateAction } = updateActionDto;
       const action = await this.findOne(id);
@@ -56,7 +74,8 @@ export class ActionService {
     try {
       const action = await this.findOne(id);
       const deletedAction = await this.actionRepository.delete(action.id);
-      if (deletedAction.affected === 0) throw new BadRequestException('Acción no eliminada.');
+      if (deletedAction.affected === 0)
+        throw new BadRequestException('Acción no eliminada.');
     } catch (error) {
       handlerError(error, this.logger);
     }
@@ -64,7 +83,10 @@ export class ActionService {
 
   public async findByEmergency(emergencyId: string): Promise<ActionEntity[]> {
     try {
-      return await this.actionRepository.find({ where: { emergency: {id:emergencyId} }, relations: ['emergency'] });
+      return await this.actionRepository.find({
+        where: { emergency: { id: emergencyId } },
+        relations: ['emergency'],
+      });
     } catch (error) {
       handlerError(error, this.logger);
     }

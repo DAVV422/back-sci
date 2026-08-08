@@ -5,18 +5,18 @@ import { EmergencyEntity } from 'src/organization_module/emergency/entities/emer
 
 @Entity('form207')
 export class Form207Entity extends BaseEntity {
-    @Column({ name: 'place_of_registration', type: 'varchar', nullable: false })
-    place_of_registration: string;
+  @Column({ name: 'place_of_registration', type: 'varchar', nullable: false })
+  place_of_registration: string;
 
-    @Column({ name: 'attendant', type: 'varchar', nullable: false })
-    attendant: string;
+  @Column({ name: 'attendant', type: 'varchar', nullable: false })
+  attendant: string;
 
-    @Column({ name: 'date', type: 'timestamp', nullable: false })
-    date: Date;
+  @Column({ name: 'date', type: 'timestamp', nullable: false })
+  date: Date;
 
-    @OneToMany(() => RegistrationEntity, (registration) => registration.victim)
-    registrations: RegistrationEntity[];
+  @OneToMany(() => RegistrationEntity, (registration) => registration.victim)
+  registrations: RegistrationEntity[];
 
-    @ManyToOne(() => EmergencyEntity, (emergency) => emergency.form207)
-    emergency: EmergencyEntity;
+  @ManyToOne(() => EmergencyEntity, (emergency) => emergency.form207)
+  emergency: EmergencyEntity;
 }

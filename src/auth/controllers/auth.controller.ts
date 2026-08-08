@@ -4,17 +4,21 @@ import { ApiQuery, ApiTags } from '@nestjs/swagger/dist/decorators';
 import { AuthDTO } from '../dto/auth.dto';
 import { AuthService } from '../services/auth.service';
 import { CreateUserDto } from '../../user/dto';
-import { ResponseMessage } from 'src/common/interfaces/responseMessage.interface';
+import { ApiResponse } from 'src/common/interfaces/responseMessage.interface';
 import { UserService } from '../../user/services/user.service';
+import { ILoginResponse } from '../interfaces/login.interface';
+import { IUserToken } from '../interfaces/userToken.interface';
 
 @ApiTags('Auth')
 @Controller()
 export class AuthController {
-
-  constructor(private readonly authService: AuthService, private readonly userService: UserService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly userService: UserService,
+  ) {}
 
   // @Post('register')
-  // public async register(@Body() createUserDto: CreateUserDto): Promise<ResponseMessage> {    
+  // public async register(@Body() createUserDto: CreateUserDto): Promise<ResponseMessage> {
   //   console.log(createUserDto);
   //   return {
   //     statusCode: 200,
@@ -23,9 +27,12 @@ export class AuthController {
   // }
 
   @Post('login')
-  public async login(@Body() authDto: AuthDTO): Promise<ResponseMessage> {
+  public async login(
+    @Body() authDto: AuthDTO,
+  ): Promise<ApiResponse<ILoginResponse>> {
     const { email, password } = authDto;
     return {
+      success: true,
       statusCode: 200,
       data: await this.authService.login(email, password),
     };
@@ -33,19 +40,25 @@ export class AuthController {
 
   @ApiQuery({ name: 'token', type: 'string', required: true })
   @Post('checkToken')
-  public async checkToken(@Query('token') token: string): Promise<ResponseMessage> {
+  public async checkToken(
+    @Query('token') token: string,
+  ): Promise<ApiResponse<IUserToken | false>> {
     return {
+      success: true,
       statusCode: 200,
-      data: await this.authService.checkToken(token)
+      data: await this.authService.checkToken(token),
     };
   }
 
   @ApiQuery({ name: 'token', type: 'string', required: true })
   @Post('expiredToken')
-  public async expiredToken(@Query('token') token: string): Promise<ResponseMessage> {
+  public async expiredToken(
+    @Query('token') token: string,
+  ): Promise<ApiResponse<boolean>> {
     return {
+      success: true,
       statusCode: 200,
-      data: await this.authService.expiredToken(token)
+      data: await this.authService.expiredToken(token),
     };
   }
 

@@ -6,11 +6,9 @@ import { ChargeService } from './services/charge.service';
 import { UserModule } from 'src/user/user.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ChargeEntity]),
-    UserModule  
-  ],
+  imports: [TypeOrmModule.forFeature([ChargeEntity]), UserModule],
   controllers: [ChargeController],
   providers: [ChargeService],
-  exports: [TypeOrmModule, ChargeService]
+  exports: [TypeOrmModule, ChargeService],
 })
 export class ChargesModule {}

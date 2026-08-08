@@ -1,10 +1,16 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateChargeDto } from '../dto/create-charge.dto';
 import { UpdateChargeDto } from '../dto/update-charge.dto';
 import { ChargeEntity } from '../entities/charges.entity';
 import { handlerError } from '../../../common/utils/handlerError.utils';
+import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 
 @Injectable()
 export class ChargeService {
@@ -13,11 +19,13 @@ export class ChargeService {
   constructor(
     @InjectRepository(ChargeEntity)
     private readonly chargeRepository: Repository<ChargeEntity>,
-  ) { }
+  ) {}
 
   public async findOne(id: string): Promise<ChargeEntity> {
     try {
-      const charge: ChargeEntity = await this.chargeRepository.findOne({ where: { id } });
+      const charge: ChargeEntity = await this.chargeRepository.findOne({
+        where: { id },
+      });
       if (!charge) throw new NotFoundException('Charge not found.');
       return charge;
     } catch (error) {
@@ -27,7 +35,9 @@ export class ChargeService {
 
   public async findByName(name: string): Promise<ChargeEntity> {
     try {
-      const charge: ChargeEntity = await this.chargeRepository.findOne({ where: { name } });
+      const charge: ChargeEntity = await this.chargeRepository.findOne({
+        where: { name },
+      });
       if (!charge) throw new NotFoundException('Charge not found.');
       return charge;
     } catch (error) {
@@ -38,19 +48,27 @@ export class ChargeService {
   public async create(createChargeDto: CreateChargeDto): Promise<ChargeEntity> {
     try {
       createChargeDto.name = createChargeDto.name.toLowerCase();
-      const charge_created: ChargeEntity = await this.chargeRepository.save(createChargeDto);
+      const charge_created: ChargeEntity = await this.chargeRepository.save(
+        createChargeDto,
+      );
       return await this.findOne(charge_created.id);
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async delete(id: string): Promise<{ statusCode: number; message: string }> {
+  public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const charge = await this.findOne(id);
       const deletedCharge = await this.chargeRepository.delete(charge.id);
-      if (deletedCharge.affected === 0) throw new BadRequestException('Charge not deleted.');
-      return { statusCode: 200, message: 'Charge deleted.' };
+      if (deletedCharge.affected === 0)
+        throw new BadRequestException('Charge not deleted.');
+      return {
+        success: true,
+        statusCode: 200,
+        message: 'Charge deleted.',
+        data: null,
+      };
     } catch (error) {
       handlerError(error, this.logger);
     }
@@ -64,7 +82,10 @@ export class ChargeService {
     }
   }
 
-  public async update(id: string, updateChargeDto: UpdateChargeDto): Promise<ChargeEntity> {
+  public async update(
+    id: string,
+    updateChargeDto: UpdateChargeDto,
+  ): Promise<ChargeEntity> {
     try {
       const charge: ChargeEntity = await this.findOne(id);
       if (updateChargeDto.name) {
@@ -80,5 +101,4 @@ export class ChargeService {
   async countCharges(): Promise<number> {
     return await this.chargeRepository.count();
   }
-
 }

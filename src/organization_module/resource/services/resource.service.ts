@@ -6,7 +6,7 @@ import { CreateResourceDto } from '../dto/create-resource.dto';
 import { UpdateResourceDto } from '../dto/update-resource.dto';
 import { ResourceEntity } from '../entities/resource.entity';
 import { handlerError } from '../../../common/utils/handlerError.utils';
-import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
+import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { EquipmentService } from '../../../organization_module/equipment/services/equipment.service';
 
@@ -16,14 +16,17 @@ export class ResourceService {
 
   constructor(
     @InjectRepository(ResourceEntity)
-    private readonly resourceRepository: Repository<ResourceEntity>,  
+    private readonly resourceRepository: Repository<ResourceEntity>,
     private readonly emergencyService: EmergencyService,
     private readonly equipmentService: EquipmentService,
   ) {}
 
   public async findOne(id: string): Promise<ResourceEntity> {
     try {
-      const resource = await this.resourceRepository.findOne({ where: { id }, relations: ['equipment', 'emergency'] });
+      const resource = await this.resourceRepository.findOne({
+        where: { id },
+        relations: ['equipment', 'emergency'],
+      });
       if (!resource) throw new NotFoundException('Resource not found.');
       return resource;
     } catch (error) {
@@ -31,9 +34,11 @@ export class ResourceService {
     }
   }
 
-  public async create(createResourceDto: CreateResourceDto): Promise<ResourceEntity> {
+  public async create(
+    createResourceDto: CreateResourceDto,
+  ): Promise<ResourceEntity> {
     try {
-      const { emergencyId, equipmentId , ...resourceData } = createResourceDto;
+      const { emergencyId, equipmentId, ...resourceData } = createResourceDto;
       const emergency = await this.emergencyService.findOne(emergencyId);
       if (!emergency) throw new NotFoundException('Emergency not found.');
       const equipment = await this.equipmentService.findOne(equipmentId);
@@ -41,7 +46,7 @@ export class ResourceService {
       const resource = this.resourceRepository.create({
         ...resourceData,
         emergency,
-        equipment
+        equipment,
       });
 
       return await this.resourceRepository.save(resource);
@@ -50,45 +55,67 @@ export class ResourceService {
     }
   }
 
-  public async update(id: string, updateResourceDto: UpdateResourceDto): Promise<ResourceEntity> {
+  public async update(
+    id: string,
+    updateResourceDto: UpdateResourceDto,
+  ): Promise<ResourceEntity> {
     try {
       const resource = await this.findOne(id);
-      const { emergencyId,  equipmentId, ...resourceData } = updateResourceDto;
-      const resourceUpdated = await this.resourceRepository.update(resource.id, resourceData);
-      if (resourceUpdated.affected === 0) throw new NotFoundException('Recurso no actualizado.');
+      const { emergencyId, equipmentId, ...resourceData } = updateResourceDto;
+      const resourceUpdated = await this.resourceRepository.update(
+        resource.id,
+        resourceData,
+      );
+      if (resourceUpdated.affected === 0)
+        throw new NotFoundException('Recurso no actualizado.');
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async delete(id: string): Promise<ResponseMessage> {
+  public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const resource = await this.findOne(id);
       await this.resourceRepository.delete(resource.id);
-      return { statusCode: 200, message: 'Resource deleted.' };
+      return {
+        success: true,
+        statusCode: 200,
+        message: 'Resource deleted.',
+        data: null,
+      };
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async findByEmergencyId(emergencyId: string): Promise<ResourceEntity[]> {
+  public async findByEmergencyId(
+    emergencyId: string,
+  ): Promise<ResourceEntity[]> {
     try {
       const emergency = await this.emergencyService.findOne(emergencyId);
       console.log(emergency);
       if (!emergency) throw new NotFoundException('Emergency not found.');
-      return await this.resourceRepository.find({ where: { emergency: { id: emergency.id } }, relations: ['equipment', 'emergency'] });
+      return await this.resourceRepository.find({
+        where: { emergency: { id: emergency.id } },
+        relations: ['equipment', 'emergency'],
+      });
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async findByEquipmentId(equipmentId: string): Promise<ResourceEntity[]> {
+  public async findByEquipmentId(
+    equipmentId: string,
+  ): Promise<ResourceEntity[]> {
     try {
       const equipment = await this.equipmentService.findOne(equipmentId);
       if (!equipment) throw new NotFoundException('Equipment not found.');
 
-      return await this.resourceRepository.find({ where: { equipment }, relations: ['equipment', 'emergency'] });
+      return await this.resourceRepository.find({
+        where: { equipment },
+        relations: ['equipment', 'emergency'],
+      });
     } catch (error) {
       handlerError(error, this.logger);
     }

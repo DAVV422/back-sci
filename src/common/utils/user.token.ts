@@ -10,7 +10,10 @@ export const userToken = (token: string): IUserToken | string => {
     const expiresDate = new Date(decode.exp * 1000);
 
     const isExpired = +expiresDate <= +currentDate;
-    const timeRemaining = Math.max(0, Math.floor((expiresDate.getTime() - currentDate.getTime()) / 1000));
+    const timeRemaining = Math.max(
+      0,
+      Math.floor((expiresDate.getTime() - currentDate.getTime()) / 1000),
+    );
 
     return {
       role: decode.role,

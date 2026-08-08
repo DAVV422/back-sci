@@ -22,7 +22,7 @@ export const DataSourceConfig: DataSourceOptions = {
       configService.get('APP_PROD') === 'true'
         ? { rejectUnauthorized: false }
         : null,
-    timezone: 'America/La_Paz'
+    timezone: 'America/La_Paz',
   },
   namingStrategy: new SnakeNamingStrategy(),
 };

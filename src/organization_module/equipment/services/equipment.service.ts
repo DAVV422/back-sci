@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateEquipmentDto } from '../dto/create-equipment.dto';
@@ -6,7 +11,10 @@ import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
 import { EquipmentEntity } from '../entities/equipment.entity';
 import { handlerError } from '../../../common/utils/handlerError.utils';
 import { QueryDto } from '../../../common/dto/query.dto';
-import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
+import {
+  ApiResponse,
+  PaginatedResult,
+} from '../../../common/interfaces/responseMessage.interface';
 
 @Injectable()
 export class EquipmentService {
@@ -15,11 +23,14 @@ export class EquipmentService {
   constructor(
     @InjectRepository(EquipmentEntity)
     private readonly equipmentRepository: Repository<EquipmentEntity>,
-  ) { }
+  ) {}
 
-  public async create(createEquipmentDto: CreateEquipmentDto): Promise<EquipmentEntity> {
+  public async create(
+    createEquipmentDto: CreateEquipmentDto,
+  ): Promise<EquipmentEntity> {
     try {
-      const equipment_created = this.equipmentRepository.create(createEquipmentDto);
+      const equipment_created =
+        this.equipmentRepository.create(createEquipmentDto);
       await this.equipmentRepository.save(equipment_created);
       return equipment_created;
     } catch (error) {
@@ -27,7 +38,10 @@ export class EquipmentService {
     }
   }
 
-  public async update(id: string, updateEquipmentDto: UpdateEquipmentDto): Promise<EquipmentEntity> {
+  public async update(
+    id: string,
+    updateEquipmentDto: UpdateEquipmentDto,
+  ): Promise<EquipmentEntity> {
     try {
       const equipment = await this.findOne(id);
       await this.equipmentRepository.update(id, updateEquipmentDto);
@@ -37,13 +51,16 @@ export class EquipmentService {
     }
   }
 
-  public async findAll(queryDto: QueryDto): Promise<EquipmentEntity[]> {
+  public async findAll(
+    queryDto: QueryDto,
+  ): Promise<PaginatedResult<EquipmentEntity>> {
     try {
       const { limit, offset, order = 'DESC', attr, value } = queryDto;
       const query = this.equipmentRepository.createQueryBuilder('equipment');
       if (limit) query.take(limit);
       if (offset) query.skip(offset);
-      return await query.getMany();
+      const [items, total] = await query.getManyAndCount();
+      return { items, total };
     } catch (error) {
       handlerError(error, this.logger);
     }
@@ -51,7 +68,9 @@ export class EquipmentService {
 
   public async findOne(id: string): Promise<EquipmentEntity> {
     try {
-      const equipment = await this.equipmentRepository.findOne({ where: { id } });
+      const equipment = await this.equipmentRepository.findOne({
+        where: { id },
+      });
       if (!equipment) throw new NotFoundException('Equipo no encontrado.');
       return equipment;
     } catch (error) {
@@ -59,12 +78,20 @@ export class EquipmentService {
     }
   }
 
-  public async delete(id: string): Promise<ResponseMessage> {
+  public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const equipment = await this.findOne(id);
-      const deletedEquipment = await this.equipmentRepository.delete(equipment.id);
-      if (deletedEquipment.affected === 0) throw new BadRequestException('Equipo no eliminado.');
-      return { statusCode: 200, message: 'Equipo eliminado.' };
+      const deletedEquipment = await this.equipmentRepository.delete(
+        equipment.id,
+      );
+      if (deletedEquipment.affected === 0)
+        throw new BadRequestException('Equipo no eliminado.');
+      return {
+        success: true,
+        statusCode: 200,
+        message: 'Equipo eliminado.',
+        data: null,
+      };
     } catch (error) {
       handlerError(error, this.logger);
     }

@@ -1,12 +1,24 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 
 import { CreateActionDto } from './../dto/create-action.dto';
 import { ActionService } from './../services/action.service';
 import { QueryDto } from './../../../common/dto/query.dto';
-import { ResponseMessage } from './../../../common/interfaces/responseMessage.interface';
+import { ApiResponse } from './../../../common/interfaces/responseMessage.interface';
 import { GetUser } from './../../../auth/decorators';
+import { ActionEntity } from './../entities/action.entity';
 
 @ApiTags('Action')
 @ApiBearerAuth()
@@ -16,8 +28,11 @@ export class ActionController {
 
   @Get(':id')
   @ApiParam({ name: 'id', type: 'string' })
-  public async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseMessage> {
+  public async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ApiResponse<ActionEntity>> {
     return {
+      success: true,
       statusCode: 200,
       data: await this.actionService.findOne(id),
     };
@@ -25,8 +40,12 @@ export class ActionController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post()
-  public async create(@Body() createActionDto: CreateActionDto, @GetUser('id') userId: string): Promise<ResponseMessage> {
+  public async create(
+    @Body() createActionDto: CreateActionDto,
+    @GetUser('id') userId: string,
+  ): Promise<ApiResponse<ActionEntity>> {
     return {
+      success: true,
       statusCode: 200,
       data: await this.actionService.create(createActionDto, userId),
     };
@@ -37,8 +56,9 @@ export class ActionController {
   public async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateActionDto: CreateActionDto,
-  ): Promise<ResponseMessage> {
+  ): Promise<ApiResponse<ActionEntity>> {
     return {
+      success: true,
       statusCode: 200,
       data: await this.actionService.update(id, updateActionDto),
     };
@@ -46,9 +66,16 @@ export class ActionController {
 
   @Delete(':id')
   @ApiParam({ name: 'id', type: 'string' })
-  public async delete(@Param('id', ParseUUIDPipe) id: string): Promise<ResponseMessage> {
+  public async delete(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ApiResponse<null>> {
     await this.actionService.delete(id);
-    return { statusCode: 200, message: 'Acción eliminada.' };
+    return {
+      success: true,
+      statusCode: 200,
+      message: 'Acción eliminada.',
+      data: null,
+    };
   }
 
   @Get('emergency/:emergencyId')
@@ -58,8 +85,9 @@ export class ActionController {
   public async findByEmergency(
     @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
     @Query() queryDto: QueryDto,
-  ): Promise<ResponseMessage> {
+  ): Promise<ApiResponse<ActionEntity[]>> {
     return {
+      success: true,
       statusCode: 200,
       data: await this.actionService.findByEmergency(emergencyId),
     };

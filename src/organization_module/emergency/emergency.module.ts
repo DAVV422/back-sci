@@ -11,10 +11,10 @@ import { DataFireService } from './services/dataFire.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([EmergencyEntity, DataFireEntity]),
-    UserModule
+    UserModule,
   ],
   controllers: [EmergencyController, DataFireController],
   providers: [EmergencyService, DataFireService],
-  exports: [TypeOrmModule, EmergencyService, DataFireService]
+  exports: [TypeOrmModule, EmergencyService, DataFireService],
 })
-export class EmergencyModule { }
+export class EmergencyModule {}

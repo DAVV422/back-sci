@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsArray,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 import { EmergencyStatus } from '../enums/emergency-status.enum';
 
 export class CreateEmergencyDto {
@@ -48,7 +55,7 @@ export class CreateEmergencyDto {
   type: string;
 
   @ApiProperty({
-    example: [-68.150000, -16.500000],
+    example: [-68.15, -16.5],
     type: [Number],
     description: 'Coordenadas de la emergencia (latitud y longitud)',
   })
@@ -57,7 +64,7 @@ export class CreateEmergencyDto {
   coordinates?: number[];
 
   @ApiProperty({
-    example: [-68.150000, -16.500000],
+    example: [-68.15, -16.5],
     type: [Number],
     description: 'Coordenadas del área de espera (latitud y longitud)',
   })
@@ -66,7 +73,7 @@ export class CreateEmergencyDto {
   coordinates_e?: number[];
 
   @ApiProperty({
-    example: [-68.150000, -16.500000],
+    example: [-68.15, -16.5],
     type: [Number],
     description: 'Coordenadas del puesto comando (latitud y longitud)',
   })

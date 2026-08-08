@@ -8,11 +8,14 @@ import { UserModule } from '../../user/user.module';
 import { ChargesModule } from '../../sci_module/charges/charges.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AttendEntity]),
-    UserModule, EmergencyModule, ChargesModule
+  imports: [
+    TypeOrmModule.forFeature([AttendEntity]),
+    UserModule,
+    EmergencyModule,
+    ChargesModule,
   ],
   controllers: [AttendController],
   providers: [AttendService],
-  exports: [TypeOrmModule, AttendService]
+  exports: [TypeOrmModule, AttendService],
 })
 export class AttendsModule {}

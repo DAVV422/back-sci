@@ -14,7 +14,11 @@ import { JwtService } from '@nestjs/jwt';
 
 @Global()
 @Module({
-  imports: [UserModule, ConfigModule, PassportModule.register({ defaultStrategy: 'jwt' })],
+  imports: [
+    UserModule,
+    ConfigModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+  ],
   providers: [
     {
       provide: 'ITokenStrategy',
@@ -22,7 +26,8 @@ import { JwtService } from '@nestjs/jwt';
     },
     {
       provide: TokenValidatorService,
-      useFactory: (strategy: JwtStrategy) => new TokenValidatorService(strategy, new JwtService()),
+      useFactory: (strategy: JwtStrategy) =>
+        new TokenValidatorService(strategy, new JwtService()),
       inject: ['ITokenStrategy'],
     },
     AuthService,
@@ -30,6 +35,6 @@ import { JwtService } from '@nestjs/jwt';
     JwtServiceAdapter,
   ],
   controllers: [AuthController],
-  exports: [PassportModule]
+  exports: [PassportModule],
 })
-export class AuthModule { }
+export class AuthModule {}

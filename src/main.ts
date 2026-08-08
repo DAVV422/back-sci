@@ -6,11 +6,15 @@ import * as morgan from 'morgan';
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { DocumentBuilder } from '@nestjs/swagger';
 import { SwaggerModule } from '@nestjs/swagger/dist';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.use(new TraceIdMiddleware().use); // Generate a traceId per request
   app.use(morgan('dev')); // Log all requests to the console
+  app.useGlobalFilters(new HttpExceptionFilter()); // Format all errors consistently
   app.setGlobalPrefix('api'); // Set the global prefix for all routes
   app.enableCors(CORS_OPTIONS); // Enable CORS
   app.useGlobalPipes(
@@ -32,7 +36,9 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .addBearerAuth()
     .setTitle(title)
-    .setDescription('Template para iniciar un proyecto con NestJS, TypeORM, Postgres, Swagger, Passport, JWT, Docker, etc.')
+    .setDescription(
+      'Documentación de API del proyecto de Gestión de Emergencias basado en el Sistema de Comando de Incidentes (SCI)',
+    )
     .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, config);

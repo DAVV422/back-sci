@@ -10,4 +10,4 @@ import { ChargesModule } from 'src/sci_module/charges/charges.module';
   controllers: [SeedController],
   providers: [SeedService],
 })
-export class SeederModule { }
+export class SeederModule {}

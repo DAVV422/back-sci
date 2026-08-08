@@ -6,14 +6,14 @@ import { SeedService } from './seed.service';
 @ApiTags('Seeder')
 @Controller('seed')
 export class SeedController {
-  constructor(private readonly seedService: SeedService) { }
+  constructor(private readonly seedService: SeedService) {}
 
-  @Get("/all")
+  @Get('/all')
   public async runSeeder(): Promise<any> {
     return await this.seedService.runAllSeeders();
   }
 
-  @Get("/charges")
+  @Get('/charges')
   public async runSeederCharges(): Promise<any> {
     return await this.seedService.runSeedersCharges();
   }

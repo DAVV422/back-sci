@@ -5,9 +5,9 @@ import { RegistrationController } from './controllers/registration.controller';
 import { RegistrationEntity } from './entities/registration.entity';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([RegistrationEntity])],
-    controllers: [RegistrationController],
-    providers: [RegistrationService],
-    exports: [RegistrationService],
+  imports: [TypeOrmModule.forFeature([RegistrationEntity])],
+  controllers: [RegistrationController],
+  providers: [RegistrationService],
+  exports: [RegistrationService],
 })
-export class RegistrationModule { }
+export class RegistrationModule {}

@@ -1,12 +1,15 @@
-import { ResponseMessage } from "../interfaces/responseMessage.interface";
+import { ApiResponse } from '../interfaces/responseMessage.interface';
 
-export const responseHandler = (responseOptions: ResponseMessage): ResponseMessage => {
-    const { message, error, statusCode = 500, data } = responseOptions;
-    const response: ResponseMessage = {
-        message,
-        error,
-        statusCode,
-        data,
-    };
-    return response;
+export const responseHandler = <T>(
+  responseOptions: ApiResponse<T>,
+): ApiResponse<T> => {
+  const { message, statusCode = 500, data, meta } = responseOptions;
+  const response: ApiResponse<T> = {
+    success: true,
+    message,
+    statusCode,
+    data,
+    meta,
+  };
+  return response;
 };

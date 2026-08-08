@@ -1,5 +1,4 @@
 export interface DeleteMessage {
-    message: string;
-    deleted: boolean;
-  }
-  
+  message: string;
+  deleted: boolean;
+}

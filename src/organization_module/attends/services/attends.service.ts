@@ -1,11 +1,16 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { CreateAttendDto } from '../dto/create-attend.dto';
 import { AttendEntity } from '../entities/attends.entity';
 import { handlerError } from '../../../common/utils/handlerError.utils';
-import { ResponseMessage } from '../../../common/interfaces/responseMessage.interface';
+import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { UserService } from '../../../user/services/user.service';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { ChargeService } from '../../../sci_module/charges/services/charge.service';
@@ -19,12 +24,15 @@ export class AttendService {
     private readonly attendRepository: Repository<AttendEntity>,
     private readonly userService: UserService,
     private readonly emergencyService: EmergencyService,
-    private readonly chargeService: ChargeService
-  ) { }
+    private readonly chargeService: ChargeService,
+  ) {}
 
   public async findOne(id: string): Promise<AttendEntity> {
     try {
-      const attend: AttendEntity = await this.attendRepository.findOne({ where: { id }, relations: ['emergency', 'user', 'charge'] });
+      const attend: AttendEntity = await this.attendRepository.findOne({
+        where: { id },
+        relations: ['emergency', 'user', 'charge'],
+      });
       if (!attend) throw new NotFoundException('Asistencia no encontrada.');
       return attend;
     } catch (error) {
@@ -42,7 +50,7 @@ export class AttendService {
         ...createAttend,
         user: { id: userEntity.id },
         emergency: { id: emergencyEntity.id },
-        charge: { id: chargeEntity.id}
+        charge: { id: chargeEntity.id },
       });
       const attend_created = await this.attendRepository.save(attend_create);
       return await this.findOne(attend_created.id);
@@ -51,12 +59,18 @@ export class AttendService {
     }
   }
 
-  public async delete(id: string): Promise<ResponseMessage> {
+  public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const attend = await this.findOne(id);
       const deletedAttend = await this.attendRepository.delete(attend.id);
-      if (deletedAttend.affected === 0) throw new BadRequestException('Asistencia no eliminada.');
-      return { statusCode: 200, message: 'Asistencia eliminada.' };
+      if (deletedAttend.affected === 0)
+        throw new BadRequestException('Asistencia no eliminada.');
+      return {
+        success: true,
+        statusCode: 200,
+        message: 'Asistencia eliminada.',
+        data: null,
+      };
     } catch (error) {
       handlerError(error, this.logger);
     }
@@ -64,8 +78,14 @@ export class AttendService {
 
   public async findByEmergency(emergencyId: string): Promise<AttendEntity[]> {
     try {
-      const attends: AttendEntity[] = await this.attendRepository.find({ where: { emergency: { id: emergencyId } }, relations: ['emergency', 'user', 'charge'] });
-      if (!attends || attends.length === 0) throw new NotFoundException('No se encontraron asistencias para esta emergencia.');
+      const attends: AttendEntity[] = await this.attendRepository.find({
+        where: { emergency: { id: emergencyId } },
+        relations: ['emergency', 'user', 'charge'],
+      });
+      if (!attends || attends.length === 0)
+        throw new NotFoundException(
+          'No se encontraron asistencias para esta emergencia.',
+        );
       return attends;
     } catch (error) {
       handlerError(error, this.logger);
@@ -74,8 +94,14 @@ export class AttendService {
 
   public async findByUser(userId: string): Promise<AttendEntity[]> {
     try {
-      const attends: AttendEntity[] = await this.attendRepository.find({ where: { user: { id: userId } }, relations: ['emergency', 'user'] });
-      if (!attends || attends.length === 0) throw new NotFoundException('No se encontraron asistencias para este usuario.');
+      const attends: AttendEntity[] = await this.attendRepository.find({
+        where: { user: { id: userId } },
+        relations: ['emergency', 'user'],
+      });
+      if (!attends || attends.length === 0)
+        throw new NotFoundException(
+          'No se encontraron asistencias para este usuario.',
+        );
       return attends;
     } catch (error) {
       handlerError(error, this.logger);
