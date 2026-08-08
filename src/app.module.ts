@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -23,6 +23,7 @@ import { ResourceModule } from './organization_module/resource/resource.module';
 import { ChargesModule } from './sci_module/charges/charges.module';
 import { VictimModule } from './victim_registry_module/victim/victim.module';
 import { RegistrationModule } from './victim_registry_module/registration/registration.module';
+import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
 
 @Module({
   imports: [
@@ -64,4 +65,8 @@ import { RegistrationModule } from './victim_registry_module/registration/regist
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(TraceIdMiddleware).forRoutes('*');
+  }
+}

@@ -6,41 +6,63 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 
-import { AuthGuard } from '../../../auth/guards';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
+import { RolesAccess } from '../../../auth/decorators';
+import { ROLES } from '../../../common/constants';
 import { CreateForm201Dto } from '../dto/create-form-201.dto';
 import { UpdateForm201Dto } from '../dto/update-form-201.dto';
 import { Form201Service } from '../services/form-201.service';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { Form201Entity } from '../entities/form-201.entity';
+import { GetUser } from '../../../auth/decorators';
 
 @ApiTags('Form201')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
-@Controller('form201')
+@UseGuards(AuthGuard, RolesGuard)
+@Controller()
 export class Form201Controller {
   constructor(private readonly form201Service: Form201Service) {}
 
-  @Post()
+  @ApiParam({ name: 'emergencyId', type: 'string' })
+  @Post('emergency/:emergencyId/form201')
   async create(
+    @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
     @Body() createForm201Dto: CreateForm201Dto,
+    @GetUser('id') userId: string,
   ): Promise<ApiResponse<Form201Entity>> {
-    const form201 = await this.form201Service.create(createForm201Dto);
+    const form201 = await this.form201Service.create(
+      emergencyId,
+      createForm201Dto,
+      userId,
+    );
     return {
       success: true,
       statusCode: 201,
-      message: 'Form201 created successfully.',
+      message: 'Formulario 201 creado exitosamente.',
+      data: form201,
+    };
+  }
+
+  @ApiParam({ name: 'emergencyId', type: 'string' })
+  @Get('emergency/:emergencyId/form201')
+  async findActiveByEmergency(
+    @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
+  ): Promise<ApiResponse<Form201Entity>> {
+    const form201 = await this.form201Service.findActiveByEmergency(emergencyId);
+    return {
+      success: true,
+      statusCode: 200,
       data: form201,
     };
   }
 
   @ApiParam({ name: 'id', type: 'string' })
-  @Patch(':id')
+  @Patch('form201/:id')
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateForm201Dto: UpdateForm201Dto,
@@ -49,41 +71,29 @@ export class Form201Controller {
     return {
       success: true,
       statusCode: 200,
-      message: 'Form201 updated successfully.',
+      message: 'Formulario 201 actualizado exitosamente.',
       data: form201,
     };
   }
 
   @ApiParam({ name: 'id', type: 'string' })
-  @Get(':id')
-  async findOne(
+  @Patch('form201/:id/finalize')
+  async finalize(
     @Param('id', ParseUUIDPipe) id: string,
+    @GetUser('id') userId: string,
   ): Promise<ApiResponse<Form201Entity>> {
-    const form201 = await this.form201Service.findOne(id);
+    const form201 = await this.form201Service.finalize(id, userId);
     return {
       success: true,
       statusCode: 200,
-      message: 'Form201 found successfully.',
+      message: 'Formulario 201 finalizado exitosamente.',
       data: form201,
     };
   }
 
-  @ApiParam({ name: 'emergencyId', type: 'string' })
-  @Get('by-emergency/:emergencyId')
-  async findByEmergency(
-    @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
-  ): Promise<ApiResponse<Form201Entity[]>> {
-    const form201s = await this.form201Service.findByEmergency(emergencyId);
-    return {
-      success: true,
-      statusCode: 200,
-      message: 'Form201s found successfully.',
-      data: form201s,
-    };
-  }
-
+  @RolesAccess(ROLES.MANAGER)
   @ApiParam({ name: 'id', type: 'string' })
-  @Delete(':id')
+  @Delete('form201/:id')
   async delete(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ApiResponse<null>> {
@@ -91,7 +101,7 @@ export class Form201Controller {
     return {
       success: true,
       statusCode: 200,
-      message: 'Form201 deleted successfully.',
+      message: 'Formulario 201 eliminado exitosamente.',
       data: null,
     };
   }

@@ -1,128 +1,126 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsNotEmpty,
-  IsDateString,
   IsString,
   IsUUID,
   IsOptional,
+  IsDateString,
+  IsObject,
 } from 'class-validator';
 
 export class CreateForm201Dto {
   @ApiProperty({
-    example: 'Objetivo de la form 201',
-    description: 'Objetivo de la form 201',
-  })
-  @IsString()
-  objective: string;
-
-  @ApiProperty({
-    example: 'Estrategia de la form 201',
-    description: 'Estrategia de la form 201',
-  })
-  @IsString()
-  @IsOptional()
-  strategy?: string;
-
-  @ApiProperty({
-    example: 'Mensaje de seguridad de la form 201',
-    description: 'Mensaje de seguridad de la form 201',
-  })
-  @IsString()
-  @IsOptional()
-  safety_message?: string;
-
-  @ApiProperty({
-    example: 'https://example.com/organization_chart.png',
-    description: 'URL del organigrama de la organización',
-    default: '',
-  })
-  @IsOptional()
-  @IsString()
-  url_organization_chart?: string;
-
-  @ApiProperty({
-    example: 'Naturaleza del incidente de la form 201',
-    description: 'Naturaleza del incidente de la form 201',
-  })
-  @IsString()
-  @IsOptional()
-  nature?: string;
-
-  @ApiProperty({
-    example: 'Hilo de discusión relacionado con la form 201',
-    description: 'Hilo de discusión relacionado con la form 201',
-    default: '',
-  })
-  @IsOptional()
-  @IsString()
-  thread?: string;
-
-  @ApiProperty({
-    example: 'Medidas de aislamiento de la form 201',
-    description: 'Medidas de aislamiento de la form 201',
-    default: '',
-  })
-  @IsOptional()
-  @IsString()
-  isolation?: string;
-
-  @ApiProperty({
-    example: 'Áreas afectadas de la form 201',
-    description: 'Áreas afectadas de la form 201',
-    default: '',
-  })
-  @IsString()
-  affected_areas?: string;
-
-  @ApiProperty({
-    example: 'Tácticas de la form 201',
-    description: 'Tácticas de la form 201',
-  })
-  @IsOptional()
-  @IsString()
-  tactics?: string;
-
-  @ApiProperty({
-    example: 'Canal 108',
-    description: 'Canal de comunicación de la form 201',
-    default: '',
-  })
-  @IsString()
-  @IsOptional()
-  communications_channel?: string;
-
-  @ApiProperty({
-    example: 'Ruta de salida de la form 201',
-    description: 'Ruta de salida de la form 201',
-    default: '',
-  })
-  @IsOptional()
-  @IsString()
-  egress_route?: string;
-
-  @ApiProperty({
-    example: 'Ruta de entrada de la form 201',
-    description: 'Ruta de entrada de la form 201',
-    default: '',
-  })
-  @IsString()
-  @IsOptional()
-  entry_route?: string;
-
-  @ApiProperty({
-    example: '2024-06-20',
-    description: 'Fecha de la form 201',
+    example: '2026-08-08',
+    description: 'Fecha del formulario',
   })
   @IsNotEmpty()
+  @IsDateString()
   date: Date;
 
   @ApiProperty({
-    example: '01b9bbf4-41a6-4820-abd4-9df61a2d6356',
-    type: String,
-    description: 'Id de la emergencia a la que pertencerá',
+    example: 'Accidente de tránsito múltiple',
+    description: 'Naturaleza del incidente',
   })
   @IsNotEmpty()
   @IsString()
+  nature: string;
+
+  @ApiProperty({
+    example: 'Derrame de combustible y riesgo de explosión',
+    description: 'Amenaza(s) asociada(s)',
+  })
+  @IsNotEmpty()
+  @IsString()
+  thread: string;
+
+  @ApiProperty({
+    example: 'Kilómetro 15 de la autopista principal',
+    description: 'Descripción del área afectada',
+  })
+  @IsNotEmpty()
+  @IsString()
+  affectedArea: string;
+
+  @ApiProperty({
+    example: 'Canal 16 VHF (156.800 MHz)',
+    description: 'Frecuencia o canal de comunicación',
+  })
+  @IsNotEmpty()
+  @IsString()
+  communicationsChannel: string;
+
+  @ApiProperty({
+    example: 'Ruta 5 Sur, carril norte-sur',
+    description: 'Ruta de acceso de recursos',
+  })
+  @IsNotEmpty()
+  @IsString()
+  entryRoute: string;
+
+  @ApiProperty({
+    example: 'Ruta 5 Sur, carril sur-norte (contraflujo)',
+    description: 'Ruta de evacuación',
+  })
+  @IsNotEmpty()
+  @IsString()
+  egressRoute: string;
+
+  @ApiProperty({
+    example: 'https://mapas.sci.gov/incident-102.png',
+    description: 'URL del mapa de zonas afectadas',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  affectedAreasMapUrl?: string;
+
+  @ApiProperty({
+    example: '1. Rescatar atrapados. 2. Controlar derrame.',
+    description: 'Objetivos',
+  })
+  @IsNotEmpty()
+  @IsString()
+  objectives: string;
+
+  @ApiProperty({
+    example: 'Uso de espuma química y extricación vehicular.',
+    description: 'Estrategias',
+  })
+  @IsNotEmpty()
+  @IsString()
+  strategies: string;
+
+  @ApiProperty({
+    example: 'Despliegue de Unidad de Rescate R-1.',
+    description: 'Tácticas',
+  })
+  @IsNotEmpty()
+  @IsString()
+  tactics: string;
+
+  @ApiProperty({
+    example: 'Mantener distancia de seguridad del derrame.',
+    description: 'Mensaje de seguridad general',
+  })
+  @IsNotEmpty()
+  @IsString()
+  safetyMessage: string;
+
+  @ApiProperty({
+    example: {},
+    description: 'Organigrama manual offline (opcional)',
+    required: false,
+  })
+  @IsOptional()
+  @IsObject()
+  organizationChart?: Record<string, any>;
+
+  @ApiProperty({
+    example: '01b9bbf4-41a6-4820-abd4-9df61a2d6356',
+    description: 'ID generado en offline (opcional)',
+    required: false,
+  })
+  @IsOptional()
   @IsUUID()
-  emergency: string;
+  clientGeneratedId?: string;
 }

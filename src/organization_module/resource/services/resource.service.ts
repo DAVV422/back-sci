@@ -180,7 +180,7 @@ export class ResourceService {
       const resource = await this.findOne(id);
       if (resource.emergency)
         this.emergencyService.assertEditable(resource.emergency);
-      const { emergencyId, equipmentId, ...resourceData } = updateResourceDto;
+      const { emergencyId, equipmentId, amount: _ignored, ...resourceData } = updateResourceDto;
       const resourceUpdated = await this.resourceRepository.update(
         resource.id,
         resourceData,

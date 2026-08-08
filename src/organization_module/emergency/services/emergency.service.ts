@@ -58,7 +58,7 @@ export class EmergencyService {
       if (offset) query.skip(offset);
       query.orderBy('emergency.date', order.toLocaleUpperCase() as any);
       if (attr && value)
-        query.where(`emergency.${attr} ILIKE :value`, { value: `%${value}%` });
+        query.andWhere(`emergency.${attr} ILIKE :value`, { value: `%${value}%` });
       const [items, total] = await query.getManyAndCount();
       return { items, total };
     } catch (error) {

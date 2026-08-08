@@ -1,124 +1,88 @@
-import { Column, Entity, ManyToOne, OneToMany } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { EmergencyEntity } from '../../../organization_module/emergency/entities/emergency.entity';
+import { UserEntity } from '../../../user/entities/user.entity';
 
 @Entity({ name: 'form201' })
+@Index('uq_form201_active_per_emergency', ['emergency'], {
+  unique: true,
+  where: 'is_deleted = false',
+})
 export class Form201Entity extends BaseEntity {
-  @Column({
-    name: 'objective',
-    type: 'varchar',
-    length: 255,
-    nullable: true,
-    default: '',
-  })
-  //Objectivo de la emergencia
-  objective: string;
+  @Column({ name: 'code', type: 'varchar', length: 15, nullable: false })
+  code: string;
 
-  @Column({ name: 'strategy', type: 'varchar', nullable: true, default: '' })
-  //Estrategias definidas para la emergencia
-  strategy: string;
+  @Column({ name: 'date', type: 'date', nullable: false })
+  date: Date;
 
-  @Column({
-    name: 'safety_message',
-    type: 'varchar',
-    nullable: true,
-    default: '',
-  })
-  //Mensaje de seguridad para la emergencia
-  safety_message: string;
-
-  @Column({
-    name: 'url_organization_chart',
-    type: 'varchar',
-    nullable: true,
-    default: '',
-  })
-  //URL del organigrama de la emergencia
-  url_organization_chart: string;
-
-  @Column({ name: 'nature', type: 'varchar', nullable: true, default: '' })
-  //Naturaleza de la emergencia
+  @Column({ name: 'nature', type: 'varchar', length: 150, nullable: false })
   nature: string;
 
-  @Column({ name: 'thread', type: 'varchar', nullable: true, default: '' })
-  //Amenazas en la emergencia
+  @Column({ name: 'thread', type: 'text', nullable: false })
   thread: string;
 
-  @Column({ name: 'isolation', type: 'varchar', nullable: true, default: '' })
-  //Area de aislamiento en la emergencia
-  isolation: string;
-
-  @Column({
-    name: 'affected_areas',
-    type: 'varchar',
-    nullable: true,
-    length: 255,
-    default: '',
-  })
-  //Areas afectadas de la emergencia
-  affected_areas: string;
-
-  @Column({
-    name: 'tactics',
-    type: 'varchar',
-    length: 255,
-    nullable: true,
-    default: '',
-  })
-  //Tacticas definidas para la emergencia
-  tactics: string;
+  @Column({ name: 'affected_area', type: 'varchar', length: 255, nullable: false })
+  affectedArea: string;
 
   @Column({
     name: 'communications_channel',
     type: 'varchar',
-    nullable: true,
-    length: 255,
-    default: '',
+    length: 100,
+    nullable: false,
   })
-  //Ruta de salida definida para la emergencia
-  communications_channel: string;
+  communicationsChannel: string;
 
-  @Column({
-    name: 'egress_route',
-    type: 'varchar',
-    nullable: true,
-    length: 255,
-    default: '',
-  })
-  //Ruta de salida definida para la emergencia
-  egress_route: string;
+  @Column({ name: 'entry_route', type: 'varchar', length: 255, nullable: false })
+  entryRoute: string;
 
-  @Column({
-    name: 'entry_route',
-    type: 'varchar',
-    nullable: true,
-    length: 255,
-    default: '',
-  })
-  //Ruta de entrada definida para la emergencia
-  entry_route: string;
+  @Column({ name: 'egress_route', type: 'varchar', length: 255, nullable: false })
+  egressRoute: string;
 
   @Column({
     name: 'affected_areas_map_url',
     type: 'varchar',
+    length: 500,
     nullable: true,
-    length: 255,
-    default: '',
   })
-  //URL del mapa con las areas afectadas de la emergencia
-  affected_areas_map_url: string;
+  affectedAreasMapUrl?: string;
 
-  @Column({ name: 'date', type: 'date', nullable: false })
-  //Fecha de la emergencia
-  date: Date;
+  @Column({ name: 'objectives', type: 'text', nullable: false })
+  objectives: string;
+
+  @Column({ name: 'strategies', type: 'text', nullable: false })
+  strategies: string;
+
+  @Column({ name: 'tactics', type: 'text', nullable: false })
+  tactics: string;
+
+  @Column({ name: 'safety_message', type: 'varchar', length: 500, nullable: false })
+  safetyMessage: string;
+
+  @Column({ name: 'organization_chart', type: 'jsonb', nullable: false })
+  organizationChart: Record<string, any>;
 
   @Column({ name: 'is_finalized', type: 'boolean', default: false })
-  //Formulario finalizado
-  is_finalized: boolean;
+  isFinalized: boolean;
+
+  @Column({
+    name: 'client_generated_id',
+    type: 'uuid',
+    unique: true,
+    nullable: true,
+  })
+  clientGeneratedId?: string;
 
   @ManyToOne(() => EmergencyEntity, (emergency) => emergency.form201, {
     nullable: false,
     onDelete: 'CASCADE',
   })
+  @JoinColumn({ name: 'emergency_id' })
   emergency: EmergencyEntity;
+
+  @ManyToOne(() => UserEntity, {
+    nullable: false,
+    onDelete: 'RESTRICT',
+  })
+  @JoinColumn({ name: 'user_id' })
+  user: UserEntity;
 }

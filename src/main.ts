@@ -13,7 +13,6 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 
-  app.use(new TraceIdMiddleware().use); // Generate a traceId per request
   app.useGlobalFilters(new HttpExceptionFilter()); // Format all errors consistently
   app.setGlobalPrefix('api'); // Set the global prefix for all routes
   app.enableCors(CORS_OPTIONS); // Enable CORS

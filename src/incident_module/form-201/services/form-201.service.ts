@@ -11,6 +11,9 @@ import { CreateForm201Dto } from '../dto/create-form-201.dto';
 import { UpdateForm201Dto } from '../dto/update-form-201.dto';
 import { Form201Entity } from '../entities/form-201.entity';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
+import { UserService } from '../../../user/services/user.service';
+import { AttendEntity } from '../../../organization_module/attends/entities/attends.entity';
+import { ActionEntity } from '../../action/entities/action.entity';
 
 @Injectable()
 export class Form201Service {
@@ -19,23 +22,120 @@ export class Form201Service {
   constructor(
     @InjectRepository(Form201Entity)
     private readonly form201Repository: Repository<Form201Entity>,
+    @InjectRepository(AttendEntity)
+    private readonly attendRepository: Repository<AttendEntity>,
+    @InjectRepository(ActionEntity)
+    private readonly actionRepository: Repository<ActionEntity>,
     private readonly emergencyService: EmergencyService,
+    private readonly userService: UserService,
   ) {}
 
-  async create(createForm201Dto: CreateForm201Dto): Promise<Form201Entity> {
+  async create(
+    emergencyId: string,
+    createForm201Dto: CreateForm201Dto,
+    userId: string,
+  ): Promise<Form201Entity> {
     try {
-      const { emergency, ...form201Create } = createForm201Dto;
-      const emergencyEntity = await this.emergencyService.findOne(emergency);
-      const form201Created: Form201Entity = await this.form201Repository.create(
-        {
-          ...form201Create,
-          emergency: { id: emergencyEntity.id },
+      const emergencyEntity = await this.emergencyService.findOne(emergencyId);
+      this.emergencyService.assertEditable(emergencyEntity);
+
+      // Validar exclusividad del Formulario 201 activo
+      const activeForm = await this.form201Repository.findOne({
+        where: { emergency: { id: emergencyId }, isDeleted: false },
+      });
+      if (activeForm) {
+        throw new BadRequestException(
+          'Ya existe un Formulario 201 activo para esta emergencia.',
+        );
+      }
+
+      const userEntity = await this.userService.findOne(userId);
+
+      // Generar código correlativo incremental seguro
+      const totalFormsCount = await this.form201Repository.count({
+        where: { emergency: { id: emergencyId } },
+      });
+      const code = `F201-${String(totalFormsCount + 1).padStart(3, '0')}`;
+
+      // Capturar organigrama (snapshot inmutable de attends)
+      const attends = await this.attendRepository.find({
+        where: { emergency: { id: emergencyId }, is_active: true, isDeleted: false },
+        relations: ['user', 'charge'],
+      });
+
+      const organizationChart = attends.map((att) => ({
+        attendId: att.id,
+        user: {
+          id: att.user.id,
+          name: att.user.name,
+          lastName: att.user.last_name,
         },
-      );
-      return await this.form201Repository.save(form201Created);
+        charge: {
+          id: att.charge.id,
+          name: att.charge.name,
+          level: att.charge.level,
+          systemName: att.charge_system_name,
+        },
+        date: att.date,
+        hour: att.hour,
+      }));
+
+      const form201 = this.form201Repository.create({
+        ...createForm201Dto,
+        code,
+        organizationChart: createForm201Dto.organizationChart || { members: organizationChart },
+        emergency: emergencyEntity,
+        user: userEntity,
+      });
+
+      return await this.form201Repository.save(form201);
     } catch (error) {
-      this.logger.error(`Error creating Form201: ${error.message}`);
-      throw new BadRequestException('Unable to create Form201.');
+      this.logger.error(`Error al crear Form201: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async findOne(id: string): Promise<Form201Entity> {
+    try {
+      const form201 = await this.form201Repository.findOne({
+        where: { id, isDeleted: false },
+        relations: ['emergency', 'user'],
+      });
+      if (!form201) throw new NotFoundException('Formulario 201 no encontrado.');
+      return form201;
+    } catch (error) {
+      this.logger.error(`Error al buscar Form201: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async findActiveByEmergency(emergencyId: string): Promise<Form201Entity> {
+    try {
+      const form201 = await this.form201Repository.findOne({
+        where: { emergency: { id: emergencyId }, isDeleted: false },
+        relations: ['emergency', 'user'],
+      });
+      if (!form201) {
+        throw new NotFoundException(
+          'No se encontró un Formulario 201 activo para esta emergencia.',
+        );
+      }
+      return form201;
+    } catch (error) {
+      this.logger.error(`Error al buscar Form201 por emergencia: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async findByEmergency(emergencyId: string): Promise<Form201Entity[]> {
+    try {
+      return await this.form201Repository.find({
+        where: { emergency: { id: emergencyId }, isDeleted: false },
+        relations: ['emergency', 'user'],
+      });
+    } catch (error) {
+      this.logger.error(`Error al listar Form201 por emergencia: ${error.message}`);
+      throw error;
     }
   }
 
@@ -44,48 +144,68 @@ export class Form201Service {
     updateForm201Dto: UpdateForm201Dto,
   ): Promise<Form201Entity> {
     try {
-      const form201: Form201Entity = await this.findOne(id);
-      const { emergency, ...updateForm201 } = updateForm201Dto;
-      const form201Updated = await this.form201Repository.save({
-        ...form201,
-        ...updateForm201,
-      });
-      return form201Updated;
+      const form201 = await this.findOne(id);
+      this.emergencyService.assertEditable(form201.emergency);
+
+      if (form201.isFinalized) {
+        throw new BadRequestException(
+          'El formulario ya está finalizado y no se puede editar.',
+        );
+      }
+
+      const { ...updateData } = updateForm201Dto;
+      await this.form201Repository.update(id, updateData);
+
+      return await this.findOne(id);
     } catch (error) {
-      this.logger.error(`Error updating Form201: ${error.message}`);
-      throw new BadRequestException('Unable to update Form201.');
+      this.logger.error(`Error al actualizar Form201: ${error.message}`);
+      throw error;
     }
   }
 
-  async findByEmergency(emergencyId: string): Promise<Form201Entity[]> {
+  async finalize(id: string, userId: string): Promise<Form201Entity> {
     try {
-      const query = this.form201Repository.createQueryBuilder('form201');
-      query.leftJoinAndSelect('form201.emergency', 'emergency');
-      query.where('emergency.id = :id', { id: emergencyId });
-      return await query.getMany();
-      // this.form201Repository.find({ where: { emergency: { id: emergencyId } } });
-    } catch (error) {
-      this.logger.error(`Error finding Form201 by Emergency: ${error.message}`);
-      throw new NotFoundException('Form201 not found.');
-    }
-  }
+      const form201 = await this.findOne(id);
+      this.emergencyService.assertEditable(form201.emergency);
 
-  async findOne(id: string): Promise<Form201Entity> {
-    try {
-      return await this.form201Repository.findOne({ where: { id } });
+      if (form201.isFinalized) {
+        throw new BadRequestException('El formulario ya está finalizado.');
+      }
+
+      form201.isFinalized = true;
+      await this.form201Repository.save(form201);
+
+      // Registrar en bitácora de la emergencia
+      const now = new Date();
+      const user = await this.userService.findOne(userId);
+      await this.actionRepository.save(
+        this.actionRepository.create({
+          description: `Formulario 201 finalizado (${form201.code})`,
+          date: now,
+          hour: `${String(now.getHours()).padStart(2, '0')}:${String(
+            now.getMinutes(),
+          ).padStart(2, '0')}`,
+          user,
+          emergency: form201.emergency,
+        }),
+      );
+
+      return form201;
     } catch (error) {
-      this.logger.error(`Error finding Form201: ${error.message}`);
-      throw new NotFoundException('Form201 not found.');
+      this.logger.error(`Error al finalizar Form201: ${error.message}`);
+      throw error;
     }
   }
 
   async delete(id: string): Promise<void> {
     try {
-      const form201: Form201Entity = await this.findOne(id);
-      await this.form201Repository.remove(form201);
+      const form201 = await this.findOne(id);
+      this.emergencyService.assertEditable(form201.emergency);
+
+      await this.form201Repository.update(id, { isDeleted: true });
     } catch (error) {
-      this.logger.error(`Error deleting Form201: ${error.message}`);
-      throw new BadRequestException('Unable to delete Form201.');
+      this.logger.error(`Error al eliminar Form201: ${error.message}`);
+      throw error;
     }
   }
 }

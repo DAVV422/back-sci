@@ -64,6 +64,8 @@ export class ActionService {
     try {
       const { emergency, ...updateAction } = updateActionDto;
       const action = await this.findOne(id);
+      if (action.emergency)
+        this.emergencyService.assertEditable(action.emergency);
       await this.actionRepository.update(action.id, updateAction);
       return await this.findOne(id);
     } catch (error) {
@@ -74,6 +76,8 @@ export class ActionService {
   public async delete(id: string): Promise<void> {
     try {
       const action = await this.findOne(id);
+      if (action.emergency)
+        this.emergencyService.assertEditable(action.emergency);
       const deletedAction = await this.actionRepository.update(action.id, {
         isDeleted: true,
       });

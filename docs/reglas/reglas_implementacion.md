@@ -333,4 +333,27 @@ Ejecutadas contra una base de datos real (PostgreSQL de test, vía Docker/Testco
 * **Sincronización offline**: simular el envío de una acción con `client_generated_id` ya existente (reintento de red) y verificar idempotencia (no se duplica el registro). Simular también el caso `SYNC_CONFLICT_EMERGENCY_CLOSED`.
 * **Bloqueo de edición en emergencia Finalizada**: intentar modificar un recurso asociado a una emergencia finalizada y verificar rechazo, luego reabrir como ADMIN y verificar que la edición vuelve a permitirse.
 
-Estas pruebas deben ejecutarse en CI (pipeline) contra una instancia de PostgreSQL efímera, no contra mocks, precisamente porque validan comportamiento de constraints de base de datos y transacciones que un mock no puede reproducir fielmente.
+These tests must run in CI (pipeline) against an ephemeral PostgreSQL instance, not mocks, because they validate database constraint behavior and transactions that mocks cannot faithfully reproduce.
+
+---
+
+## 7. Políticas de Robustez y Calidad (Fase 1 y posteriores)
+
+Las siguientes políticas se derivan de las lecciones aprendidas en la Fase 1 y son de aplicación **obligatoria** para todos los desarrollos de las fases siguientes (Fase 2, 3 y 4).
+
+### 7.1 Respuesta API Estandarizada Obligatoria
+* Todos los controladores deben retornar respuestas exitosas con la estructura de `ApiResponse<T>`: `{ success: true, statusCode: number, message?: string, data: T, meta?: ApiResponseMeta }`.
+* El campo `meta` es obligatorio en listados y consultas paginadas para retornar el `total`, `limit`, y `offset`.
+* Todos los errores HTTP del sistema deben fluir a través del `HttpExceptionFilter` global, que garantiza que los clientes reciban un objeto `ApiErrorResponse` con un `traceId` único correlacionable con los logs del servidor.
+
+### 7.2 Validación de Estado de Emergencia antes de Escritura
+* Cualquier endpoint que realice operaciones de creación, modificación o eliminación en el ámbito operativo de una emergencia (ej. agregar personal, reportar acciones, despachar recursos, actualizar formularios) **debe** llamar a `EmergencyService.assertEditable(emergency)` antes de proceder a la persistencia.
+* Esta regla previene que se altere la información de emergencias ya finalizadas o canceladas. La única excepción a esta regla son las devoluciones logísticas de inventario (`ResourceService.returnResource()`).
+
+### 7.3 Transacciones Atómicas para Modificaciones Multi-Entidad
+* Cuando un caso de uso involucre modificaciones en más de una tabla (ej. despachar recurso + decrementar stock de equipo, transicionar estado de emergencia + guardar bitácora de acción), la operación **debe** ejecutarse dentro de una transacción con `QueryRunner` de TypeORM.
+* En operaciones propensas a condiciones de carrera (concurrencia) como asignación de inventario o validación de comandantes de incidentes activos, se debe implementar bloqueo pesimista en la consulta inicial (`lock: { mode: 'pessimistic_write' }`).
+
+### 7.4 Inmutabilidad de Campos Críticos en Actualizaciones
+* Los DTOs de actualización (`UpdateXxxDto`) no deben permitir la modificación directa de campos de identidad o estado de una entidad (como `code`, `state` en emergencias o `amount` en despachos de recursos).
+* Las modificaciones de estado o cantidades deben gestionarse a través de endpoints de negocio específicos (ej. `/state` o `/return`) con su lógica de validación correspondiente, ignorando o excluyendo estos atributos en los métodos genéricos de `update` de los servicios.
