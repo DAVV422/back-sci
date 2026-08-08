@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { CORS_OPTIONS } from './common/constants';
-import * as morgan from 'morgan';
+import { Logger } from 'nestjs-pino';
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { DocumentBuilder } from '@nestjs/swagger';
 import { SwaggerModule } from '@nestjs/swagger/dist';
@@ -10,10 +10,10 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
 
   app.use(new TraceIdMiddleware().use); // Generate a traceId per request
-  app.use(morgan('dev')); // Log all requests to the console
   app.useGlobalFilters(new HttpExceptionFilter()); // Format all errors consistently
   app.setGlobalPrefix('api'); // Set the global prefix for all routes
   app.enableCors(CORS_OPTIONS); // Enable CORS
@@ -45,6 +45,6 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, document);
 
   await app.listen(port);
-  console.log(`Application is running on: ${url}`);
+  app.get(Logger).log(`Application is running on: ${url}`, 'Bootstrap');
 }
 bootstrap();

@@ -3,7 +3,9 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { LoggerModule } from 'nestjs-pino';
 import { DataSourceConfig } from './config/data.source';
+import { pinoHttpOptions } from './config/logger.config';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 // import { ProvidersModule } from './providers/providers.module';
@@ -25,6 +27,7 @@ import { RegistrationModule } from './victim_registry_module/registration/regist
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    LoggerModule.forRoot({ pinoHttp: pinoHttpOptions() }),
     TypeOrmModule.forRoot({ ...DataSourceConfig }),
     ThrottlerModule.forRoot([
       {

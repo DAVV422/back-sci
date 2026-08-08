@@ -213,7 +213,7 @@ export class ResourceService {
   ): Promise<ResourceEntity[]> {
     try {
       const emergency = await this.emergencyService.findOne(emergencyId);
-      console.log(emergency);
+      this.logger.debug(`Emergency ${emergency?.id} fetched for resources`);
       if (!emergency) throw new NotFoundException('Emergency not found.');
       return await this.resourceRepository.find({
         where: { emergency: { id: emergency.id }, isDeleted: false },

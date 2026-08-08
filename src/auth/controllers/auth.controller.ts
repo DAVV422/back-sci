@@ -20,7 +20,6 @@ export class AuthController {
 
   // @Post('register')
   // public async register(@Body() createUserDto: CreateUserDto): Promise<ResponseMessage> {
-  //   console.log(createUserDto);
   //   return {
   //     statusCode: 200,
   //     data: await this.userService.createUser(createUserDto),

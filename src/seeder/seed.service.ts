@@ -44,8 +44,7 @@ export class SeedService {
 
       if (!adminExists) {
         const user: CreateUserDto = {
-          name:
-            this.configService.get<string>('ADMIN_NAME') ?? 'Administrador',
+          name: this.configService.get<string>('ADMIN_NAME') ?? 'Administrador',
           last_name:
             this.configService.get<string>('ADMIN_LAST_NAME') ?? 'Sistema',
           cellphone: '00000000',
