@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 import { ResourceService } from './resource.service';
 import { ResourceEntity } from '../entities/resource.entity';
@@ -12,6 +13,10 @@ describe('ResourceService', () => {
   let service: ResourceService;
   let mockEmergencyService: any;
   let mockResourceRepo: any;
+  let mockEquipmentService: any;
+  let mockManager: any;
+  let mockQueryRunner: any;
+  let mockDataSource: any;
 
   beforeEach(async () => {
     mockEmergencyService = {
@@ -26,6 +31,30 @@ describe('ResourceService', () => {
       delete: jest.fn(),
       find: jest.fn(),
     };
+    mockEquipmentService = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'eq-1',
+        name: 'Casco',
+        availableQuantity: 10,
+      }),
+    };
+    mockManager = {
+      findOne: jest.fn(),
+      create: jest.fn((entity: any, data: any) => ({ ...data })),
+      save: jest.fn(async (data: any) => ({ id: 'res-1', ...data })),
+    };
+    mockQueryRunner = {
+      connect: jest.fn().mockResolvedValue(undefined),
+      startTransaction: jest.fn().mockResolvedValue(undefined),
+      commitTransaction: jest.fn().mockResolvedValue(undefined),
+      rollbackTransaction: jest.fn().mockResolvedValue(undefined),
+      release: jest.fn().mockResolvedValue(undefined),
+      isReleased: false,
+      manager: mockManager,
+    };
+    mockDataSource = {
+      createQueryRunner: jest.fn().mockReturnValue(mockQueryRunner),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -34,11 +63,9 @@ describe('ResourceService', () => {
           provide: getRepositoryToken(ResourceEntity),
           useValue: mockResourceRepo,
         },
+        { provide: DataSource, useValue: mockDataSource },
         { provide: EmergencyService, useValue: mockEmergencyService },
-        {
-          provide: EquipmentService,
-          useValue: { findOne: jest.fn().mockResolvedValue({ id: 'eq-1' }) },
-        },
+        { provide: EquipmentService, useValue: mockEquipmentService },
       ],
     }).compile();
 
@@ -67,7 +94,7 @@ describe('ResourceService', () => {
         );
       });
 
-      await expect(service.create(dto)).rejects.toThrow(
+      await expect(service.create(dto, 'user-1')).rejects.toThrow(
         'La emergencia está finalizada. No se permiten ediciones.',
       );
       expect(mockResourceRepo.save).not.toHaveBeenCalled();
@@ -84,7 +111,7 @@ describe('ResourceService', () => {
         );
       });
 
-      await expect(service.create(dto)).rejects.toThrow(
+      await expect(service.create(dto, 'user-1')).rejects.toThrow(
         'La emergencia está cancelada. No se permiten ediciones.',
       );
       expect(mockResourceRepo.save).not.toHaveBeenCalled();
@@ -96,11 +123,101 @@ describe('ResourceService', () => {
         state: EmergencyStatus.Active,
       });
       mockEmergencyService.assertEditable.mockReturnValue(undefined);
+      mockManager.findOne.mockResolvedValue({
+        id: 'eq-1',
+        name: 'Casco',
+        availableQuantity: 10,
+      });
+      mockResourceRepo.findOne.mockResolvedValue({
+        id: 'res-1',
+        amount: 2,
+        emergency: { id: 'emg-1' },
+        equipment: { id: 'eq-1' },
+      });
 
-      const result = await service.create(dto);
+      const result = await service.create(dto, 'user-1');
 
-      expect(mockResourceRepo.save).toHaveBeenCalled();
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
       expect(result.id).toBe('res-1');
+    });
+  });
+
+  describe('create - despacho de recursos y stock (F1-015)', () => {
+    const dto = {
+      emergencyId: 'emg-1',
+      equipmentId: 'eq-1',
+      amount: 5,
+      note: 'Despacho de prueba',
+    } as any;
+
+    beforeEach(() => {
+      mockEmergencyService.findOne.mockResolvedValue({
+        id: 'emg-1',
+        state: EmergencyStatus.Active,
+      });
+      mockEmergencyService.assertEditable.mockReturnValue(undefined);
+      mockManager.findOne.mockResolvedValue({
+        id: 'eq-1',
+        name: 'Casco',
+        availableQuantity: 10,
+      });
+      mockResourceRepo.findOne.mockResolvedValue({
+        id: 'res-1',
+        amount: 5,
+        emergency: { id: 'emg-1' },
+        equipment: { id: 'eq-1', name: 'Casco' },
+      });
+    });
+
+    it('resta availableQuantity al despachar (AC1)', async () => {
+      await service.create(dto, 'user-1');
+
+      expect(mockManager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ availableQuantity: 5 }),
+      );
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+    });
+
+    it('lanza BadRequestException si amount > availableQuantity (AC2)', async () => {
+      mockEquipmentService.findOne.mockResolvedValue({
+        id: 'eq-1',
+        name: 'Casco',
+        availableQuantity: 3,
+      });
+
+      await expect(
+        service.create({ ...dto, amount: 5 }, 'user-1'),
+      ).rejects.toThrow('Cantidad no disponible en inventario');
+      expect(mockQueryRunner.commitTransaction).not.toHaveBeenCalled();
+    });
+
+    it('hace rollback si el stock cambia dentro de la transacción (AC5/AC6)', async () => {
+      mockManager.findOne.mockResolvedValue({
+        id: 'eq-1',
+        name: 'Casco',
+        availableQuantity: 3,
+      });
+
+      await expect(service.create(dto, 'user-1')).rejects.toThrow(
+        'Cantidad no disponible en inventario',
+      );
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.commitTransaction).not.toHaveBeenCalled();
+      expect(mockQueryRunner.release).toHaveBeenCalled();
+    });
+
+    it('registra ActionEntity con la descripción del despacho (AC4)', async () => {
+      await service.create(dto, 'user-1');
+
+      expect(mockManager.create).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          description: 'Despacho de recurso: Casco x5',
+          user: { id: 'user-1' },
+          emergency: { id: 'emg-1' },
+        }),
+      );
     });
   });
 

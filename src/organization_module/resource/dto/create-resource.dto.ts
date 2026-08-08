@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsPositive,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateResourceDto {
   @ApiProperty({
@@ -7,6 +13,8 @@ export class CreateResourceDto {
     description: 'Amount of the resource',
   })
   @IsNotEmpty()
+  @IsNumber()
+  @IsPositive()
   amount: number;
 
   @ApiProperty({

@@ -1,10 +1,17 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 
 import { CreateResourceDto } from '../dto/create-resource.dto';
 import { UpdateResourceDto } from '../dto/update-resource.dto';
 import { ResourceEntity } from '../entities/resource.entity';
+import { EquipmentEntity } from '../../../organization_module/equipment/entities/equipment.entity';
+import { ActionEntity } from '../../../incident_module/action/entities/action.entity';
 import { handlerError } from '../../../common/utils/handlerError.utils';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
@@ -17,6 +24,7 @@ export class ResourceService {
   constructor(
     @InjectRepository(ResourceEntity)
     private readonly resourceRepository: Repository<ResourceEntity>,
+    private readonly dataSource: DataSource,
     private readonly emergencyService: EmergencyService,
     private readonly equipmentService: EquipmentService,
   ) {}
@@ -36,23 +44,68 @@ export class ResourceService {
 
   public async create(
     createResourceDto: CreateResourceDto,
+    userId: string,
   ): Promise<ResourceEntity> {
+    const queryRunner = this.dataSource.createQueryRunner();
     try {
-      const { emergencyId, equipmentId, ...resourceData } = createResourceDto;
+      const { emergencyId, equipmentId, amount, ...resourceData } =
+        createResourceDto;
       const emergency = await this.emergencyService.findOne(emergencyId);
       if (!emergency) throw new NotFoundException('Emergency not found.');
       this.emergencyService.assertEditable(emergency);
       const equipment = await this.equipmentService.findOne(equipmentId);
       if (!equipment) throw new NotFoundException('Equipment not found.');
-      const resource = this.resourceRepository.create({
-        ...resourceData,
-        emergency,
-        equipment,
-      });
+      if (amount > equipment.availableQuantity)
+        throw new BadRequestException('Cantidad no disponible en inventario');
 
-      return await this.resourceRepository.save(resource);
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const lockedEquipment = await queryRunner.manager.findOne(
+          EquipmentEntity,
+          {
+            where: { id: equipment.id, isDeleted: false },
+            lock: { mode: 'pessimistic_write' },
+          },
+        );
+        if (!lockedEquipment)
+          throw new NotFoundException('Equipment not found.');
+        if (amount > lockedEquipment.availableQuantity)
+          throw new BadRequestException('Cantidad no disponible en inventario');
+
+        lockedEquipment.availableQuantity -= amount;
+        await queryRunner.manager.save(lockedEquipment);
+
+        const resource = queryRunner.manager.create(ResourceEntity, {
+          ...resourceData,
+          amount,
+          emergency: { id: emergency.id },
+          equipment: { id: equipment.id },
+        });
+        const savedResource = await queryRunner.manager.save(resource);
+
+        const now = new Date();
+        const action = queryRunner.manager.create(ActionEntity, {
+          description: `Despacho de recurso: ${equipment.name} x${amount}`,
+          date: now,
+          hour: `${String(now.getHours()).padStart(2, '0')}:${String(
+            now.getMinutes(),
+          ).padStart(2, '0')}`,
+          user: { id: userId },
+          emergency: { id: emergency.id },
+        });
+        await queryRunner.manager.save(action);
+
+        await queryRunner.commitTransaction();
+        return await this.findOne(savedResource.id);
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      }
     } catch (error) {
       handlerError(error, this.logger);
+    } finally {
+      if (queryRunner.isReleased === false) await queryRunner.release();
     }
   }
 

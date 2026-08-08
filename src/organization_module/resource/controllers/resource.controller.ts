@@ -17,6 +17,7 @@ import { CreateResourceDto } from '../dto/create-resource.dto';
 import { UpdateResourceDto } from '../dto/update-resource.dto';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { AuthGuard, RolesGuard } from '../../../auth/guards';
+import { GetUser } from '../../../auth/decorators';
 import { ResourceEntity } from '../entities/resource.entity';
 
 @ApiTags('Resource')
@@ -41,11 +42,12 @@ export class ResourceController {
   @Post()
   public async create(
     @Body() createResourceDto: CreateResourceDto,
+    @GetUser('id') userId: string,
   ): Promise<ApiResponse<ResourceEntity>> {
     return {
       success: true,
       statusCode: 201,
-      data: await this.resourceService.create(createResourceDto),
+      data: await this.resourceService.create(createResourceDto, userId),
     };
   }
 
