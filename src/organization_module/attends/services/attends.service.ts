@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -52,8 +53,35 @@ export class AttendService {
         user: { id: userEntity.id },
         emergency: { id: emergencyEntity.id },
         charge: { id: chargeEntity.id },
+        charge_system_name: chargeEntity.system_name ?? null,
+        is_active: true,
       });
-      const attend_created = await this.attendRepository.save(attend_create);
+
+      if (chargeEntity.system_name === 'incident_commander') {
+        const activeCI = await this.attendRepository.findOne({
+          where: {
+            emergency: { id: emergencyEntity.id },
+            charge_system_name: 'incident_commander',
+            is_active: true,
+            isDeleted: false,
+          },
+        });
+        if (activeCI)
+          throw new ConflictException(
+            'Ya existe un Comandante del Incidente activo para esta emergencia.',
+          );
+      }
+
+      let attend_created: AttendEntity;
+      try {
+        attend_created = await this.attendRepository.save(attend_create);
+      } catch (error) {
+        if (error?.code === '23505')
+          throw new ConflictException(
+            'Ya existe un Comandante del Incidente activo para esta emergencia.',
+          );
+        throw error;
+      }
       return await this.findOne(attend_created.id);
     } catch (error) {
       handlerError(error, this.logger);

@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
@@ -13,11 +13,15 @@ describe('AttendService', () => {
   let service: AttendService;
   let mockEmergencyService: any;
   let mockAttendRepo: any;
+  let mockChargeService: any;
 
   beforeEach(async () => {
     mockEmergencyService = {
       findOne: jest.fn(),
       assertEditable: jest.fn(),
+    };
+    mockChargeService = {
+      findOne: jest.fn().mockResolvedValue({ id: 'charge-1' }),
     };
     mockAttendRepo = {
       findOne: jest.fn().mockResolvedValue({
@@ -40,12 +44,7 @@ describe('AttendService', () => {
           useValue: { findOne: jest.fn().mockResolvedValue({ id: 'user-1' }) },
         },
         { provide: EmergencyService, useValue: mockEmergencyService },
-        {
-          provide: ChargeService,
-          useValue: {
-            findOne: jest.fn().mockResolvedValue({ id: 'charge-1' }),
-          },
-        },
+        { provide: ChargeService, useValue: mockChargeService },
       ],
     }).compile();
 
@@ -89,6 +88,108 @@ describe('AttendService', () => {
       mockEmergencyService.assertEditable.mockReturnValue(undefined);
 
       const result = await service.create(dto);
+
+      expect(mockAttendRepo.save).toHaveBeenCalled();
+      expect(result.id).toBe('att-1');
+    });
+  });
+
+  describe('create - unicidad de CI activo (F1-014)', () => {
+    const ciDto = {
+      user: 'user-1',
+      emergency: 'emg-1',
+      charge: 'ci-charge',
+      check_in_time: '08:00',
+    } as any;
+
+    beforeEach(() => {
+      mockEmergencyService.findOne.mockResolvedValue({
+        id: 'emg-1',
+        state: EmergencyStatus.Active,
+      });
+      mockEmergencyService.assertEditable.mockReturnValue(undefined);
+      mockChargeService.findOne.mockResolvedValue({
+        id: 'ci-charge',
+        system_name: 'incident_commander',
+      });
+    });
+
+    it('rechaza un segundo CI activo para la misma emergencia (AC2)', async () => {
+      mockAttendRepo.findOne.mockImplementation((opts: any) => {
+        if (opts?.relations)
+          return Promise.resolve({ id: 'att-1', is_active: true });
+        return Promise.resolve({ id: 'att-ci-1', is_active: true });
+      });
+
+      await expect(service.create(ciDto)).rejects.toThrow(ConflictException);
+      expect(mockAttendRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('permite asignar CI cuando no hay uno activo y persiste charge_system_name', async () => {
+      mockAttendRepo.findOne.mockImplementation((opts: any) => {
+        if (opts?.relations)
+          return Promise.resolve({
+            id: 'att-1',
+            is_active: true,
+            charge_system_name: 'incident_commander',
+          });
+        return Promise.resolve(null);
+      });
+
+      const result = await service.create(ciDto);
+
+      expect(mockAttendRepo.save).toHaveBeenCalled();
+      expect(mockAttendRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          charge_system_name: 'incident_commander',
+          is_active: true,
+        }),
+      );
+      expect(result.id).toBe('att-1');
+    });
+
+    it('permite asignar nuevo CI si el anterior fue desactivado (AC4)', async () => {
+      mockAttendRepo.findOne.mockImplementation((opts: any) => {
+        if (opts?.relations)
+          return Promise.resolve({
+            id: 'att-2',
+            is_active: true,
+            charge_system_name: 'incident_commander',
+          });
+        return Promise.resolve(null);
+      });
+
+      const result = await service.create(ciDto);
+
+      expect(mockAttendRepo.save).toHaveBeenCalled();
+      expect(result.id).toBe('att-2');
+    });
+
+    it('convierte el error 23505 en ConflictException (carrera)', async () => {
+      mockAttendRepo.findOne.mockImplementation((opts: any) => {
+        if (opts?.relations)
+          return Promise.resolve({ id: 'att-1', is_active: true });
+        return Promise.resolve(null);
+      });
+      mockAttendRepo.save.mockRejectedValue({ code: '23505' });
+
+      await expect(service.create(ciDto)).rejects.toThrow(ConflictException);
+    });
+
+    it('no restringe attends con cargo distinto a CI (AC1)', async () => {
+      mockChargeService.findOne.mockResolvedValue({
+        id: 'charge-ops',
+        system_name: 'chief_of_operations',
+      });
+      mockAttendRepo.findOne.mockImplementation((opts: any) => {
+        if (opts?.relations) return Promise.resolve({ id: 'att-1' });
+        return Promise.resolve(null);
+      });
+
+      const result = await service.create({
+        ...ciDto,
+        charge: 'charge-ops',
+      });
 
       expect(mockAttendRepo.save).toHaveBeenCalled();
       expect(result.id).toBe('att-1');
