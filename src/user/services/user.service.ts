@@ -26,6 +26,7 @@ import {
   USER_ALLOWED_ATTRS,
   validateAllowedAttrs,
 } from '../../common/decorators/allowed-query-attrs.decorator';
+import { ROLES } from '../../common/constants';
 
 @Injectable()
 export class UserService {
@@ -48,8 +49,9 @@ export class UserService {
       if (order)
         query.orderBy('user.createdAt', order.toLocaleUpperCase() as any);
       if (attr && value)
-        query.where(`user.${attr} ILIKE :value`, { value: `%${value}%` });
-      query.where('user.is_deleted = false');
+        query.andWhere(`user.${attr} ILIKE :value`, { value: `%${value}%` });
+      query.andWhere('user.is_deleted = false');
+      query.andWhere('user.role != :adminRole', { adminRole: ROLES.ADMIN });
       const [items, total] = await query.getManyAndCount();
       return { items, total };
     } catch (error) {

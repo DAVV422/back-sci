@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
@@ -16,6 +16,7 @@ describe('UserService - whitelist QueryDto.attr', () => {
       skip: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
       getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
     };
     const mockRepo = {
@@ -37,7 +38,7 @@ describe('UserService - whitelist QueryDto.attr', () => {
     await expect(service.findAll(queryDto)).rejects.toThrow(
       BadRequestException,
     );
-    expect(queryBuilder.where).not.toHaveBeenCalled();
+    expect(queryBuilder.andWhere).not.toHaveBeenCalled();
   });
 
   it('runs without error for a valid attr in the user whitelist', async () => {
@@ -46,6 +47,85 @@ describe('UserService - whitelist QueryDto.attr', () => {
       items: [],
       total: 0,
     });
+  });
+
+  it('applies the ADMIN exclusion on every query', async () => {
+    const queryDto: QueryDto = {} as any;
+    await service.findAll(queryDto);
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'user.role != :adminRole',
+      { adminRole: 'admin' },
+    );
+  });
+
+  it('applies the ADMIN exclusion together with attr/value filters', async () => {
+    const queryDto: QueryDto = { attr: 'name', value: 'juan' } as any;
+    await service.findAll(queryDto);
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'user.name ILIKE :value',
+      {
+        value: '%juan%',
+      },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'user.role != :adminRole',
+      { adminRole: 'admin' },
+    );
+  });
+
+  it('excludes ADMIN users from the returned items', async () => {
+    const users = [
+      { id: '1', name: 'Admin', role: 'admin' },
+      { id: '2', name: 'Juan', role: 'basic' },
+      { id: '3', name: 'Maria', role: 'manager' },
+    ];
+    queryBuilder.getManyAndCount.mockResolvedValue([users, users.length]);
+    const result = await service.findAll({} as any);
+    expect(result.total).toBe(3);
+    expect(result.items.map((u) => u.role)).toEqual([
+      'admin',
+      'basic',
+      'manager',
+    ]);
+  });
+});
+
+describe('UserService - findOne/findByEmail (admin direct access)', () => {
+  let service: UserService;
+  let mockRepo: any;
+
+  beforeEach(async () => {
+    mockRepo = {
+      findOne: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+  });
+
+  it('findOne(adminId) returns the ADMIN user', async () => {
+    const admin = { id: 'admin-id', role: 'admin', name: 'SysAdmin' };
+    mockRepo.findOne.mockResolvedValue(admin);
+    const result = await service.findOne('admin-id');
+    expect(result).toEqual(admin);
+  });
+
+  it('findByEmail returns the ADMIN user by email', async () => {
+    const admin = { id: 'admin-id', role: 'admin', email: 'admin@x.com' };
+    mockRepo.findOne.mockResolvedValue(admin);
+    const result = await service.findByEmail('admin@x.com');
+    expect(result).toEqual(admin);
+  });
+
+  it('findOne throws NotFoundException when the user does not exist', async () => {
+    mockRepo.findOne.mockResolvedValue(null);
+    await expect(service.findOne('missing')).rejects.toThrow(NotFoundException);
   });
 });
 
