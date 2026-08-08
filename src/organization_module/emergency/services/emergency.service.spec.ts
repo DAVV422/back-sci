@@ -262,7 +262,9 @@ describe('EmergencyService', () => {
     });
 
     it('p → a: transición exitosa y registra acción de activación', async () => {
-      mockRepo.findOne.mockResolvedValue(makeEmergency(EmergencyStatus.Pending));
+      mockRepo.findOne.mockResolvedValue(
+        makeEmergency(EmergencyStatus.Pending),
+      );
 
       await service.changeState(
         emergencyId,
@@ -280,7 +282,9 @@ describe('EmergencyService', () => {
     });
 
     it('p → f: lanza BadRequestException (transición no permitida)', async () => {
-      mockRepo.findOne.mockResolvedValue(makeEmergency(EmergencyStatus.Pending));
+      mockRepo.findOne.mockResolvedValue(
+        makeEmergency(EmergencyStatus.Pending),
+      );
 
       await expect(
         service.changeState(
@@ -294,7 +298,9 @@ describe('EmergencyService', () => {
     });
 
     it('p → c sin motivo: lanza BadRequestException', async () => {
-      mockRepo.findOne.mockResolvedValue(makeEmergency(EmergencyStatus.Pending));
+      mockRepo.findOne.mockResolvedValue(
+        makeEmergency(EmergencyStatus.Pending),
+      );
 
       await expect(
         service.changeState(
@@ -308,11 +314,16 @@ describe('EmergencyService', () => {
     });
 
     it('p → c con motivo: transición exitosa y registra motivo en ActionEntity', async () => {
-      mockRepo.findOne.mockResolvedValue(makeEmergency(EmergencyStatus.Pending));
+      mockRepo.findOne.mockResolvedValue(
+        makeEmergency(EmergencyStatus.Pending),
+      );
 
       await service.changeState(
         emergencyId,
-        { state: EmergencyStatus.Canceled, cancellation_reason: 'Falso reporte' } as any,
+        {
+          state: EmergencyStatus.Canceled,
+          cancellation_reason: 'Falso reporte',
+        } as any,
         userId,
         ROLES.BASIC,
       );
@@ -370,7 +381,10 @@ describe('EmergencyService', () => {
 
       await service.changeState(
         emergencyId,
-        { state: EmergencyStatus.Canceled, cancellation_reason: 'Orden superior' } as any,
+        {
+          state: EmergencyStatus.Canceled,
+          cancellation_reason: 'Orden superior',
+        } as any,
         userId,
         ROLES.BASIC,
       );
@@ -381,7 +395,9 @@ describe('EmergencyService', () => {
     });
 
     it('f → a con rol MANAGER: transición exitosa y registra reapertura', async () => {
-      mockRepo.findOne.mockResolvedValue(makeEmergency(EmergencyStatus.Finished));
+      mockRepo.findOne.mockResolvedValue(
+        makeEmergency(EmergencyStatus.Finished),
+      );
 
       await service.changeState(
         emergencyId,
@@ -399,7 +415,9 @@ describe('EmergencyService', () => {
     });
 
     it('f → a con rol BASIC: lanza ForbiddenException', async () => {
-      mockRepo.findOne.mockResolvedValue(makeEmergency(EmergencyStatus.Finished));
+      mockRepo.findOne.mockResolvedValue(
+        makeEmergency(EmergencyStatus.Finished),
+      );
 
       await expect(
         service.changeState(
@@ -413,7 +431,9 @@ describe('EmergencyService', () => {
     });
 
     it('f → c: lanza BadRequestException (transición no permitida)', async () => {
-      mockRepo.findOne.mockResolvedValue(makeEmergency(EmergencyStatus.Finished));
+      mockRepo.findOne.mockResolvedValue(
+        makeEmergency(EmergencyStatus.Finished),
+      );
 
       await expect(
         service.changeState(
@@ -426,7 +446,9 @@ describe('EmergencyService', () => {
     });
 
     it('c → a: lanza BadRequestException (estado terminal)', async () => {
-      mockRepo.findOne.mockResolvedValue(makeEmergency(EmergencyStatus.Canceled));
+      mockRepo.findOne.mockResolvedValue(
+        makeEmergency(EmergencyStatus.Canceled),
+      );
 
       await expect(
         service.changeState(
@@ -439,7 +461,9 @@ describe('EmergencyService', () => {
     });
 
     it('c → f: lanza BadRequestException (estado terminal)', async () => {
-      mockRepo.findOne.mockResolvedValue(makeEmergency(EmergencyStatus.Canceled));
+      mockRepo.findOne.mockResolvedValue(
+        makeEmergency(EmergencyStatus.Canceled),
+      );
 
       await expect(
         service.changeState(
@@ -449,6 +473,83 @@ describe('EmergencyService', () => {
           ROLES.BASIC,
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('update - bloqueo de edición (F1-011)', () => {
+    const makeEmergency = (state: EmergencyStatus) => ({
+      id: 'emg-1',
+      code: 'EMG-001',
+      name: 'Incendio',
+      state,
+    });
+
+    beforeEach(() => {
+      mockRepo.update = jest.fn().mockResolvedValue({ affected: 1 });
+    });
+
+    it('lanza BadRequestException al editar una emergencia finalizada', async () => {
+      mockRepo.findOne.mockResolvedValue(
+        makeEmergency(EmergencyStatus.Finished),
+      );
+
+      await expect(
+        service.update('emg-1', { name: 'Nuevo nombre' } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('lanza BadRequestException al editar una emergencia cancelada', async () => {
+      mockRepo.findOne.mockResolvedValue(
+        makeEmergency(EmergencyStatus.Canceled),
+      );
+
+      await expect(
+        service.update('emg-1', { name: 'Nuevo nombre' } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('permite editar una emergencia pendiente o activa', async () => {
+      mockRepo.findOne.mockResolvedValue(makeEmergency(EmergencyStatus.Active));
+
+      const result = await service.update('emg-1', {
+        name: 'Nuevo nombre',
+      } as any);
+
+      expect(mockRepo.update).toHaveBeenCalled();
+      expect(result.state).toBe(EmergencyStatus.Active);
+    });
+  });
+
+  describe('assertEditable (F1-011)', () => {
+    const makeEmergency = (state: EmergencyStatus) => ({
+      id: 'emg-1',
+      state,
+    });
+
+    it('no lanza para estado pendiente', () => {
+      expect(() =>
+        service.assertEditable(makeEmergency(EmergencyStatus.Pending) as any),
+      ).not.toThrow();
+    });
+
+    it('no lanza para estado activo', () => {
+      expect(() =>
+        service.assertEditable(makeEmergency(EmergencyStatus.Active) as any),
+      ).not.toThrow();
+    });
+
+    it('lanza BadRequestException para estado finalizado', () => {
+      expect(() =>
+        service.assertEditable(makeEmergency(EmergencyStatus.Finished) as any),
+      ).toThrow(BadRequestException);
+    });
+
+    it('lanza BadRequestException para estado cancelado', () => {
+      expect(() =>
+        service.assertEditable(makeEmergency(EmergencyStatus.Canceled) as any),
+      ).toThrow(BadRequestException);
     });
   });
 });

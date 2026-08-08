@@ -41,6 +41,7 @@ export class ResourceService {
       const { emergencyId, equipmentId, ...resourceData } = createResourceDto;
       const emergency = await this.emergencyService.findOne(emergencyId);
       if (!emergency) throw new NotFoundException('Emergency not found.');
+      this.emergencyService.assertEditable(emergency);
       const equipment = await this.equipmentService.findOne(equipmentId);
       if (!equipment) throw new NotFoundException('Equipment not found.');
       const resource = this.resourceRepository.create({
@@ -61,6 +62,8 @@ export class ResourceService {
   ): Promise<ResourceEntity> {
     try {
       const resource = await this.findOne(id);
+      if (resource.emergency)
+        this.emergencyService.assertEditable(resource.emergency);
       const { emergencyId, equipmentId, ...resourceData } = updateResourceDto;
       const resourceUpdated = await this.resourceRepository.update(
         resource.id,

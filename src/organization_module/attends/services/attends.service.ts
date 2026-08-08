@@ -45,6 +45,7 @@ export class AttendService {
       const { user, emergency, charge, ...createAttend } = createAttendDto;
       const userEntity = await this.userService.findOne(user);
       const emergencyEntity = await this.emergencyService.findOne(emergency);
+      this.emergencyService.assertEditable(emergencyEntity);
       const chargeEntity = await this.chargeService.findOne(charge);
       const attend_create: AttendEntity = this.attendRepository.create({
         ...createAttend,
@@ -62,6 +63,8 @@ export class AttendService {
   public async delete(id: string): Promise<ApiResponse<null>> {
     try {
       const attend = await this.findOne(id);
+      if (attend.emergency)
+        this.emergencyService.assertEditable(attend.emergency);
       const deletedAttend = await this.attendRepository.delete(attend.id);
       if (deletedAttend.affected === 0)
         throw new BadRequestException('Asistencia no eliminada.');

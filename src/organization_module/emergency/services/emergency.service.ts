@@ -124,6 +124,7 @@ export class EmergencyService {
   ): Promise<EmergencyEntity> {
     try {
       const emergency: EmergencyEntity = await this.findOne(id);
+      this.assertEditable(emergency);
       const { ...updateEmergency } = updateEmergencyDto;
       const emergencyUpdated = await this.emergencyRepository.update(
         emergency.id,
@@ -134,6 +135,19 @@ export class EmergencyService {
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
+    }
+  }
+
+  public assertEditable(emergency: EmergencyEntity): void {
+    if (emergency.state === EmergencyStatus.Finished) {
+      throw new BadRequestException(
+        'La emergencia está finalizada. No se permiten ediciones. Solicite reapertura a un administrador.',
+      );
+    }
+    if (emergency.state === EmergencyStatus.Canceled) {
+      throw new BadRequestException(
+        'La emergencia está cancelada. No se permiten ediciones.',
+      );
     }
   }
 

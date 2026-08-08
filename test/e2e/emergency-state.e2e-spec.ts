@@ -30,6 +30,7 @@ describe('Emergency state transitions (e2e)', () => {
       savedEmergency = { ...data };
       return savedEmergency;
     }),
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
     createQueryBuilder: jest.fn().mockReturnValue({
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
@@ -196,11 +197,16 @@ describe('Emergency state transitions (e2e)', () => {
     const res = await request(app.getHttpServer())
       .patch(`/api/emergency/${emergencyId}/state`)
       .set('Authorization', `Bearer ${tokenFor(ROLES.BASIC)}`)
-      .send({ state: EmergencyStatus.Canceled, cancellation_reason: 'Falso reporte' });
+      .send({
+        state: EmergencyStatus.Canceled,
+        cancellation_reason: 'Falso reporte',
+      });
 
     expect(res.status).toBe(200);
     expect(res.body.data.state).toBe(EmergencyStatus.Canceled);
-    expect(actionStore.some((a) => a.description.includes('Falso reporte'))).toBe(true);
+    expect(
+      actionStore.some((a) => a.description.includes('Falso reporte')),
+    ).toBe(true);
   });
 
   it('cancela sin motivo: 400', async () => {
@@ -223,5 +229,34 @@ describe('Emergency state transitions (e2e)', () => {
       .send({ state: 'xyz' });
 
     expect(res.status).toBe(400);
+  });
+
+  it('flujo integrado F1-011: finalizar → editar bloqueado → reabrir (MANAGER) → editar OK', async () => {
+    setEmergency(EmergencyStatus.Finished);
+
+    let res = await request(app.getHttpServer())
+      .patch(`/api/emergency/${emergencyId}`)
+      .set('Authorization', `Bearer ${tokenFor(ROLES.BASIC)}`)
+      .send({ name: 'Edición prohibida' });
+    expect(res.status).toBe(400);
+
+    await app.close();
+    await buildApp(ROLES.MANAGER);
+
+    res = await request(app.getHttpServer())
+      .patch(`/api/emergency/${emergencyId}/state`)
+      .set('Authorization', `Bearer ${tokenFor(ROLES.MANAGER)}`)
+      .send({ state: EmergencyStatus.Active });
+    expect(res.status).toBe(200);
+
+    await app.close();
+    await buildApp(ROLES.BASIC);
+    setEmergency(EmergencyStatus.Active);
+
+    res = await request(app.getHttpServer())
+      .patch(`/api/emergency/${emergencyId}`)
+      .set('Authorization', `Bearer ${tokenFor(ROLES.BASIC)}`)
+      .send({ name: 'Edición permitida' });
+    expect(res.status).toBe(200);
   });
 });

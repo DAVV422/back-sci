@@ -44,6 +44,7 @@ export class ActionService {
     try {
       const { emergency, ...createAction } = createActionDto;
       const emergencyEntity = await this.emergencyService.findOne(emergency);
+      this.emergencyService.assertEditable(emergencyEntity);
       const user = await this.userService.findOne(userId);
       const action = await this.actionRepository.create({
         ...createAction,
