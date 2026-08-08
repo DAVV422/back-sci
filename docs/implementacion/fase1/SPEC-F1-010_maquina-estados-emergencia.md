@@ -35,7 +35,7 @@ Implementar una máquina de estados explícita que gobierne las transiciones del
 |:---|:---:|:---:|:---:|:---:|
 | **Pendiente (p)** | — | ✅ | ❌ | ✅ |
 | **Activa (a)** | ❌ | — | ✅ (con validación) | ✅ |
-| **Finalizada (f)** | ❌ | ✅ (solo ADMIN) | — | ❌ |
+| **Finalizada (f)** | ❌ | ✅ (solo MANAGER) | — | ❌ |
 | **Cancelada (c)** | ❌ | ❌ | ❌ | — (terminal) |
 
 ## Reglas por transición
@@ -46,7 +46,7 @@ Implementar una máquina de estados explícita que gobierne las transiciones del
 | `p → c` | `cancellation_reason` obligatorio; registrar en `ActionEntity` |
 | `a → c` | `cancellation_reason` obligatorio; registrar en `ActionEntity` |
 | `a → f` | Validar que **todos** los formularios (F201/F207 activos) tengan `is_finalized: true`; si hay pendientes → `BadRequestException` con lista de formularios |
-| `f → a` | Solo rol `ADMIN`; registrar reapertura en `ActionEntity` |
+| `f → a` | Solo rol `MANAGER`; registrar reapertura en `ActionEntity` |
 | Cualquier otra | `BadRequestException` con mensaje: `"Transición de '{from}' a '{to}' no permitida. Transiciones válidas desde '{from}': [...]"` |
 
 ## Diseño recomendado
@@ -56,7 +56,7 @@ Implementar una máquina de estados explícita que gobierne las transiciones del
 const TRANSITIONS: Record<EmergencyStatus, EmergencyStatus[]> = {
   [EmergencyStatus.Pending]:  [EmergencyStatus.Active, EmergencyStatus.Canceled],
   [EmergencyStatus.Active]:   [EmergencyStatus.Finished, EmergencyStatus.Canceled],
-  [EmergencyStatus.Finished]: [EmergencyStatus.Active],  // solo ADMIN
+  [EmergencyStatus.Finished]: [EmergencyStatus.Active],  // solo MANAGER
   [EmergencyStatus.Canceled]: [],                         // terminal
 };
 ```
