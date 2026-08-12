@@ -6,12 +6,14 @@ import { Form207Entity } from './entities/form-207.entity';
 import { EmergencyForm207CounterEntity } from './entities/form-207-counter.entity';
 import { UserModule } from '../../user/user.module';
 import { EmergencyModule } from '../../organization_module/emergency/emergency.module';
+import { ActionModule } from '../../incident_module/action/action.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Form207Entity, EmergencyForm207CounterEntity]),
     UserModule,
     EmergencyModule,
+    ActionModule,
   ],
   controllers: [Form207Controller],
   providers: [Form207Service],

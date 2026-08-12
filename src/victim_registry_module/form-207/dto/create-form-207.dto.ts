@@ -29,17 +29,16 @@ export class CreateForm207Dto {
     description: 'Date of the form',
     example: '2023-10-27T10:00:00Z',
   })
-  @IsDate()
+  @IsDateString()
   @IsNotEmpty()
   date: Date;
 
   @ApiProperty({
     example: '01b9bbf4-41a6-4820-abd4-9df61a2d6356',
-    type: String,
-    description: 'Id de la emergencia a la que pertencerá',
+    description: 'ID generado en offline (opcional)',
+    required: false,
   })
-  @IsNotEmpty()
-  @IsString()
+  @IsOptional()
   @IsUUID()
-  emergency: string;
+  clientGeneratedId?: string;
 }

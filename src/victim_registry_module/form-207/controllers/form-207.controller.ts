@@ -1,106 +1,74 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
-  Body,
-  Patch,
   Param,
-  Delete,
+  Patch,
+  Post,
+  UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
+
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
 import { Form207Service } from '../services/form-207.service';
 import { CreateForm207Dto } from '../dto/create-form-207.dto';
-import { UpdateForm207Dto } from '../dto/update-form-207.dto';
 import { Form207Entity } from '../entities/form-207.entity';
-import { ApiResponse as SciApiResponse } from '../../../common/interfaces/responseMessage.interface';
+import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
+import { GetUser } from '../../../auth/decorators';
 
 @ApiTags('Form 207')
-@Controller('form-207')
+@ApiBearerAuth()
+@UseGuards(AuthGuard, RolesGuard)
+@Controller()
 export class Form207Controller {
   constructor(private readonly form207Service: Form207Service) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new Form 207' })
-  @ApiResponse({
-    status: 201,
-    description: 'The form has been successfully created.',
-    type: Form207Entity,
-  })
+  @ApiParam({ name: 'emergencyId', type: 'string' })
+  @Post('emergency/:emergencyId/form207')
   async create(
+    @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
     @Body() createForm207Dto: CreateForm207Dto,
-  ): Promise<SciApiResponse<Form207Entity>> {
+    @GetUser('id') userId: string,
+  ): Promise<ApiResponse<Form207Entity>> {
+    const form207 = await this.form207Service.create(
+      emergencyId,
+      createForm207Dto,
+      userId,
+    );
     return {
       success: true,
       statusCode: 201,
-      data: await this.form207Service.create(createForm207Dto),
+      message: 'Formulario 207 creado exitosamente.',
+      data: form207,
     };
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Get all Form 207 records' })
-  @ApiResponse({
-    status: 200,
-    description: 'Return all records.',
-    type: [Form207Entity],
-  })
-  async findAll(): Promise<SciApiResponse<Form207Entity[]>> {
+  @ApiParam({ name: 'emergencyId', type: 'string' })
+  @Get('emergency/:emergencyId/form207')
+  async findByEmergency(
+    @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
+  ): Promise<ApiResponse<Form207Entity[]>> {
+    const forms = await this.form207Service.findByEmergency(emergencyId);
     return {
       success: true,
       statusCode: 200,
-      data: await this.form207Service.findAll(),
+      data: forms,
     };
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a Form 207 by ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Return the record.',
-    type: Form207Entity,
-  })
-  @ApiResponse({ status: 404, description: 'Record not found.' })
-  async findOne(
-    @Param('id') id: string,
-  ): Promise<SciApiResponse<Form207Entity>> {
+  @ApiParam({ name: 'id', type: 'string' })
+  @Patch('form207/:id/finalize')
+  async finalize(
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetUser('id') userId: string,
+  ): Promise<ApiResponse<Form207Entity>> {
+    const form207 = await this.form207Service.finalize(id, userId);
     return {
       success: true,
       statusCode: 200,
-      data: await this.form207Service.findOne(id),
-    };
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a Form 207' })
-  @ApiResponse({
-    status: 200,
-    description: 'The record has been successfully updated.',
-    type: Form207Entity,
-  })
-  @ApiResponse({ status: 404, description: 'Record not found.' })
-  async update(
-    @Param('id') id: string,
-    @Body() updateForm207Dto: UpdateForm207Dto,
-  ): Promise<SciApiResponse<Form207Entity>> {
-    return {
-      success: true,
-      statusCode: 200,
-      data: await this.form207Service.update(id, updateForm207Dto),
-    };
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a Form 207' })
-  @ApiResponse({
-    status: 200,
-    description: 'The record has been successfully deleted.',
-  })
-  @ApiResponse({ status: 404, description: 'Record not found.' })
-  async remove(@Param('id') id: string): Promise<SciApiResponse<null>> {
-    await this.form207Service.remove(id);
-    return {
-      success: true,
-      statusCode: 200,
-      data: null,
+      message: 'Formulario 207 finalizado exitosamente.',
+      data: form207,
     };
   }
 }
