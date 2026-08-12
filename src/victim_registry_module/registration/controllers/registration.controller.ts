@@ -1,106 +1,73 @@
 import {
+  Body,
   Controller,
   Get,
-  Post,
-  Body,
-  Patch,
   Param,
-  Delete,
+  Post,
+  UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { RegistrationService } from '../services/registration.service';
 import { CreateRegistrationDto } from '../dto/create-registration.dto';
-import { UpdateRegistrationDto } from '../dto/update-registration.dto';
 import { RegistrationEntity } from '../entities/registration.entity';
-import { ApiResponse as SciApiResponse } from '../../../common/interfaces/responseMessage.interface';
+import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
+import { GetUser } from '../../../auth/decorators';
 
 @ApiTags('Registration')
-@Controller('registration')
+@ApiBearerAuth()
+@UseGuards(AuthGuard, RolesGuard)
+@Controller()
 export class RegistrationController {
   constructor(private readonly registrationService: RegistrationService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new registration' })
-  @ApiResponse({
-    status: 201,
-    description: 'The registration has been successfully created.',
-    type: RegistrationEntity,
-  })
+  @ApiParam({ name: 'form207Id', type: 'string' })
+  @Post('form207/:form207Id/registration')
+  @ApiOperation({ summary: 'Register triage of a victim in a Form 207' })
   async create(
+    @Param('form207Id', ParseUUIDPipe) form207Id: string,
     @Body() createRegistrationDto: CreateRegistrationDto,
-  ): Promise<SciApiResponse<RegistrationEntity>> {
+    @GetUser('id') userId: string,
+  ): Promise<ApiResponse<RegistrationEntity>> {
+    const registration = await this.registrationService.create(
+      form207Id,
+      createRegistrationDto,
+      userId,
+    );
     return {
       success: true,
       statusCode: 201,
-      data: await this.registrationService.create(createRegistrationDto),
+      message: 'Triage de víctima registrado exitosamente.',
+      data: registration,
     };
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Get all registrations' })
-  @ApiResponse({
-    status: 200,
-    description: 'Return all registrations.',
-    type: [RegistrationEntity],
-  })
-  async findAll(): Promise<SciApiResponse<RegistrationEntity[]>> {
+  @ApiParam({ name: 'form207Id', type: 'string' })
+  @Get('form207/:form207Id/registration')
+  @ApiOperation({ summary: 'List victims registered in a Form 207' })
+  async findByForm207(
+    @Param('form207Id', ParseUUIDPipe) form207Id: string,
+  ): Promise<ApiResponse<RegistrationEntity[]>> {
+    const registrations = await this.registrationService.findByForm207(form207Id);
     return {
       success: true,
       statusCode: 200,
-      data: await this.registrationService.findAll(),
+      data: registrations,
     };
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a registration by ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Return the registration.',
-    type: RegistrationEntity,
-  })
-  @ApiResponse({ status: 404, description: 'Registration not found.' })
-  async findOne(
-    @Param('id') id: string,
-  ): Promise<SciApiResponse<RegistrationEntity>> {
+  @ApiParam({ name: 'victimId', type: 'string' })
+  @Get('victim/:victimId/registration')
+  @ApiOperation({ summary: 'Get triage history of a victim' })
+  async findHistoryByVictim(
+    @Param('victimId', ParseUUIDPipe) victimId: string,
+  ): Promise<ApiResponse<RegistrationEntity[]>> {
+    const registrations = await this.registrationService.findHistoryByVictim(victimId);
     return {
       success: true,
       statusCode: 200,
-      data: await this.registrationService.findOne(id),
-    };
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a registration' })
-  @ApiResponse({
-    status: 200,
-    description: 'The registration has been successfully updated.',
-    type: RegistrationEntity,
-  })
-  @ApiResponse({ status: 404, description: 'Registration not found.' })
-  async update(
-    @Param('id') id: string,
-    @Body() updateRegistrationDto: UpdateRegistrationDto,
-  ): Promise<SciApiResponse<RegistrationEntity>> {
-    return {
-      success: true,
-      statusCode: 200,
-      data: await this.registrationService.update(id, updateRegistrationDto),
-    };
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a registration' })
-  @ApiResponse({
-    status: 200,
-    description: 'The registration has been successfully deleted.',
-  })
-  @ApiResponse({ status: 404, description: 'Registration not found.' })
-  async remove(@Param('id') id: string): Promise<SciApiResponse<null>> {
-    await this.registrationService.remove(id);
-    return {
-      success: true,
-      statusCode: 200,
-      data: null,
+      data: registrations,
     };
   }
 }

@@ -17,14 +17,12 @@ export class VictimService {
     return await this.victimRepository.save(victim);
   }
 
-  async findAll(): Promise<VictimEntity[]> {
-    return await this.victimRepository.find();
-  }
-
   async findOne(id: string): Promise<VictimEntity> {
-    const victim = await this.victimRepository.findOne({ where: { id } });
+    const victim = await this.victimRepository.findOne({
+      where: { id, isDeleted: false },
+    });
     if (!victim) {
-      throw new NotFoundException(`Victim with ID ${id} not found`);
+      throw new NotFoundException(`Víctima con ID ${id} no encontrada.`);
     }
     return victim;
   }
@@ -40,6 +38,6 @@ export class VictimService {
 
   async remove(id: string): Promise<void> {
     const victim = await this.findOne(id);
-    await this.victimRepository.remove(victim);
+    await this.victimRepository.update(victim.id, { isDeleted: true });
   }
 }

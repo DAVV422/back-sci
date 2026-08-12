@@ -4,23 +4,28 @@ import { RegistrationEntity } from './../../registration/entities/registration.e
 
 @Entity('victim')
 export class VictimEntity extends BaseEntity {
-  @Column({ name: 'name', type: 'varchar', nullable: false })
-  name: string;
+  @Column({ name: 'identifier', type: 'varchar', length: 50, nullable: true })
+  identifier?: string;
 
-  @Column({ name: 'last_name', type: 'varchar', nullable: false })
-  last_name: string;
+  @Column({ name: 'age_estimated', type: 'int', nullable: true })
+  ageEstimated?: number;
 
-  @Column({ name: 'gender', type: 'char', length: 1, nullable: false })
-  gender: string;
+  @Column({ name: 'gender', type: 'varchar', length: 20, nullable: true })
+  gender?: string;
 
-  @Column({ name: 'age', type: 'int', nullable: false })
-  age: number;
+  @Column({ name: 'cellphone', type: 'varchar', length: 20, nullable: true })
+  cellphone?: string;
 
-  @Column({ name: 'cellphone', type: 'varchar', nullable: true })
-  cellphone: string;
+  @Column({ name: 'reference_cellphone', type: 'varchar', length: 20, nullable: true })
+  referenceCellphone?: string;
 
-  @Column({ name: 'reference_cellphone', type: 'varchar', nullable: true })
-  reference_cellphone: string;
+  @Column({
+    name: 'client_generated_id',
+    type: 'uuid',
+    unique: true,
+    nullable: true,
+  })
+  clientGeneratedId?: string;
 
   @OneToMany(() => RegistrationEntity, (registration) => registration.victim)
   registrations: RegistrationEntity[];

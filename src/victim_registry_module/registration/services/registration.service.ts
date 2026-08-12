@@ -1,59 +1,75 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RegistrationEntity } from '../entities/registration.entity';
 import { CreateRegistrationDto } from '../dto/create-registration.dto';
-import { UpdateRegistrationDto } from '../dto/update-registration.dto';
+import { Form207Service } from '../../form-207/services/form-207.service';
+import { VictimService } from '../../victim/services/victim.service';
+import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
+import { UserService } from '../../../user/services/user.service';
 
 @Injectable()
 export class RegistrationService {
   constructor(
     @InjectRepository(RegistrationEntity)
     private readonly registrationRepository: Repository<RegistrationEntity>,
+    private readonly form207Service: Form207Service,
+    private readonly victimService: VictimService,
+    private readonly emergencyService: EmergencyService,
+    private readonly userService: UserService,
   ) {}
 
   async create(
+    form207Id: string,
     createRegistrationDto: CreateRegistrationDto,
+    userId: string,
   ): Promise<RegistrationEntity> {
-    const { victim, form207, ...createRegistration } = createRegistrationDto;
-    const registration = this.registrationRepository.create({
-      ...createRegistration,
-      victim: { id: victim },
-      form207: { id: form207 },
-    });
-    return await this.registrationRepository.save(registration);
-  }
+    const form207 = await this.form207Service.findOne(form207Id);
+    this.emergencyService.assertEditable(form207.emergency);
 
-  async findAll(): Promise<RegistrationEntity[]> {
-    return await this.registrationRepository.find();
-  }
-
-  async findOne(id: string): Promise<RegistrationEntity> {
-    const registration = await this.registrationRepository.findOne({
-      where: { id },
-    });
-    if (!registration) {
-      throw new NotFoundException(`Registration with ID ${id} not found`);
+    if (form207.is_finalized) {
+      throw new BadRequestException('El Formulario 207 ya está finalizado.');
     }
-    return registration;
-  }
 
-  async update(
-    id: string,
-    updateRegistrationDto: UpdateRegistrationDto,
-  ): Promise<RegistrationEntity> {
-    const registration = await this.findOne(id);
-    const { victim, form207, ...updateRegistration } = updateRegistrationDto;
-    this.registrationRepository.merge(registration, {
-      ...updateRegistration,
-      victim: { id: victim },
-      form207: { id: form207 },
+    const victim = await this.victimService.findOne(createRegistrationDto.victimId);
+    const user = await this.userService.findOne(userId);
+
+    const now = new Date();
+    const hour = `${String(now.getHours()).padStart(2, '0')}:${String(
+      now.getMinutes(),
+    ).padStart(2, '0')}`;
+
+    const registration = this.registrationRepository.create({
+      classification: createRegistrationDto.classification,
+      transferredBy: createRegistrationDto.transferredBy,
+      cellphoneTransferManager: createRegistrationDto.cellphoneTransferManager,
+      notes: createRegistrationDto.notes,
+      clientGeneratedId: createRegistrationDto.clientGeneratedId,
+      date: now,
+      hour,
+      form207,
+      victim,
+      user,
     });
+
     return await this.registrationRepository.save(registration);
   }
 
-  async remove(id: string): Promise<void> {
-    const registration = await this.findOne(id);
-    await this.registrationRepository.remove(registration);
+  async findByForm207(form207Id: string): Promise<RegistrationEntity[]> {
+    const form207 = await this.form207Service.findOne(form207Id);
+    return await this.registrationRepository.find({
+      where: { form207: { id: form207.id } },
+      relations: ['victim', 'user'],
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  async findHistoryByVictim(victimId: string): Promise<RegistrationEntity[]> {
+    const victim = await this.victimService.findOne(victimId);
+    return await this.registrationRepository.find({
+      where: { victim: { id: victim.id } },
+      relations: ['form207', 'user'],
+      order: { createdAt: 'DESC' },
+    });
   }
 }
