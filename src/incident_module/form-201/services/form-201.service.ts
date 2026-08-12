@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -88,7 +89,16 @@ export class Form201Service {
         user: userEntity,
       });
 
-      return await this.form201Repository.save(form201);
+      try {
+        return await this.form201Repository.save(form201);
+      } catch (error) {
+        if (error?.code === '23505') {
+          throw new ConflictException(
+            'Ya existe un Formulario 201 activo para esta emergencia.',
+          );
+        }
+        throw error;
+      }
     } catch (error) {
       this.logger.error(`Error al crear Form201: ${error.message}`);
       throw error;
@@ -153,7 +163,7 @@ export class Form201Service {
         );
       }
 
-      const { ...updateData } = updateForm201Dto;
+      const { clientGeneratedId, code, isFinalized, ...updateData } = updateForm201Dto as any;
       await this.form201Repository.update(id, updateData);
 
       return await this.findOne(id);
