@@ -5,6 +5,7 @@ import { Form201Service } from '../../incident_module/form-201/services/form-201
 import { Form207Service } from '../../victim_registry_module/form-207/services/form-207.service';
 import { VictimService } from '../../victim_registry_module/victim/services/victim.service';
 import { RegistrationService } from '../../victim_registry_module/registration/services/registration.service';
+import { ActionService } from '../../incident_module/action/services/action.service';
 import { NotificationService } from '../../notification/services/notification.service';
 import { EmergencyStatus } from '../../organization_module/emergency/enums/emergency-status.enum';
 
@@ -18,6 +19,7 @@ export class SyncService {
     private readonly form207Service: Form207Service,
     private readonly victimService: VictimService,
     private readonly registrationService: RegistrationService,
+    private readonly actionService: ActionService,
     private readonly notificationService: NotificationService,
   ) {}
 
@@ -108,6 +110,22 @@ export class SyncService {
               form207Id,
               op.payload,
               userId,
+            );
+          }
+        } else if (op.entity === 'action') {
+          if (op.action === 'create') {
+            createdOrUpdated = await this.actionService.create(
+              {
+                ...op.payload,
+                emergency: emergencyId || op.payload.emergency,
+                clientGeneratedId: op.clientGeneratedId,
+              },
+              userId,
+            );
+          } else if (op.action === 'update' && op.payload.id) {
+            createdOrUpdated = await this.actionService.update(
+              op.payload.id,
+              op.payload,
             );
           }
         }

@@ -12,6 +12,7 @@ import { Form201Module } from '../incident_module/form-201/form-201.module';
 import { Form207Module } from '../victim_registry_module/form-207/form-207.module';
 import { VictimModule } from '../victim_registry_module/victim/victim.module';
 import { RegistrationModule } from '../victim_registry_module/registration/registration.module';
+import { ActionModule } from '../incident_module/action/action.module';
 import { NotificationModule } from '../notification/notification.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { NotificationModule } from '../notification/notification.module';
     forwardRef(() => Form207Module),
     forwardRef(() => VictimModule),
     forwardRef(() => RegistrationModule),
+    forwardRef(() => ActionModule),
     forwardRef(() => NotificationModule),
   ],
   controllers: [SyncController],

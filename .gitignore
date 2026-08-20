@@ -39,3 +39,4 @@ lerna-debug.log*
 firebase-service.json
 docs/implementacion/*
 docs/checklist/*
+data/audios/*

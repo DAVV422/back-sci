@@ -448,21 +448,46 @@ En caso de error:
 
 ---
 
-### 3.12 Bitácora de Eventos Operativos (`/api/action`)
+### 3.12 Bitácora de Eventos Operativos y Notas de Voz (`/api/action`)
 
 #### `POST /api/action`
-- **Descripción**: Registra un evento, decisión o novedad en la bitácora cronológica del incidente.
+- **Descripción**: Registra un evento, decisión, novedad o nota de voz (con metadatos de audio) en la bitácora cronológica del incidente.
 - **Acceso**: Todo usuario asignado a la emergencia (`BASIC` o superior).
 - **Body**:
   ```json
   {
     "description": "Se completa evacuación del sector norte sin novedades.",
-    "emergency": "uuid-emergencia"
+    "date": "2026-08-20",
+    "hour": "14:30",
+    "emergency": "uuid-emergencia",
+    "clientGeneratedId": "uuid-offline-opcional",
+    "audio": {
+      "path_audio": "data/audios/userId/emergencyId/audio_123.m4a",
+      "duration": 14.5,
+      "file_name": "audio_123.m4a",
+      "mime_type": "audio/m4a",
+      "size_bytes": 524288
+    }
   }
   ```
 
+#### `POST /api/action/upload-audio/:emergencyId`
+- **Descripción**: Sube un archivo de audio grabado desde el móvil y lo almacena localmente en `data/audios/{userId}/{emergencyId}/{filename}`. Registra automáticamente la entrada correspondiente en la bitácora (`ActionEntity`) con su `AudioEntity` vinculado.
+- **Acceso**: Todo usuario asignado a la emergencia.
+- **Form-Data (multipart/form-data)**:
+  - `file`: Archivo de audio (m4a, mp3, aac, wav, ogg).
+  - `description` (opcional): Descripción o transcripción preliminar (ej. `"Nota de voz de evaluación de sector"`).
+  - `duration` (opcional): Duración en segundos (ej. `14.5`).
+  - `clientGeneratedId` (opcional): UUID generado en offline por la app móvil.
+- **Response (201)**: Retorna la acción creada con el objeto `audio` adjunto.
+
+#### `POST /api/action/:id/audio`
+- **Descripción**: Asocia metadatos de audio a una acción ya existente.
+- **Acceso**: Autenticado.
+
 #### `GET /api/action/emergency/:emergencyId`
-- **Descripción**: Obtiene la línea de tiempo completa de acciones y eventos registrados en el incidente.
+- **Descripción**: Obtiene la línea de tiempo completa de acciones y eventos registrados en el incidente (incluyendo sus notas de voz y estados de procesamiento NLP).
+- **Acceso**: Autenticado (`BASIC` o superior).
 
 ---
 

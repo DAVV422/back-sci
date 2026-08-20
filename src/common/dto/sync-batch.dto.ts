@@ -14,12 +14,12 @@ import {
 export class SyncOperationDto {
   @ApiProperty({
     example: 'form207',
-    enum: ['form201', 'form207', 'victim', 'registration'],
+    enum: ['form201', 'form207', 'victim', 'registration', 'action'],
     description: 'Entidad de la operación',
   })
   @IsNotEmpty()
-  @IsEnum(['form201', 'form207', 'victim', 'registration'])
-  entity: 'form201' | 'form207' | 'victim' | 'registration';
+  @IsEnum(['form201', 'form207', 'victim', 'registration', 'action'])
+  entity: 'form201' | 'form207' | 'victim' | 'registration' | 'action';
 
   @ApiProperty({
     example: 'create',
