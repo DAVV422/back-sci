@@ -14,7 +14,9 @@ import {
   NotificationEntity,
   NotificationType,
 } from '../entities/notification.entity';
+import { DeviceTokenEntity } from '../entities/device-token.entity';
 import { CreateNotificationDto } from '../dto/create-notification.dto';
+import { RegisterDeviceTokenDto } from '../dto/register-device-token.dto';
 import { NotificationGateway } from '../gateways/notification.gateway';
 import { UserService } from '../../user/services/user.service';
 
@@ -26,6 +28,8 @@ export class NotificationService {
   constructor(
     @InjectRepository(NotificationEntity)
     private readonly notificationRepository: Repository<NotificationEntity>,
+    @InjectRepository(DeviceTokenEntity)
+    private readonly deviceTokenRepository: Repository<DeviceTokenEntity>,
     private readonly notificationGateway: NotificationGateway,
     private readonly userService: UserService,
   ) {
@@ -56,6 +60,44 @@ export class NotificationService {
     }
   }
 
+  async registerDeviceToken(
+    userId: string,
+    dto: RegisterDeviceTokenDto,
+  ): Promise<DeviceTokenEntity> {
+    const user = await this.userService.findOne(userId);
+    if (!user) throw new NotFoundException('Usuario no encontrado.');
+
+    let deviceToken = await this.deviceTokenRepository.findOne({
+      where: { token: dto.token },
+    });
+
+    if (deviceToken) {
+      deviceToken.user = user;
+      deviceToken.deviceOs = dto.deviceOs || deviceToken.deviceOs;
+      deviceToken.isDeleted = false;
+    } else {
+      deviceToken = this.deviceTokenRepository.create({
+        token: dto.token,
+        deviceOs: dto.deviceOs || 'android',
+        user,
+      });
+    }
+
+    return await this.deviceTokenRepository.save(deviceToken);
+  }
+
+  async removeDeviceToken(userId: string, token: string): Promise<void> {
+    const deviceToken = await this.deviceTokenRepository.findOne({
+      where: { token, user: { id: userId } },
+    });
+
+    if (deviceToken) {
+      await this.deviceTokenRepository.update(deviceToken.id, {
+        isDeleted: true,
+      });
+    }
+  }
+
   async sendNotification(
     createDto: CreateNotificationDto,
   ): Promise<NotificationEntity> {
@@ -82,8 +124,14 @@ export class NotificationService {
         createdAt: savedNotification.createdAt,
       });
 
-      // 2. Enviar Push via FCM si Firebase está activo
-      this.sendPushNotification(createDto.userId, createDto.title, createDto.message);
+      // 2. Enviar Push via FCM multicast a los dispositivos registrados
+      await this.sendPushNotification(
+        createDto.userId,
+        savedNotification.id,
+        createDto.title,
+        createDto.message,
+        createDto.type,
+      );
 
       return savedNotification;
     } catch (error) {
@@ -94,14 +142,76 @@ export class NotificationService {
 
   private async sendPushNotification(
     userId: string,
+    notificationId: string,
     title: string,
     body: string,
+    type: string,
   ) {
-    if (!this.firebaseInitialized) return;
     try {
-      // En una implementación con tokens de dispositivo por usuario, se obtendría el FCM token del usuario.
-      // Estructura de envío seguro:
-      this.logger.log(`[FCM Push] Preparado para usuario ${userId}: ${title} - ${body}`);
+      const deviceTokens = await this.deviceTokenRepository.find({
+        where: { user: { id: userId }, isDeleted: false },
+      });
+
+      if (!deviceTokens || deviceTokens.length === 0) {
+        this.logger.log(`No hay tokens FCM registrados para el usuario ${userId}`);
+        return;
+      }
+
+      const tokensList = deviceTokens.map((dt) => dt.token);
+
+      if (!this.firebaseInitialized) {
+        this.logger.log(
+          `[FCM Push Simulado] Usuario ${userId} (${tokensList.length} dispositivos): ${title} - ${body}`,
+        );
+        return;
+      }
+
+      const message: admin.messaging.MulticastMessage = {
+        tokens: tokensList,
+        notification: {
+          title,
+          body,
+        },
+        data: {
+          notificationId,
+          type,
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        },
+      };
+
+      const response = await admin.messaging().sendEachForMulticast(message);
+      this.logger.log(
+        `[FCM Push] Éxito: ${response.successCount}, Fallos: ${response.failureCount}`,
+      );
+
+      // Depuración de tokens inválidos o expirados
+      if (response.failureCount > 0) {
+        const tokensToRemove: string[] = [];
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            const errorCode = resp.error?.code;
+            if (
+              errorCode === 'messaging/invalid-registration-token' ||
+              errorCode === 'messaging/registration-token-not-registered'
+            ) {
+              tokensToRemove.push(tokensList[idx]);
+            }
+          }
+        });
+
+        if (tokensToRemove.length > 0) {
+          await this.deviceTokenRepository
+            .createQueryBuilder()
+            .update(DeviceTokenEntity)
+            .set({ isDeleted: true })
+            .where('token IN (:...tokens)', { tokens: tokensToRemove })
+            .execute();
+
+          this.logger.log(
+            `Se desactivaron ${tokensToRemove.length} FCM tokens inválidos/expirados.`,
+          );
+        }
+      }
     } catch (error) {
       this.logger.error(`Error al enviar Push FCM: ${error.message}`);
     }
