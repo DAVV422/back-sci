@@ -35,3 +35,7 @@ lerna-debug.log*
 !.vscode/extensions.json
 
 .env
+
+firebase-service.json
+docs/implementacion/*
+docs/checklist/*
