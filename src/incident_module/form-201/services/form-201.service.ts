@@ -37,6 +37,19 @@ export class Form201Service {
     userId: string,
   ): Promise<Form201Entity> {
     try {
+      if (createForm201Dto.clientGeneratedId) {
+        const existing = await this.form201Repository.findOne({
+          where: { clientGeneratedId: createForm201Dto.clientGeneratedId },
+          relations: ['emergency', 'user'],
+        });
+        if (existing) {
+          this.logger.warn(
+            `Form201 con clientGeneratedId ${createForm201Dto.clientGeneratedId} ya procesado. Retornando existente.`,
+          );
+          return existing;
+        }
+      }
+
       const emergencyEntity = await this.emergencyService.findOne(emergencyId);
       this.emergencyService.assertEditable(emergencyEntity);
 

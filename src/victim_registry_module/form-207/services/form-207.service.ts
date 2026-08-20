@@ -26,6 +26,16 @@ export class Form207Service {
     createForm207Dto: CreateForm207Dto,
     userId: string,
   ): Promise<Form207Entity> {
+    if (createForm207Dto.clientGeneratedId) {
+      const existing = await this.form207Repository.findOne({
+        where: { clientGeneratedId: createForm207Dto.clientGeneratedId },
+        relations: ['user', 'emergency'],
+      });
+      if (existing) {
+        return existing;
+      }
+    }
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();

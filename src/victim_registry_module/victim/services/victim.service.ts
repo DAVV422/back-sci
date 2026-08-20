@@ -13,6 +13,14 @@ export class VictimService {
   ) {}
 
   async create(createVictimDto: CreateVictimDto): Promise<VictimEntity> {
+    if (createVictimDto.clientGeneratedId) {
+      const existing = await this.victimRepository.findOne({
+        where: { clientGeneratedId: createVictimDto.clientGeneratedId },
+      });
+      if (existing) {
+        return existing;
+      }
+    }
     const victim = this.victimRepository.create(createVictimDto);
     return await this.victimRepository.save(victim);
   }

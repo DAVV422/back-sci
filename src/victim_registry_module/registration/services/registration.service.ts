@@ -24,6 +24,16 @@ export class RegistrationService {
     createRegistrationDto: CreateRegistrationDto,
     userId: string,
   ): Promise<RegistrationEntity> {
+    if (createRegistrationDto.clientGeneratedId) {
+      const existing = await this.registrationRepository.findOne({
+        where: { clientGeneratedId: createRegistrationDto.clientGeneratedId },
+        relations: ['victim', 'form207', 'user'],
+      });
+      if (existing) {
+        return existing;
+      }
+    }
+
     const form207 = await this.form207Service.findOne(form207Id);
     this.emergencyService.assertEditable(form207.emergency);
 
