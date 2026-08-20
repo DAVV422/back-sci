@@ -35,9 +35,11 @@ export class ChargeService {
 
   public async findByName(name: string): Promise<ChargeEntity> {
     try {
-      const charge: ChargeEntity = await this.chargeRepository.findOne({
-        where: { name, isDeleted: false },
-      });
+      const charge: ChargeEntity = await this.chargeRepository
+        .createQueryBuilder('charge')
+        .where('LOWER(charge.name) = LOWER(:name)', { name })
+        .andWhere('charge.isDeleted = false')
+        .getOne();
       if (!charge) throw new NotFoundException('Charge not found.');
       return charge;
     } catch (error) {

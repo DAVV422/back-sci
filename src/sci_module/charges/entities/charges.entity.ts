@@ -7,6 +7,14 @@ export class ChargeEntity extends BaseEntity {
   @Column({ name: 'name', type: 'varchar', length: 100, nullable: false })
   name: string;
 
+  @Column({
+    name: 'abbreviation',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  abbreviation?: string;
+
   @Column({ name: 'level', type: 'int', nullable: false })
   level: number;
 

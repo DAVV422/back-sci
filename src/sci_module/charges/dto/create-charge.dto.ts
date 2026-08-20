@@ -11,6 +11,15 @@ export class CreateChargeDto {
   @IsString()
   name: string;
 
+  @ApiPropertyOptional({
+    example: 'CI',
+    type: String,
+    description: 'Abreviatura estándar del cargo en el SCI (ej. CI, JOP, etc.)',
+  })
+  @IsOptional()
+  @IsString()
+  abbreviation?: string;
+
   @ApiProperty({
     example: 5,
     type: Number,

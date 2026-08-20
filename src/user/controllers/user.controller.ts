@@ -41,7 +41,7 @@ import { UserEntity } from '../entities/user.entity';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @RolesAccess(ROLES.MANAGER)
+  @RolesAccess(ROLES.ADMIN)
   @Post()
   async createUser(
     @Body() createUserDto: CreateUserDto,
