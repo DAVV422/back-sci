@@ -20,7 +20,7 @@ export class SeedService {
   ) {}
 
   public async runAllSeeders() {
-    if (process.env.APP_PROD === true) {
+    if (process.env.APP_PROD === 'true') {
       return { message: 'No se puede ejecutar seeders en producción' };
     }
 
@@ -56,6 +56,9 @@ export class SeedService {
         };
 
         await this.userService.createUser(user);
+        this.logger.log(`Usuario Super Admin creado exitosamente: ${adminEmail}`);
+      } else {
+        this.logger.log(`Usuario Super Admin ${adminEmail} ya existe.`);
       }
 
       // ================= CARGAR CARGOS SCI =================
@@ -68,24 +71,14 @@ export class SeedService {
   }
 
   public async runSeedersCharges() {
-    if (process.env.APP_PROD === true) {
+    if (process.env.APP_PROD === 'true') {
       return { message: 'No se puede ejecutar seeders en producción' };
     }
 
     try {
-      // 🔍 Verificar si ya existen cargos SCI
-      const totalCharges = await this.chargeService.countCharges();
-      if (totalCharges > 0) {
-        return {
-          message:
-            'Ya existen cargos SCI en la base de datos. Seeder cancelado.',
-        };
-      }
-
       // ================= CARGAR CARGOS SCI =================
       await this.cargarChargeSCI();
-
-      return { message: 'Seeders ejecutados correctamente ✅' };
+      return { message: 'Seeders de cargos SCI ejecutados correctamente ✅' };
     } catch (error) {
       handlerError(error, this.logger);
     }
@@ -93,78 +86,248 @@ export class SeedService {
 
   async cargarChargeSCI(): Promise<void> {
     const cargos: CreateChargeDto[] = [
-      // ================= NIVEL 1 =================
+      // ================= NIVEL 1: MANDO =================
       {
         name: 'Comandante del Incidente',
+        abbreviation: 'CI',
         level: 1,
-        weight: 1,
+        weight: 1.0,
         system_name: 'incident_commander',
       },
+      {
+        name: 'Comandante Adjunto',
+        abbreviation: 'CI-ADJ',
+        level: 1,
+        weight: 1.5,
+      },
 
-      // ================= NIVEL 2 =================
+      // ================= NIVEL 2: ESTADO MAYOR Y JEFATURAS =================
       // Estado Mayor de Comando
-      { name: 'Oficial de Seguridad', level: 2, weight: 2 },
-      { name: 'Oficial de Enlace', level: 2, weight: 3 },
-      { name: 'Oficial de Información Pública', level: 2, weight: 4 },
+      {
+        name: 'Oficial de Seguridad',
+        abbreviation: 'OS',
+        level: 2,
+        weight: 2.1,
+        system_name: 'safety_officer',
+      },
+      {
+        name: 'Oficial de Información Pública',
+        abbreviation: 'OIP',
+        level: 2,
+        weight: 2.2,
+        system_name: 'public_info_officer',
+      },
+      {
+        name: 'Oficial de Enlace',
+        abbreviation: 'OE',
+        level: 2,
+        weight: 2.3,
+        system_name: 'liaison_officer',
+      },
 
-      // Jefes de Sección
+      // Jefaturas de Sección
       {
         name: 'Jefe de Operaciones',
+        abbreviation: 'JOP',
         level: 2,
-        weight: 5,
+        weight: 5.0,
         system_name: 'operations_chief',
       },
       {
         name: 'Jefe de Planificación',
+        abbreviation: 'JPLAN',
         level: 2,
-        weight: 6,
+        weight: 6.0,
         system_name: 'planning_chief',
       },
       {
         name: 'Jefe de Logística',
+        abbreviation: 'JLOG',
         level: 2,
-        weight: 7,
+        weight: 7.0,
         system_name: 'logistics_chief',
       },
       {
         name: 'Jefe de Administración y Finanzas',
+        abbreviation: 'JAF',
         level: 2,
-        weight: 8,
+        weight: 8.0,
         system_name: 'admin_finance_chief',
       },
 
-      // ================= NIVEL 3 =================
+      // ================= NIVEL 3: RAMAS, DIVISIONES, GRUPOS Y UNIDADES =================
       // Operaciones
-      { name: 'Director de Rama', level: 3, weight: 4 },
-      { name: 'Supervisor de División', level: 3, weight: 3 },
-      { name: 'Supervisor de Grupo', level: 3, weight: 2 },
+      {
+        name: 'Director de Rama',
+        abbreviation: 'DIR-RAMA',
+        level: 3,
+        weight: 5.1,
+      },
+      {
+        name: 'Supervisor de División',
+        abbreviation: 'SUP-DIV',
+        level: 3,
+        weight: 5.2,
+      },
+      {
+        name: 'Supervisor de Grupo',
+        abbreviation: 'SUP-GRUPO',
+        level: 3,
+        weight: 5.3,
+      },
 
       // Planificación
-      { name: 'Líder de Unidad de Situación', level: 3, weight: 3 },
-      { name: 'Líder de Unidad de Recursos', level: 3, weight: 2 },
-      { name: 'Líder de Unidad de Documentación', level: 3, weight: 1 },
-      { name: 'Líder de Unidad de Desmovilización', level: 3, weight: 0 },
+      {
+        name: 'Líder de Unidad de Recursos',
+        abbreviation: 'LID-REC',
+        level: 3,
+        weight: 6.1,
+      },
+      {
+        name: 'Líder de Unidad de Situación',
+        abbreviation: 'LID-SIT',
+        level: 3,
+        weight: 6.2,
+      },
+      {
+        name: 'Líder de Unidad de Documentación',
+        abbreviation: 'LID-DOC',
+        level: 3,
+        weight: 6.3,
+      },
+      {
+        name: 'Líder de Unidad de Desmovilización',
+        abbreviation: 'LID-DES',
+        level: 3,
+        weight: 6.4,
+      },
+      {
+        name: 'Especialista Técnico',
+        abbreviation: 'ESP-TEC',
+        level: 3,
+        weight: 6.5,
+      },
 
       // Logística
-      { name: 'Jefe de Rama de Apoyo', level: 3, weight: 2 },
-      { name: 'Jefe de Rama de Servicios', level: 3, weight: 1 },
+      {
+        name: 'Director de Rama de Servicios',
+        abbreviation: 'DIR-SERV',
+        level: 3,
+        weight: 7.1,
+      },
+      {
+        name: 'Director de Rama de Apoyo',
+        abbreviation: 'DIR-APOYO',
+        level: 3,
+        weight: 7.2,
+      },
 
-      // Administración / Finanzas
-      { name: 'Líder de Unidad de Costos', level: 3, weight: 3 },
-      { name: 'Líder de Unidad de Compras', level: 3, weight: 2 },
-      { name: 'Líder de Unidad de Tiempo', level: 3, weight: 1 },
-      { name: 'Líder de Compensaciones y Reclamaciones', level: 3, weight: 0 },
+      // Administración y Finanzas
+      {
+        name: 'Líder de Unidad de Tiempo',
+        abbreviation: 'LID-TIEMPO',
+        level: 3,
+        weight: 8.1,
+      },
+      {
+        name: 'Líder de Unidad de Compras',
+        abbreviation: 'LID-COMPRAS',
+        level: 3,
+        weight: 8.2,
+      },
+      {
+        name: 'Líder de Unidad de Costos',
+        abbreviation: 'LID-COSTOS',
+        level: 3,
+        weight: 8.3,
+      },
+      {
+        name: 'Líder de Unidad de Compensaciones',
+        abbreviation: 'LID-COMP',
+        level: 3,
+        weight: 8.4,
+      },
 
-      // ================= NIVEL 4 =================
-      { name: 'Unidad de Comunicaciones', level: 4, weight: 3 },
-      { name: 'Unidad Médica', level: 4, weight: 2 },
-      { name: 'Unidad de Alimentación', level: 4, weight: 1 },
-      { name: 'Unidad de Transporte', level: 4, weight: 0 },
+      // ================= NIVEL 4: UNIDADES DE SOPORTE =================
+      // Rama de Servicios
+      {
+        name: 'Líder de Unidad de Comunicaciones',
+        abbreviation: 'LID-COM',
+        level: 4,
+        weight: 7.11,
+      },
+      {
+        name: 'Líder de Unidad Médica',
+        abbreviation: 'LID-MED',
+        level: 4,
+        weight: 7.12,
+        system_name: 'medical_unit_leader',
+      },
+      {
+        name: 'Líder de Unidad de Alimentación',
+        abbreviation: 'LID-ALIM',
+        level: 4,
+        weight: 7.13,
+      },
 
-      // ================= NIVEL 5 =================
-      { name: 'Rescatista', level: 5, weight: 2 },
-      { name: 'Paramédico', level: 5, weight: 1 },
-      { name: 'Voluntario de Apoyo', level: 5, weight: 0 },
+      // Rama de Apoyo
+      {
+        name: 'Líder de Unidad de Suministros',
+        abbreviation: 'LID-SUM',
+        level: 4,
+        weight: 7.21,
+      },
+      {
+        name: 'Líder de Unidad de Instalaciones',
+        abbreviation: 'LID-INST',
+        level: 4,
+        weight: 7.22,
+      },
+      {
+        name: 'Líder de Unidad de Transporte',
+        abbreviation: 'LID-TRANSP',
+        level: 4,
+        weight: 7.23,
+      },
+
+      // ================= NIVEL 5: PERSONAL DE EJECUCIÓN Y TÁCTICO =================
+      {
+        name: 'Equipo de Ataque',
+        abbreviation: 'EQ-ATK',
+        level: 5,
+        weight: 5.1,
+        system_name: 'attack_team',
+      },
+      {
+        name: 'Fuerza de Tarea',
+        abbreviation: 'FT',
+        level: 5,
+        weight: 5.2,
+      },
+      {
+        name: 'Rescatista',
+        abbreviation: 'RESC',
+        level: 5,
+        weight: 5.3,
+      },
+      {
+        name: 'Paramédico',
+        abbreviation: 'PARAM',
+        level: 5,
+        weight: 5.4,
+      },
+      {
+        name: 'Bombero / Combatiente',
+        abbreviation: 'BOMB',
+        level: 5,
+        weight: 5.5,
+      },
+      {
+        name: 'Voluntario de Apoyo',
+        abbreviation: 'VOL',
+        level: 5,
+        weight: 5.6,
+      },
     ];
 
     for (const cargo of cargos) {
@@ -178,13 +341,16 @@ export class SeedService {
 
         if (existing) {
           await this.chargeService.update(existing.id, {
+            abbreviation: cargo.abbreviation,
+            level: cargo.level,
+            weight: cargo.weight,
             system_name: cargo.system_name,
           });
         } else {
           await this.chargeService.create(cargo);
         }
       } catch (error) {
-        this.logger.error(`Error al crear cargo SCI: ${cargo.name}`, error);
+        this.logger.error(`Error al procesar cargo SCI: ${cargo.name}`, error);
       }
     }
   }
