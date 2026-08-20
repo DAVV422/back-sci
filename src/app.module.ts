@@ -23,6 +23,7 @@ import { ResourceModule } from './organization_module/resource/resource.module';
 import { ChargesModule } from './sci_module/charges/charges.module';
 import { VictimModule } from './victim_registry_module/victim/victim.module';
 import { RegistrationModule } from './victim_registry_module/registration/registration.module';
+import { NotificationModule } from './notification/notification.module';
 import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
 
 @Module({
@@ -53,6 +54,7 @@ import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
     ResourceModule,
     VictimModule,
     RegistrationModule,
+    NotificationModule,
   ],
   providers: [
     {
