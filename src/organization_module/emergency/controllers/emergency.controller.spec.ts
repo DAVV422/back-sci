@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EmergencyController } from './emergency.controller';
+import { EmergencyService } from '../services/emergency.service';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
 
 describe('EmergencyController', () => {
   let controller: EmergencyController;
@@ -7,7 +9,18 @@ describe('EmergencyController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EmergencyController],
-    }).compile();
+      providers: [
+        {
+          provide: EmergencyService,
+          useValue: {},
+        },
+      ],
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<EmergencyController>(EmergencyController);
   });

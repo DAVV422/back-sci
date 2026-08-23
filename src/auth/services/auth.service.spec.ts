@@ -144,7 +144,7 @@ describe('AuthService - refreshToken', () => {
     const saved = mockRefreshRepo.save.mock.calls[0][0];
     expect(saved.tokenHash).not.toBe(refreshToken);
     expect(saved.tokenHash).toBeTruthy();
-    expect(saved.userId).toBe('user-id');
+    expect(saved.user.id).toBe('user-id');
     expect(saved.isRevoked).toBe(false);
     expect(saved.expiresAt).toBeInstanceOf(Date);
   });

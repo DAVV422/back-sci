@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Form201Controller } from './form-201.controller';
 import { Form201Service } from '../services/form-201.service';
-import { ParseUUIDPipe } from '@nestjs/common';
 import { Form201Entity } from '../entities/form-201.entity';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
 
 describe('Form201Controller', () => {
   let controller: Form201Controller;
@@ -28,7 +28,12 @@ describe('Form201Controller', () => {
       providers: [
         { provide: Form201Service, useValue: mockForm201Service },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<Form201Controller>(Form201Controller);
     service = module.get(Form201Service);

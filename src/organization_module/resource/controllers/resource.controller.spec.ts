@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ResourceController } from './resource.controller';
+import { ResourceService } from '../services/resource.service';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
 
 describe('ResourceController', () => {
   let controller: ResourceController;
@@ -7,7 +9,18 @@ describe('ResourceController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ResourceController],
-    }).compile();
+      providers: [
+        {
+          provide: ResourceService,
+          useValue: {},
+        },
+      ],
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<ResourceController>(ResourceController);
   });

@@ -39,6 +39,7 @@ describe('Form207Service', () => {
     release: jest.fn().mockResolvedValue(undefined),
     query: jest.fn().mockResolvedValue([{ last_value: 1 }]),
     manager: {
+      query: jest.fn().mockResolvedValue([{ last_value: 1 }]),
       findOne: jest.fn().mockImplementation((entityClass, options) => {
         if (entityClass.name === 'EmergencyEntity') {
           return mockEmergency;
@@ -111,7 +112,7 @@ describe('Form207Service', () => {
       expect(result.code).toBe('F207-001');
       expect(queryRunnerMock.connect).toHaveBeenCalled();
       expect(queryRunnerMock.startTransaction).toHaveBeenCalled();
-      expect(queryRunnerMock.query).toHaveBeenCalledWith(
+      expect(queryRunnerMock.manager.query).toHaveBeenCalledWith(
         expect.stringContaining('emergency_form207_counter'),
         ['emergency-1'],
       );
@@ -120,7 +121,7 @@ describe('Form207Service', () => {
     });
 
     it('should rollback transaction on error', async () => {
-      queryRunnerMock.query.mockRejectedValueOnce(new Error('DB Error'));
+      queryRunnerMock.manager.query.mockRejectedValueOnce(new Error('DB Error'));
 
       await expect(
         service.create('emergency-1', createDto as any, 'user-1'),

@@ -18,6 +18,7 @@ describe('ChargeService', () => {
       update: jest.fn().mockResolvedValue({ affected: 1 }),
       delete: jest.fn(),
       count: jest.fn().mockResolvedValue(0),
+      createQueryBuilder: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -65,11 +66,18 @@ describe('ChargeService', () => {
     });
 
     it('findByName filtra por isDeleted: false', async () => {
-      await service.findByName('comandante');
+      const mockQb = {
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({ id: 'charge-1' }),
+      };
+      mockRepo.createQueryBuilder.mockReturnValue(mockQb);
 
-      expect(mockRepo.findOne).toHaveBeenCalledWith({
-        where: { name: 'comandante', isDeleted: false },
-      });
+      const res = await service.findByName('comandante');
+
+      expect(mockRepo.createQueryBuilder).toHaveBeenCalledWith('charge');
+      expect(mockQb.andWhere).toHaveBeenCalledWith('charge.isDeleted = false');
+      expect(res).toEqual({ id: 'charge-1' });
     });
 
     it('findAll filtra por isDeleted: false', async () => {
@@ -90,20 +98,20 @@ describe('ChargeService', () => {
       mockRepo.findOne.mockResolvedValue({
         id: 'charge-1',
         name: 'comandante del incidente',
-        system_name: 'incident_commander',
+        systemName: 'incident_commander',
       });
 
       const result = await service.create({
         name: 'comandante del incidente',
         level: 1,
         weight: 1,
-        system_name: 'incident_commander',
+        systemName: 'incident_commander',
       });
 
       expect(mockRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ system_name: 'incident_commander' }),
+        expect.objectContaining({ systemName: 'incident_commander' }),
       );
-      expect(result.system_name).toBe('incident_commander');
+      expect(result.systemName).toBe('incident_commander');
     });
   });
 });

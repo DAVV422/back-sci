@@ -96,7 +96,7 @@ describe('EmergencyService', () => {
         items: [],
         total: 0,
       });
-      expect(queryBuilder.where).toHaveBeenCalledWith(
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
         'emergency.state ILIKE :value',
         { value: '%active%' },
       );
@@ -325,7 +325,7 @@ describe('EmergencyService', () => {
         emergencyId,
         {
           state: EmergencyStatus.Canceled,
-          cancellation_reason: 'Falso reporte',
+          cancellationReason: 'Falso reporte',
         } as any,
         userId,
         ROLES.BASIC,
@@ -386,7 +386,7 @@ describe('EmergencyService', () => {
         emergencyId,
         {
           state: EmergencyStatus.Canceled,
-          cancellation_reason: 'Orden superior',
+          cancellationReason: 'Orden superior',
         } as any,
         userId,
         ROLES.BASIC,

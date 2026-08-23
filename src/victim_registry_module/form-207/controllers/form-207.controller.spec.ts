@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Form207Controller } from './form-207.controller';
 import { Form207Service } from '../services/form-207.service';
 import { Form207Entity } from '../entities/form-207.entity';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
 
 describe('Form207Controller', () => {
   let controller: Form207Controller;
@@ -26,7 +27,12 @@ describe('Form207Controller', () => {
       providers: [
         { provide: Form207Service, useValue: mockForm207Service },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<Form207Controller>(Form207Controller);
     service = module.get(Form207Service);

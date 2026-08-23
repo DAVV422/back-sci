@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { VictimController } from './victim.controller';
 import { VictimService } from '../services/victim.service';
 import { VictimEntity } from '../entities/victim.entity';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
 
 describe('VictimController', () => {
   let controller: VictimController;
@@ -25,7 +26,12 @@ describe('VictimController', () => {
       providers: [
         { provide: VictimService, useValue: mockVictimService },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<VictimController>(VictimController);
     service = module.get(VictimService);

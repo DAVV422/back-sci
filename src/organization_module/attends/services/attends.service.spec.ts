@@ -110,28 +110,28 @@ describe('AttendService', () => {
       mockEmergencyService.assertEditable.mockReturnValue(undefined);
       mockChargeService.findOne.mockResolvedValue({
         id: 'ci-charge',
-        system_name: 'incident_commander',
+        systemName: 'incident_commander',
       });
     });
 
     it('rechaza un segundo CI activo para la misma emergencia (AC2)', async () => {
       mockAttendRepo.findOne.mockImplementation((opts: any) => {
         if (opts?.relations)
-          return Promise.resolve({ id: 'att-1', is_active: true });
-        return Promise.resolve({ id: 'att-ci-1', is_active: true });
+          return Promise.resolve({ id: 'att-1', isActive: true });
+        return Promise.resolve({ id: 'att-ci-1', isActive: true });
       });
 
       await expect(service.create(ciDto)).rejects.toThrow(ConflictException);
       expect(mockAttendRepo.save).not.toHaveBeenCalled();
     });
 
-    it('permite asignar CI cuando no hay uno activo y persiste charge_system_name', async () => {
+    it('permite asignar CI cuando no hay uno activo y persiste chargeSystemName', async () => {
       mockAttendRepo.findOne.mockImplementation((opts: any) => {
         if (opts?.relations)
           return Promise.resolve({
             id: 'att-1',
-            is_active: true,
-            charge_system_name: 'incident_commander',
+            isActive: true,
+            chargeSystemName: 'incident_commander',
           });
         return Promise.resolve(null);
       });
@@ -141,8 +141,8 @@ describe('AttendService', () => {
       expect(mockAttendRepo.save).toHaveBeenCalled();
       expect(mockAttendRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          charge_system_name: 'incident_commander',
-          is_active: true,
+          chargeSystemName: 'incident_commander',
+          isActive: true,
         }),
       );
       expect(result.id).toBe('att-1');
@@ -214,7 +214,7 @@ describe('AttendService', () => {
       });
       mockChargeService.findOne.mockResolvedValue({
         id: 'charge-2',
-        system_name: 'safety_officer',
+        systemName: 'safety_officer',
       });
       mockAttendRepo.update.mockResolvedValue({ affected: 1 });
 
@@ -222,7 +222,7 @@ describe('AttendService', () => {
 
       expect(mockAttendRepo.update).toHaveBeenCalledWith('att-1', {
         charge: { id: 'charge-2' },
-        charge_system_name: 'safety_officer',
+        chargeSystemName: 'safety_officer',
       });
     });
 
@@ -230,11 +230,11 @@ describe('AttendService', () => {
       mockAttendRepo.findOne.mockResolvedValueOnce({ ...baseAttend });
       mockChargeService.findOne.mockResolvedValue({
         id: 'ci-charge',
-        system_name: 'incident_commander',
+        systemName: 'incident_commander',
       });
       mockAttendRepo.findOne.mockResolvedValue({
         id: 'att-ci-2',
-        is_active: true,
+        isActive: true,
       });
 
       await expect(
@@ -247,7 +247,7 @@ describe('AttendService', () => {
       mockAttendRepo.findOne.mockResolvedValueOnce({ ...baseAttend });
       mockChargeService.findOne.mockResolvedValue({
         id: 'ci-charge',
-        system_name: 'incident_commander',
+        systemName: 'incident_commander',
       });
       mockAttendRepo.findOne.mockResolvedValue({
         id: 'att-1',

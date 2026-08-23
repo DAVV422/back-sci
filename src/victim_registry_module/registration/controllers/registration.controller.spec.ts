@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RegistrationController } from './registration.controller';
 import { RegistrationService } from '../services/registration.service';
 import { RegistrationEntity } from '../entities/registration.entity';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
 
 describe('RegistrationController', () => {
   let controller: RegistrationController;
@@ -24,7 +25,12 @@ describe('RegistrationController', () => {
       providers: [
         { provide: RegistrationService, useValue: mockRegistrationService },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<RegistrationController>(RegistrationController);
     service = module.get(RegistrationService);

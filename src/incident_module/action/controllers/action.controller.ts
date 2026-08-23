@@ -150,12 +150,12 @@ export class ActionController {
       emergency: emergencyId,
       clientGeneratedId,
       audio: {
-        path_audio: relativePath,
+        pathAudio: relativePath,
         duration: duration ? parseFloat(duration) : 0,
         processed: false,
-        file_name: file?.originalname || file?.filename,
-        mime_type: file?.mimetype,
-        size_bytes: file?.size,
+        fileName: file?.originalname || file?.filename,
+        mimeType: file?.mimetype,
+        sizeBytes: file?.size,
         clientGeneratedId,
       },
     };

@@ -37,6 +37,7 @@ describe('SeedService', () => {
       countUsers: jest.fn().mockResolvedValue(0),
       findByEmail: jest.fn().mockRejectedValue(new Error('not found')),
       createUser: jest.fn().mockResolvedValue({ id: 'admin-1' }),
+      update: jest.fn().mockResolvedValue({ id: 'admin-1' }),
     };
     mockConfigService = buildConfigService();
 
@@ -65,7 +66,7 @@ describe('SeedService', () => {
           email: 'admin@sci.local',
           password: 'ChangeMe123!',
           name: 'Administrador',
-          last_name: 'Sistema',
+          lastName: 'Sistema',
           role: ROLES.SUADMIN,
         }),
       );
@@ -108,8 +109,8 @@ describe('SeedService', () => {
     });
   });
 
-  describe('cargarChargeSCI - system_name (F1-013)', () => {
-    it('asigna system_name = incident_commander al cargo CI', async () => {
+  describe('cargarChargeSCI - systemName (F1-013)', () => {
+    it('asigna systemName = incident_commander al cargo CI', async () => {
       await service.cargarChargeSCI();
 
       const createCalls = mockChargeService.create.mock.calls.map(
@@ -119,17 +120,17 @@ describe('SeedService', () => {
         (c: any) => c.name === 'Comandante del Incidente',
       );
       expect(ci).toBeDefined();
-      expect(ci.system_name).toBe('incident_commander');
+      expect(ci.systemName).toBe('incident_commander');
     });
 
-    it('asigna system_name a los jefes de sección', async () => {
+    it('asigna systemName a los jefes de sección', async () => {
       await service.cargarChargeSCI();
 
       const createCalls = mockChargeService.create.mock.calls.map(
         (call: any[]) => call[0],
       );
       const systemNames = createCalls
-        .map((c: any) => c.system_name)
+        .map((c: any) => c.systemName)
         .filter((s: any) => s);
       expect(systemNames).toEqual(
         expect.arrayContaining([
@@ -142,20 +143,20 @@ describe('SeedService', () => {
       );
     });
 
-    it('los system_name no-null son únicos entre los cargos', async () => {
+    it('los systemName no-null son únicos entre los cargos', async () => {
       await service.cargarChargeSCI();
 
       const createCalls = mockChargeService.create.mock.calls.map(
         (call: any[]) => call[0],
       );
       const systemNames = createCalls
-        .map((c: any) => c.system_name)
+        .map((c: any) => c.systemName)
         .filter((s: any) => s);
       const unique = new Set(systemNames);
       expect(unique.size).toBe(systemNames.length);
     });
 
-    it('actualiza cargos existentes con system_name (upsert)', async () => {
+    it('actualiza cargos existentes con systemName (upsert)', async () => {
       mockChargeService.findByName.mockImplementation(async (name: string) => {
         if (name === 'Comandante del Incidente') return { id: 'ci-1' };
         throw new Error('not found');
@@ -164,7 +165,10 @@ describe('SeedService', () => {
       await service.cargarChargeSCI();
 
       expect(mockChargeService.update).toHaveBeenCalledWith('ci-1', {
-        system_name: 'incident_commander',
+        abbreviation: 'CI',
+        level: 1,
+        weight: 1,
+        systemName: 'incident_commander',
       });
     });
   });

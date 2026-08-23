@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 
 import { ActionService } from './action.service';
 import { ActionEntity } from '../entities/action.entity';
+import { AudioEntity } from '../entities/audio.entity';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { UserService } from '../../../user/services/user.service';
 import { EmergencyStatus } from '../../../organization_module/emergency/enums/emergency-status.enum';
@@ -31,6 +32,7 @@ describe('ActionService', () => {
       providers: [
         ActionService,
         { provide: getRepositoryToken(ActionEntity), useValue: mockActionRepo },
+        { provide: getRepositoryToken(AudioEntity), useValue: {} },
         { provide: EmergencyService, useValue: mockEmergencyService },
         {
           provide: UserService,
@@ -94,6 +96,7 @@ describe('ActionService', () => {
         state: EmergencyStatus.Active,
       });
       mockEmergencyService.assertEditable.mockReturnValue(undefined);
+      mockActionRepo.findOne.mockResolvedValue({ id: 'act-1' });
 
       const result = await service.create(dto, 'user-1');
 
