@@ -111,11 +111,11 @@ export class Form207Service {
     const form207 = await this.findOne(id);
     this.emergencyService.assertEditable(form207.emergency);
 
-    if (form207.is_finalized) {
+    if (form207.isFinalized) {
       throw new BadRequestException('El formulario ya está finalizado.');
     }
 
-    form207.is_finalized = true;
+    form207.isFinalized = true;
     const savedForm = await this.form207Repository.save(form207);
 
     // Guardar acción en bitácora

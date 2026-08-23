@@ -40,7 +40,7 @@ export class EmergencyService {
     private readonly userService: UserService,
     private readonly dataSource: DataSource,
     private readonly stateMachine: EmergencyStateMachine,
-  ) {}
+  ) { }
 
   public async findAll(
     queryDto: QueryDto,
@@ -249,10 +249,10 @@ export class EmergencyService {
   private getPendingForms(emergency: EmergencyEntity): string[] {
     const pending: string[] = [];
     emergency.form201?.forEach((form) => {
-      if (!form.is_finalized) pending.push(`F201 (${form.id})`);
+      if (!form.isFinalized) pending.push(`F201 (${form.id})`);
     });
     emergency.form207?.forEach((form) => {
-      if (!form.is_finalized) pending.push(`F207 (${form.id})`);
+      if (!form.isFinalized) pending.push(`F207 (${form.id})`);
     });
     return pending;
   }

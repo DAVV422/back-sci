@@ -17,7 +17,7 @@ export class SeedService {
     private readonly userService: UserService,
     private readonly chargeService: ChargeService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   public async runAllSeeders() {
     if (process.env.APP_PROD === 'true') {

@@ -112,6 +112,7 @@ export class UserController {
     };
   }
 
+  @RolesAccess(ROLES.ADMIN)
   @ApiParam({ name: 'id', type: 'string' })
   @Patch(':id')
   public async update(

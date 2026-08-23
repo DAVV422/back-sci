@@ -25,7 +25,7 @@ export class Form207Entity extends BaseEntity {
   date: Date;
 
   @Column({ name: 'is_finalized', type: 'boolean', default: false })
-  is_finalized: boolean;
+  isFinalized: boolean;
 
   @Column({
     name: 'client_generated_id',

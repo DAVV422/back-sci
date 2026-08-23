@@ -21,7 +21,7 @@ describe('RegistrationService', () => {
   const mockForm207 = {
     id: 'form207-1',
     code: 'F207-001',
-    is_finalized: false,
+    isFinalized: false,
     emergency: { id: 'emergency-1' },
   };
 
@@ -103,7 +103,7 @@ describe('RegistrationService', () => {
     it('should throw BadRequestException if Form207 is already finalized', async () => {
       form207Service.findOne.mockResolvedValueOnce({
         ...mockForm207,
-        is_finalized: true,
+        isFinalized: true,
       } as any);
 
       await expect(service.create('form207-1', dto, 'user-1')).rejects.toThrow(BadRequestException);

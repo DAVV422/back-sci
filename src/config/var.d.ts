@@ -1,7 +1,7 @@
 declare namespace NodeJS {
   interface ProcessEnv {
     APP_NAME: string;
-    APP_PROD: boolean;
+    APP_PROD: string;
     PORT: number;
     APP_URL: string;
 

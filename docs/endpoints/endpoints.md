@@ -156,16 +156,32 @@ En caso de error:
 - **Acceso**: Autenticado (`BASIC` o superior).
 
 #### `PATCH /api/user/me`
-- **Descripción**: Actualiza los datos de perfil propio (teléfono, grado, fecha de nacimiento).
-- **Acceso**: Autenticado.
+- **Descripción**: Actualiza los datos de contacto del perfil propio (`name`, `last_name`, `cellphone`). El grado institucional (`grade`), el correo y el rol (`role`) están protegidos y no pueden ser modificados por el propio usuario.
+- **Acceso**: Autenticado (`BASIC` o superior).
+- **Body**:
+  ```json
+  {
+    "name": "Juan",
+    "last_name": "Pérez",
+    "cellphone": "+56912345678"
+  }
+  ```
 
 #### `GET /api/user/:id`
 - **Descripción**: Obtiene el detalle de un usuario por su ID.
 - **Acceso**: Autenticado.
 
 #### `PATCH /api/user/:id`
-- **Descripción**: Actualiza los datos de un usuario.
-- **Acceso**: `ADMIN`, `MANAGER` (o el propio usuario).
+- **Descripción**: Actualiza los datos y configuración institucional de un usuario (incluyendo `grade` institucional, `role`, `email`, etc.).
+- **Acceso**: Exclusivo `ADMIN`.
+- **Body**:
+  ```json
+  {
+    "grade": "Teniente 1°",
+    "role": "ADVANCED",
+    "cellphone": "+56912345678"
+  }
+  ```
 
 #### `PATCH /api/user/status/:id`
 - **Descripción**: Activa o desactiva a un usuario del servicio operativo.

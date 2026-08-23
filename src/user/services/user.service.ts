@@ -136,9 +136,6 @@ export class UserService {
         ...(updateProfileDto.cellphone !== undefined && {
           cellphone: updateProfileDto.cellphone,
         }),
-        ...(updateProfileDto.grade !== undefined && {
-          grade: updateProfileDto.grade,
-        }),
       };
       const userUpdated = await this.userRepository.update(id, editableFields);
       if (userUpdated.affected === 0)

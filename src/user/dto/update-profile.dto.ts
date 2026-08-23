@@ -34,14 +34,4 @@ export class UpdateProfileDto {
   @IsString()
   @MinLength(8)
   cellphone?: string;
-
-  @ApiProperty({
-    example: 'Capitán',
-    type: String,
-    description: 'Grado Jerárquico del usuario',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  grade?: string;
 }

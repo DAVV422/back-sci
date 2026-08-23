@@ -37,7 +37,7 @@ export class RegistrationService {
     const form207 = await this.form207Service.findOne(form207Id);
     this.emergencyService.assertEditable(form207.emergency);
 
-    if (form207.is_finalized) {
+    if (form207.isFinalized) {
       throw new BadRequestException('El Formulario 207 ya está finalizado.');
     }
 

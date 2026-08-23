@@ -135,24 +135,24 @@ describe('Form207Service', () => {
     const existingForm = {
       id: 'form-1',
       code: 'F207-001',
-      is_finalized: false,
+      isFinalized: false,
       emergency: mockEmergency,
     };
 
     it('should finalize Form207 and save an action log', async () => {
       form207Repo.findOne.mockResolvedValue(existingForm as any);
-      form207Repo.save.mockResolvedValue({ ...existingForm, is_finalized: true } as any);
+      form207Repo.save.mockResolvedValue({ ...existingForm, isFinalized: true } as any);
       actionRepo.create.mockImplementation((dto) => dto as any);
       actionRepo.save.mockResolvedValue({ id: 'action-1' } as any);
 
       const result = await service.finalize('form-1', 'user-1');
 
-      expect(result.is_finalized).toBe(true);
+      expect(result.isFinalized).toBe(true);
       expect(actionRepo.save).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if form is already finalized', async () => {
-      form207Repo.findOne.mockResolvedValue({ ...existingForm, is_finalized: true } as any);
+      form207Repo.findOne.mockResolvedValue({ ...existingForm, isFinalized: true } as any);
 
       await expect(service.finalize('form-1', 'user-1')).rejects.toThrow(BadRequestException);
     });

@@ -344,7 +344,7 @@ describe('EmergencyService', () => {
     it('a → f con formularios sin finalizar: lanza BadRequestException con lista', async () => {
       mockRepo.findOne.mockResolvedValue(
         makeEmergency(EmergencyStatus.Active, {
-          form201: [{ id: 'f201-1', is_finalized: false }],
+          form201: [{ id: 'f201-1', isFinalized: false }],
         }),
       );
 
@@ -362,8 +362,8 @@ describe('EmergencyService', () => {
     it('a → f con formularios finalizados: transición exitosa', async () => {
       mockRepo.findOne.mockResolvedValue(
         makeEmergency(EmergencyStatus.Active, {
-          form201: [{ id: 'f201-1', is_finalized: true }],
-          form207: [{ id: 'f207-1', is_finalized: true }],
+          form201: [{ id: 'f201-1', isFinalized: true }],
+          form207: [{ id: 'f207-1', isFinalized: true }],
         }),
       );
 
