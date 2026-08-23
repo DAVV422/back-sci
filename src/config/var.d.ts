@@ -6,6 +6,7 @@ declare namespace NodeJS {
     APP_URL: string;
 
     FRONTEND_URL: string;
+    CORS_ORIGINS: string;
 
     DB_CONNECTION: string;
     DB_HOST: string;

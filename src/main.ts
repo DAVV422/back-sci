@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
-import { CORS_OPTIONS } from './common/constants';
+import { getCorsOptions } from './common/constants';
 import { Logger } from 'nestjs-pino';
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { DocumentBuilder } from '@nestjs/swagger';
@@ -15,7 +15,7 @@ async function bootstrap() {
 
   app.useGlobalFilters(new HttpExceptionFilter()); // Format all errors consistently
   app.setGlobalPrefix('api'); // Set the global prefix for all routes
-  app.enableCors(CORS_OPTIONS); // Enable CORS
+  app.enableCors(getCorsOptions()); // Enable CORS
   app.useGlobalPipes(
     new ValidationPipe({
       transformOptions: {

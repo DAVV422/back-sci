@@ -7,6 +7,7 @@ import { AuditLogSubscriber } from './subscribers/audit-log.subscriber';
 import { SyncService } from './services/sync.service';
 import { SyncController } from './controllers/sync.controller';
 
+import { UserModule } from '../user/user.module';
 import { EmergencyModule } from '../organization_module/emergency/emergency.module';
 import { Form201Module } from '../incident_module/form-201/form-201.module';
 import { Form207Module } from '../victim_registry_module/form-207/form-207.module';
@@ -18,6 +19,7 @@ import { NotificationModule } from '../notification/notification.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([AuditLogEntity]),
+    forwardRef(() => UserModule),
     forwardRef(() => EmergencyModule),
     forwardRef(() => Form201Module),
     forwardRef(() => Form207Module),
