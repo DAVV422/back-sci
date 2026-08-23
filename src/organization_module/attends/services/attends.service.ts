@@ -62,16 +62,16 @@ export class AttendService {
         user: { id: userEntity.id },
         emergency: { id: emergencyEntity.id },
         charge: { id: chargeEntity.id },
-        charge_system_name: chargeEntity.system_name ?? null,
-        is_active: true,
+        chargeSystemName: chargeEntity.systemName ?? null,
+        isActive: true,
       });
 
-      if (chargeEntity.system_name === 'incident_commander') {
+      if (chargeEntity.systemName === 'incident_commander') {
         const activeCI = await this.attendRepository.findOne({
           where: {
             emergency: { id: emergencyEntity.id },
-            charge_system_name: 'incident_commander',
-            is_active: true,
+            chargeSystemName: 'incident_commander',
+            isActive: true,
             isDeleted: false,
           },
         });
@@ -95,7 +95,7 @@ export class AttendService {
         }
         throw error;
       }
-      this.logger.log(`[create] Asistencia asignada exitosamente. id=${attend_created.id}, charge=${chargeEntity.system_name}`);
+      this.logger.log(`[create] Asistencia asignada exitosamente. id=${attend_created.id}, charge=${chargeEntity.systemName}`);
       return await this.findOne(attend_created.id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -114,12 +114,12 @@ export class AttendService {
       const { chargeId } = updateAttendDto;
       const chargeEntity = await this.chargeService.findOne(chargeId);
 
-      if (chargeEntity.system_name === 'incident_commander') {
+      if (chargeEntity.systemName === 'incident_commander') {
         const activeCI = await this.attendRepository.findOne({
           where: {
             emergency: { id: attend.emergency.id },
-            charge_system_name: 'incident_commander',
-            is_active: true,
+            chargeSystemName: 'incident_commander',
+            isActive: true,
             isDeleted: false,
           },
         });
@@ -135,7 +135,7 @@ export class AttendService {
       try {
         updated = await this.attendRepository.update(attend.id, {
           charge: { id: chargeEntity.id },
-          charge_system_name: chargeEntity.system_name ?? null,
+          chargeSystemName: chargeEntity.systemName ?? null,
         });
       } catch (error) {
         if (error?.code === '23505')

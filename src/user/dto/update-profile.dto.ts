@@ -22,7 +22,7 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   @MinLength(3)
-  last_name?: string;
+  lastName?: string;
 
   @ApiProperty({
     example: '67303349',

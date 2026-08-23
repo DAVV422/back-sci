@@ -17,7 +17,7 @@ export class AttendEntity extends BaseEntity {
   hour: string;
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
-  is_active: boolean;
+  isActive: boolean;
 
   @Column({
     name: 'charge_system_name',
@@ -25,7 +25,7 @@ export class AttendEntity extends BaseEntity {
     length: 100,
     nullable: true,
   })
-  charge_system_name?: string;
+  chargeSystemName?: string;
 
   @ManyToOne(() => UserEntity, (user) => user.attends, {
     nullable: false,

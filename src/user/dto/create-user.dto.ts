@@ -1,7 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsBoolean,
-  IsDateString,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -30,7 +28,7 @@ export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
   @MinLength(3)
-  last_name: string;
+  lastName: string;
 
   @ApiProperty({
     example: 'john@live.com',
@@ -73,13 +71,13 @@ export class CreateUserDto {
 
   @ApiProperty({
     example:
-      'https://scontent.fsrz1-1.fna.fbcdn.net/v/t39.30808-6/321514687_828263794936611_9117207435075792485_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=5f2048&_nc_ohc=DZ3kknwy0MYQ7kNvgGpd28s&_nc_ht=scontent.fsrz1-1.fna&oh=00_AYDVBsizxPljlSdcHXm_2eM9syvkH1X9sUTlOzLPSBbsNw&oe=667B65BB',
+      'https://scontent.fsrz1-1.fna.fbcdn.net/v/t39.30808-6/321514687_828263794936611_9117207435075792485_n.jpg',
     type: String,
     description: 'Url de la imagen de foto de perfil',
   })
   @IsOptional()
   @IsString()
-  url_image?: string;
+  urlImage?: string;
 
   @ApiProperty({
     example: '2000-04-18',

@@ -46,5 +46,5 @@ export class CreateChargeDto {
   })
   @IsOptional()
   @IsString()
-  system_name?: string;
+  systemName?: string;
 }

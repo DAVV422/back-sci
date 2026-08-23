@@ -5,9 +5,10 @@ import { QueryDto } from '../dto/query.dto';
 export const USER_ALLOWED_ATTRS = [
   'name',
   'email',
-  'is_active',
+  'isActive',
   'role',
-  'last_name',
+  'lastName',
+  'urlImage',
 ] as const;
 
 export const EMERGENCY_ALLOWED_ATTRS = [

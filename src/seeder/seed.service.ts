@@ -43,7 +43,7 @@ export class SeedService {
       if (!existingUser) {
         const user: CreateUserDto = {
           name: this.configService.get<string>('ADMIN_NAME') ?? 'Administrador',
-          last_name:
+          lastName:
             this.configService.get<string>('ADMIN_LAST_NAME') ?? 'Sistema',
           cellphone: '00000000',
           grade: 'Administrador del Sistema',
@@ -95,7 +95,7 @@ export class SeedService {
         abbreviation: 'CI',
         level: 1,
         weight: 1.0,
-        system_name: 'incident_commander',
+        systemName: 'incident_commander',
       },
       {
         name: 'Comandante Adjunto',
@@ -111,21 +111,21 @@ export class SeedService {
         abbreviation: 'OS',
         level: 2,
         weight: 2.1,
-        system_name: 'safety_officer',
+        systemName: 'safety_officer',
       },
       {
         name: 'Oficial de Información Pública',
         abbreviation: 'OIP',
         level: 2,
         weight: 2.2,
-        system_name: 'public_info_officer',
+        systemName: 'public_info_officer',
       },
       {
         name: 'Oficial de Enlace',
         abbreviation: 'OE',
         level: 2,
         weight: 2.3,
-        system_name: 'liaison_officer',
+        systemName: 'liaison_officer',
       },
 
       // Jefaturas de Sección
@@ -134,28 +134,28 @@ export class SeedService {
         abbreviation: 'JOP',
         level: 2,
         weight: 5.0,
-        system_name: 'operations_chief',
+        systemName: 'operations_chief',
       },
       {
         name: 'Jefe de Planificación',
         abbreviation: 'JPLAN',
         level: 2,
         weight: 6.0,
-        system_name: 'planning_chief',
+        systemName: 'planning_chief',
       },
       {
         name: 'Jefe de Logística',
         abbreviation: 'JLOG',
         level: 2,
         weight: 7.0,
-        system_name: 'logistics_chief',
+        systemName: 'logistics_chief',
       },
       {
         name: 'Jefe de Administración y Finanzas',
         abbreviation: 'JAF',
         level: 2,
         weight: 8.0,
-        system_name: 'admin_finance_chief',
+        systemName: 'admin_finance_chief',
       },
 
       // ================= NIVEL 3: RAMAS, DIVISIONES, GRUPOS Y UNIDADES =================
@@ -264,7 +264,7 @@ export class SeedService {
         abbreviation: 'LID-MED',
         level: 4,
         weight: 7.12,
-        system_name: 'medical_unit_leader',
+        systemName: 'medical_unit_leader',
       },
       {
         name: 'Líder de Unidad de Alimentación',
@@ -299,7 +299,7 @@ export class SeedService {
         abbreviation: 'EQ-ATK',
         level: 5,
         weight: 5.1,
-        system_name: 'attack_team',
+        systemName: 'attack_team',
       },
       {
         name: 'Fuerza de Tarea',
@@ -347,7 +347,7 @@ export class SeedService {
             abbreviation: cargo.abbreviation,
             level: cargo.level,
             weight: cargo.weight,
-            system_name: cargo.system_name,
+            systemName: cargo.systemName,
           });
         } else {
           await this.chargeService.create(cargo);

@@ -19,5 +19,5 @@ export class ChangeEmergencyStateDto {
   })
   @IsOptional()
   @IsString()
-  cancellation_reason?: string;
+  cancellationReason?: string;
 }

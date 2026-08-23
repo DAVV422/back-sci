@@ -28,7 +28,7 @@ describe('Form207Service', () => {
   const mockUser = {
     id: 'user-1',
     name: 'Jane',
-    last_name: 'Doe',
+    lastName: 'Doe',
   };
 
   const queryRunnerMock = {
@@ -99,7 +99,7 @@ describe('Form207Service', () => {
 
   describe('create', () => {
     const createDto = {
-      place_of_registration: 'Zona Norte',
+      placeOfRegistration: 'Zona Norte',
       attendant: 'Juan Pérez',
       date: new Date('2026-08-08'),
     };

@@ -10,7 +10,8 @@ Este documento centraliza y detalla todos los endpoints disponibles en el backen
 
 | Rol | Alcance y Facultades | Restricciones |
 |:---|:---|:---|
-| **`ADMIN`** | Gestión total de la plataforma. Puede crear, listar, modificar y eliminar cualquier entidad. Es el **único** rol facultado para crear nuevos usuarios (`ADMIN`, `MANAGER`, `ADVANCED`, `BASIC`) y eliminarlos. | Ninguna. |
+| **`suadmin`** | Super Administrador del Sistema. Nivel jerárquico máximo. Puede crear, listar, modificar y eliminar cualquier entidad o usuario (incluyendo usuarios con rol `ADMIN`). Acceso exclusivo a endpoints de auditoría con marcas temporales de sistema (`GET /api/user/admin/all`). | Ninguna. |
+| **`ADMIN`** | Gestión total de la plataforma. Puede crear, listar, modificar y eliminar usuarios y recursos del sistema (`ADMIN`, `MANAGER`, `ADVANCED`, `BASIC`). | Ninguna. |
 | **`MANAGER`** | Gestión operativa total del sistema y recursos. Puede gestionar emergencias, equipamiento, asignaciones y activar/desactivar el estado de usuarios (`PATCH /api/user/status/:id`). | **No puede** crear nuevos usuarios ni eliminarlos físicamente de la base de datos. |
 | **`ADVANCED`** | Gestión operativa de emergencias, incidentes, bitácoras, formularios y recursos. | **No puede** crear, activar, desactivar ni eliminar usuarios. |
 | **`BASIC`** | Operador táctico de campo. Solo gestiona la información de la emergencia en la que está activamente asignado según su rol/cargo SCI. | Solo accede a recursos de emergencias donde participa. |
@@ -21,7 +22,7 @@ Este documento centraliza y detalla todos los endpoints disponibles en el backen
 
 ### 1.2 Permisos Comunes Dentro de una Emergencia
 
-Todo usuario asignado a una emergencia (sin importar si su rol de sistema es `BASIC`, `ADVANCED`, `MANAGER` o `ADMIN`) tiene permiso para:
+Todo usuario asignado a una emergencia (sin importar si su rol de sistema es `BASIC`, `ADVANCED`, `MANAGER`, `ADMIN` o `suadmin`) tiene permiso para:
 1. **Registrar acciones en bitácora (`Action`)**: Registrar sus propios eventos y novedades operativas.
 2. **Registrar y gestionar víctimas (`Victim` & `Registration`)**: Registrar datos de lesionados y triage START/SALT.
 3. **Gestionar recursos (`Resource`)**: Solicitar despacho y registrar utilización de equipamiento asignado al incidente.
@@ -51,7 +52,7 @@ Todo usuario asignado a una emergencia (sin importar si su rol de sistema es `BA
 
 ## 2. Formato Estándar de Respuesta API
 
-Todas las respuestas del backend siguen la estructura:
+Todas las respuestas del backend siguen la estructura JSON con propiedades en **`camelCase`**:
 
 ```json
 {
@@ -103,7 +104,7 @@ En caso de error:
     "success": true,
     "statusCode": 200,
     "data": {
-      "user": { "id": "uuid", "name": "Admin", "role": "ADMIN", "email": "admin@sci.local" },
+      "user": { "id": "uuid", "name": "Admin", "lastName": "Sistema", "role": "suadmin", "email": "admin@sci.local", "isActive": true },
       "accessToken": "eyJhbG...",
       "refreshToken": "d8e3b..."
     }
@@ -131,12 +132,12 @@ En caso de error:
 
 #### `POST /api/user`
 - **Descripción**: Crea un nuevo usuario en la plataforma.
-- **Acceso**: Requiere autenticación (`ADMIN`).
+- **Acceso**: Requiere autenticación (`ADMIN` o `suadmin`).
 - **Body**:
   ```json
   {
     "name": "Juan",
-    "last_name": "Pérez",
+    "lastName": "Pérez",
     "email": "juan.perez@sci.local",
     "password": "Password123*",
     "cellphone": "+56912345678",
@@ -147,22 +148,27 @@ En caso de error:
   ```
 
 #### `GET /api/user`
-- **Descripción**: Lista usuarios con soporte para paginación y filtros.
-- **Acceso**: `ADMIN`, `MANAGER`.
-- **Query Params**: `limit`, `offset`, `order` (`ASC`/`DESC`), `attr` (`name`/`email`/`role`), `value`.
+- **Descripción**: Lista usuarios operativos del sistema (omite metadatos de auditoría `createdAt`/`updatedAt` y oculta al superusuario `suadmin`).
+- **Acceso**: `ADMIN`, `MANAGER`, `suadmin`.
+- **Query Params**: `limit`, `offset`, `order` (`ASC`/`DESC`), `attr` (`name`/`email`/`role`/`lastName`/`isActive`), `value`.
+
+#### `GET /api/user/admin/all`
+- **Descripción**: Endpoint exclusivo de auditoría para `suadmin` y `ADMIN`. Retorna la lista completa de usuarios **incluyendo marcas de auditoría temporales** (`createdAt`, `updatedAt`).
+- **Acceso**: `suadmin`, `ADMIN`.
+- **Query Params**: `limit`, `offset`, `order` (`ASC`/`DESC`), `attr` (`name`/`email`/`role`/`lastName`/`isActive`), `value`.
 
 #### `GET /api/user/me`
 - **Descripción**: Obtiene el perfil completo del usuario autenticado.
 - **Acceso**: Autenticado (`BASIC` o superior).
 
 #### `PATCH /api/user/me`
-- **Descripción**: Actualiza los datos de contacto del perfil propio (`name`, `last_name`, `cellphone`). El grado institucional (`grade`), el correo y el rol (`role`) están protegidos y no pueden ser modificados por el propio usuario.
+- **Descripción**: Actualiza los datos de contacto del perfil propio (`name`, `lastName`, `cellphone`). El grado institucional (`grade`), el correo y el rol (`role`) están protegidos.
 - **Acceso**: Autenticado (`BASIC` o superior).
 - **Body**:
   ```json
   {
     "name": "Juan",
-    "last_name": "Pérez",
+    "lastName": "Pérez",
     "cellphone": "+56912345678"
   }
   ```
@@ -173,7 +179,7 @@ En caso de error:
 
 #### `PATCH /api/user/:id`
 - **Descripción**: Actualiza los datos y configuración institucional de un usuario (incluyendo `grade` institucional, `role`, `email`, etc.).
-- **Acceso**: Exclusivo `ADMIN`.
+- **Acceso**: Exclusivo `ADMIN` / `suadmin`.
 - **Body**:
   ```json
   {
@@ -184,13 +190,13 @@ En caso de error:
   ```
 
 #### `PATCH /api/user/status/:id`
-- **Descripción**: Activa o desactiva a un usuario del servicio operativo.
-- **Acceso**: `ADMIN`, `MANAGER`.
+- **Descripción**: Activa o desactiva a un usuario del servicio operativo (`isActive`).
+- **Acceso**: `ADMIN`, `MANAGER`, `suadmin`.
 - **Body**: `{ "isActive": false }`
 
 #### `DELETE /api/user/:id`
 - **Descripción**: Soft delete del usuario en base de datos.
-- **Acceso**: Exclusivo `ADMIN`.
+- **Acceso**: Exclusivo `ADMIN` / `suadmin`.
 
 ---
 

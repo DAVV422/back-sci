@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsBoolean,
-  IsDateString,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -40,7 +39,7 @@ export class UserDTO {
   @IsNotEmpty()
   @IsString()
   @MinLength(3)
-  last_name: string;
+  lastName: string;
 
   @ApiProperty({
     example: 'john@live.com',
@@ -73,13 +72,13 @@ export class UserDTO {
 
   @ApiProperty({
     example:
-      'https://scontent.fsrz1-1.fna.fbcdn.net/v/t39.30808-6/321514687_828263794936611_9117207435075792485_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=5f2048&_nc_ohc=DZ3kknwy0MYQ7kNvgGpd28s&_nc_ht=scontent.fsrz1-1.fna&oh=00_AYDVBsizxPljlSdcHXm_2eM9syvkH1X9sUTlOzLPSBbsNw&oe=667B65BB',
+      'https://scontent.fsrz1-1.fna.fbcdn.net/v/t39.30808-6/321514687_828263794936611_9117207435075792485_n.jpg',
     type: String,
     description: 'Url de la imagen de foto de perfil',
   })
   @IsOptional()
   @IsString()
-  url_image?: string;
+  urlImage?: string;
 
   @ApiProperty({
     example: '2023-01-01',
@@ -94,7 +93,7 @@ export class UserDTO {
     description: 'Estado del usuario en la institución',
   })
   @IsBoolean()
-  is_active: boolean;
+  isActive: boolean;
 
   @IsEnum(ROLES)
   role: ROLES;
@@ -102,13 +101,13 @@ export class UserDTO {
   public constructor(user: UserEntity) {
     this.id = user.id;
     this.name = user.name;
-    this.last_name = user.last_name;
+    this.lastName = user.lastName;
     this.email = user.email;
     this.cellphone = user.cellphone;
     this.grade = user.grade;
-    this.url_image = user.url_image;
+    this.urlImage = user.urlImage;
     this.birthdate = user.birthdate;
-    this.is_active = user.is_active;
+    this.isActive = user.isActive;
     this.role = user.role;
   }
 }

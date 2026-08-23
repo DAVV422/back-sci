@@ -1,4 +1,5 @@
 import { Column, Entity, OneToMany } from 'typeorm';
+import { Exclude } from 'class-transformer';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { AttendEntity } from '../../../organization_module/attends/entities/attends.entity';
 
@@ -34,7 +35,13 @@ export class ChargeEntity extends BaseEntity {
     nullable: true,
     unique: true,
   })
-  system_name?: string;
+  systemName?: string;
+
+  @Exclude()
+  createdAt: Date;
+
+  @Exclude()
+  updatedAt: Date;
 
   @OneToMany(() => AttendEntity, (attend) => attend.charge)
   attends: AttendEntity[];

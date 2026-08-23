@@ -14,7 +14,7 @@ export class AudioEntity extends BaseEntity {
     comment:
       'Ruta local o relativa del archivo (ej. data/audios/{userId}/{emergencyId}/{filename})',
   })
-  path_audio: string;
+  pathAudio: string;
 
   @Column({
     name: 'duration',
@@ -41,7 +41,7 @@ export class AudioEntity extends BaseEntity {
     nullable: true,
     comment: 'Nombre del archivo generado o recibido',
   })
-  file_name?: string;
+  fileName?: string;
 
   @Column({
     name: 'mime_type',
@@ -51,7 +51,7 @@ export class AudioEntity extends BaseEntity {
     comment:
       'Formato MIME del audio (ej. audio/m4a, audio/mp3, audio/aac, audio/wav, audio/ogg)',
   })
-  mime_type?: string;
+  mimeType?: string;
 
   @Column({
     name: 'size_bytes',
@@ -59,7 +59,7 @@ export class AudioEntity extends BaseEntity {
     nullable: true,
     comment: 'Tamaño del archivo en bytes',
   })
-  size_bytes?: number;
+  sizeBytes?: number;
 
   @Column({
     name: 'transcription',
@@ -75,7 +75,7 @@ export class AudioEntity extends BaseEntity {
     nullable: true,
     comment: 'Entidades e intenciones estructuradas extraídas por el NLP',
   })
-  nlp_extracted_data?: Record<string, any>;
+  nlpExtractedData?: Record<string, any>;
 
   @Column({
     name: 'client_generated_id',

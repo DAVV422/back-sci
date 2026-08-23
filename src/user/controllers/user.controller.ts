@@ -9,8 +9,6 @@ import {
   Query,
   Patch,
   Post,
-  UseInterceptors,
-  UploadedFile,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -27,6 +25,7 @@ import {
   UpdateUserDto,
   UpdateUserStatusDto,
   UpdateProfileDto,
+  AdminUserDto,
 } from '../dto/';
 import { UserService } from '../services/user.service';
 import { QueryDto } from '../../common/dto/query.dto';
@@ -64,6 +63,29 @@ export class UserController {
     @Query() queryDto: QueryDto,
   ): Promise<ApiResponse<UserEntity[]>> {
     const { items, total } = await this.userService.findAll(queryDto);
+    return {
+      success: true,
+      statusCode: 200,
+      data: items,
+      meta: {
+        total,
+        limit: queryDto.limit ?? items.length,
+        offset: queryDto.offset ?? 0,
+      },
+    };
+  }
+
+  @RolesAccess(ROLES.ADMIN)
+  @ApiQuery({ name: 'limit', type: 'number', required: false })
+  @ApiQuery({ name: 'offset', type: 'number', required: false })
+  @ApiQuery({ name: 'order', type: 'string', required: false })
+  @ApiQuery({ name: 'attr', type: 'string', required: false })
+  @ApiQuery({ name: 'value', type: 'string', required: false })
+  @Get('admin/all')
+  public async findAllAdmin(
+    @Query() queryDto: QueryDto,
+  ): Promise<ApiResponse<AdminUserDto[]>> {
+    const { items, total } = await this.userService.findAllAdmin(queryDto);
     return {
       success: true,
       statusCode: 200,

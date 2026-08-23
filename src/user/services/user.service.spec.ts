@@ -149,36 +149,36 @@ describe('UserService - updateStatus', () => {
     service = module.get<UserService>(UserService);
   });
 
-  it('changes is_active to false and returns the updated user', async () => {
-    const user = { id: 'uuid', name: 'John', is_active: true } as UserEntity;
-    const updated = { ...user, is_active: false } as UserEntity;
+  it('changes isActive to false and returns the updated user', async () => {
+    const user = { id: 'uuid', name: 'John', isActive: true } as UserEntity;
+    const updated = { ...user, isActive: false } as UserEntity;
     jest
       .spyOn(service, 'findOne')
       .mockResolvedValueOnce(user)
       .mockResolvedValueOnce(updated);
     mockRepo.update.mockResolvedValue({ affected: 1 });
 
-    const result = await service.updateStatus('uuid', { is_active: false });
+    const result = await service.updateStatus('uuid', { isActive: false });
 
     expect(mockRepo.update).toHaveBeenCalledWith('uuid', {
-      is_active: false,
+      isActive: false,
     });
-    expect(result.is_active).toBe(false);
+    expect(result.isActive).toBe(false);
   });
 
-  it('changes is_active to true', async () => {
-    const user = { id: 'uuid', name: 'John', is_active: false } as UserEntity;
-    const updated = { ...user, is_active: true } as UserEntity;
+  it('changes isActive to true', async () => {
+    const user = { id: 'uuid', name: 'John', isActive: false } as UserEntity;
+    const updated = { ...user, isActive: true } as UserEntity;
     jest
       .spyOn(service, 'findOne')
       .mockResolvedValueOnce(user)
       .mockResolvedValueOnce(updated);
     mockRepo.update.mockResolvedValue({ affected: 1 });
 
-    const result = await service.updateStatus('uuid', { is_active: true });
+    const result = await service.updateStatus('uuid', { isActive: true });
 
-    expect(mockRepo.update).toHaveBeenCalledWith('uuid', { is_active: true });
-    expect(result.is_active).toBe(true);
+    expect(mockRepo.update).toHaveBeenCalledWith('uuid', { isActive: true });
+    expect(result.isActive).toBe(true);
   });
 
   it('throws BadRequestException when the update affects 0 rows', async () => {
@@ -188,7 +188,7 @@ describe('UserService - updateStatus', () => {
     mockRepo.update.mockResolvedValue({ affected: 0 });
 
     await expect(
-      service.updateStatus('uuid', { is_active: false }),
+      service.updateStatus('uuid', { isActive: false }),
     ).rejects.toThrow(BadRequestException);
   });
 });
@@ -217,7 +217,7 @@ describe('UserService - updateProfile', () => {
     const user = {
       id: 'uuid',
       name: 'John',
-      last_name: 'Doe',
+      lastName: 'Doe',
       role: 'basic',
     } as UserEntity;
     jest.spyOn(service, 'findOne').mockResolvedValue(user);

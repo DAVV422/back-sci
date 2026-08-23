@@ -200,7 +200,7 @@ export class EmergencyService {
         (from === EmergencyStatus.Pending || from === EmergencyStatus.Active) &&
         to === EmergencyStatus.Canceled
       ) {
-        if (!changeStateDto.cancellation_reason) {
+        if (!changeStateDto.cancellationReason) {
           this.logger.warn(`[changeState] Cancelación rechazada por falta de motivo. id=${id}`);
           throw new BadRequestException(
             'El motivo de cancelación es obligatorio.',
@@ -306,7 +306,7 @@ export class EmergencyService {
       (from === EmergencyStatus.Pending || from === EmergencyStatus.Active) &&
       to === EmergencyStatus.Canceled
     )
-      return `Emergencia cancelada: ${changeStateDto.cancellation_reason}`;
+      return `Emergencia cancelada: ${changeStateDto.cancellationReason}`;
     if (from === EmergencyStatus.Finished && to === EmergencyStatus.Active)
       return 'Emergencia reabierta';
     return null;

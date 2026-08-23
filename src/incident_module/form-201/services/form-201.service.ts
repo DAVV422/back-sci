@@ -77,7 +77,7 @@ export class Form201Service {
 
       // Capturar organigrama (snapshot inmutable de attends)
       const attends = await this.attendRepository.find({
-        where: { emergency: { id: emergencyId }, is_active: true, isDeleted: false },
+        where: { emergency: { id: emergencyId }, isActive: true, isDeleted: false },
         relations: ['user', 'charge'],
       });
 
@@ -86,13 +86,13 @@ export class Form201Service {
         user: {
           id: att.user.id,
           name: att.user.name,
-          lastName: att.user.last_name,
+          lastName: att.user.lastName,
         },
         charge: {
           id: att.charge.id,
           name: att.charge.name,
           level: att.charge.level,
-          systemName: att.charge_system_name,
+          systemName: att.chargeSystemName,
         },
         date: att.date,
         hour: att.hour,

@@ -14,6 +14,7 @@ import {
   UpdateUserDto,
   UpdateUserStatusDto,
   UpdateProfileDto,
+  AdminUserDto,
 } from '../dto/';
 import { UserEntity } from '../entities/user.entity';
 import { handlerError } from '../../common/utils/handlerError.utils';
@@ -56,6 +57,30 @@ export class UserService {
       const [items, total] = await query.getManyAndCount();
       this.logger.log(`[findAll] Usuarios encontrados: total=${total}, devueltos=${items.length}`);
       return { items, total };
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
+  public async findAllAdmin(
+    queryDto: QueryDto,
+  ): Promise<PaginatedResult<AdminUserDto>> {
+    this.logger.log(`[findAllAdmin] Consultando lista de usuarios con auditoría para SUADMIN/ADMIN.`);
+    try {
+      const { limit, offset, order, attr, value } = queryDto;
+      validateAllowedAttrs(attr, USER_ALLOWED_ATTRS);
+      const query = this.userRepository.createQueryBuilder('user');
+      if (limit) query.take(limit);
+      if (offset) query.skip(offset);
+      if (order)
+        query.orderBy('user.createdAt', order.toLocaleUpperCase() as any);
+      if (attr && value)
+        query.andWhere(`user.${attr} ILIKE :value`, { value: `%${value}%` });
+      query.andWhere('user.is_deleted = false');
+      const [items, total] = await query.getManyAndCount();
+      const adminUsers = items.map((user) => new AdminUserDto(user));
+      this.logger.log(`[findAllAdmin] Usuarios de auditoría encontrados: total=${total}, devueltos=${adminUsers.length}`);
+      return { items: adminUsers, total };
     } catch (error) {
       handlerError(error, this.logger);
     }
@@ -146,8 +171,8 @@ export class UserService {
         ...(updateProfileDto.name !== undefined && {
           name: updateProfileDto.name,
         }),
-        ...(updateProfileDto.last_name !== undefined && {
-          last_name: updateProfileDto.last_name,
+        ...(updateProfileDto.lastName !== undefined && {
+          lastName: updateProfileDto.lastName,
         }),
         ...(updateProfileDto.cellphone !== undefined && {
           cellphone: updateProfileDto.cellphone,
@@ -169,11 +194,11 @@ export class UserService {
     id: string,
     updateUserStatusDto: UpdateUserStatusDto,
   ): Promise<UserEntity> {
-    this.logger.log(`[updateStatus] Cambiando estado de usuario. id=${id}, is_active=${updateUserStatusDto.is_active}`);
+    this.logger.log(`[updateStatus] Cambiando estado de usuario. id=${id}, isActive=${updateUserStatusDto.isActive}`);
     try {
       await this.findOne(id);
       const userUpdated = await this.userRepository.update(id, {
-        is_active: updateUserStatusDto.is_active,
+        isActive: updateUserStatusDto.isActive,
       });
       if (userUpdated.affected === 0) {
         this.logger.warn(`[updateStatus] No se pudo cambiar estado. id=${id}`);
@@ -181,7 +206,7 @@ export class UserService {
           'No se pudo cambiar el estado del usuario.',
         );
       }
-      this.logger.log(`[updateStatus] Estado actualizado con éxito. id=${id}, active=${updateUserStatusDto.is_active}`);
+      this.logger.log(`[updateStatus] Estado actualizado con éxito. id=${id}, active=${updateUserStatusDto.isActive}`);
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);

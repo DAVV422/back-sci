@@ -16,7 +16,7 @@ export class Form207Entity extends BaseEntity {
   code: string;
 
   @Column({ name: 'place_of_registration', type: 'varchar', length: 255, nullable: false })
-  place_of_registration: string;
+  placeOfRegistration: string;
 
   @Column({ name: 'attendant', type: 'varchar', length: 150, nullable: false })
   attendant: string;

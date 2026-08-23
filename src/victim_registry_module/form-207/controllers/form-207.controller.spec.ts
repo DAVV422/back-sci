@@ -10,7 +10,7 @@ describe('Form207Controller', () => {
   const mockForm207 = {
     id: 'form-1',
     code: 'F207-001',
-    place_of_registration: 'Zona A',
+    placeOfRegistration: 'Zona A',
     attendant: 'Juan',
   } as Form207Entity;
 
@@ -38,7 +38,7 @@ describe('Form207Controller', () => {
 
   describe('create', () => {
     it('should call service.create and return standard response', async () => {
-      const dto = { place_of_registration: 'Zona A', attendant: 'Juan' } as any;
+      const dto = { placeOfRegistration: 'Zona A', attendant: 'Juan' } as any;
       const res = await controller.create('emergency-1', dto, 'user-1');
 
       expect(service.create).toHaveBeenCalledWith('emergency-1', dto, 'user-1');

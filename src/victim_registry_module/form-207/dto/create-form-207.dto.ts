@@ -4,7 +4,6 @@ import {
   IsString,
   IsDateString,
   IsOptional,
-  IsDate,
   IsUUID,
 } from 'class-validator';
 
@@ -15,7 +14,7 @@ export class CreateForm207Dto {
   })
   @IsString()
   @IsOptional()
-  place_of_registration: string;
+  placeOfRegistration: string;
 
   @ApiProperty({
     description: 'Attendant name',

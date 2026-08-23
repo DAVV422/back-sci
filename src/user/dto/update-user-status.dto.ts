@@ -9,5 +9,5 @@ export class UpdateUserStatusDto {
   })
   @IsNotEmpty()
   @IsBoolean()
-  is_active: boolean;
+  isActive: boolean;
 }

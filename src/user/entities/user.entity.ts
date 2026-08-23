@@ -13,7 +13,7 @@ export class UserEntity extends BaseEntity {
   name: string;
 
   @Column({ name: 'last_name', type: 'varchar', length: 100, nullable: false })
-  last_name: string;
+  lastName: string;
 
   @Column({ name: 'password', type: 'varchar', length: 255, nullable: false })
   @Exclude()
@@ -38,10 +38,10 @@ export class UserEntity extends BaseEntity {
   birthdate?: Date;
 
   @Column({ name: 'url_image', type: 'varchar', nullable: true })
-  url_image?: string;
+  urlImage?: string;
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
-  is_active: boolean;
+  isActive: boolean;
 
   @Column({
     name: 'role',
@@ -50,6 +50,12 @@ export class UserEntity extends BaseEntity {
     default: ROLES.BASIC,
   })
   role: ROLES;
+
+  @Exclude()
+  createdAt: Date;
+
+  @Exclude()
+  updatedAt: Date;
 
   @OneToMany(() => EmergencyEntity, (emergency) => emergency.user)
   emergencies: EmergencyEntity[];

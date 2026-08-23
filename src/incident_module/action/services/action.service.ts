@@ -76,14 +76,14 @@ export class ActionService {
       let savedAudio: AudioEntity | undefined = undefined;
 
       if (audio) {
-        this.logger.log(`[create] Guardando registro de audio asociado. path=${audio.path_audio}`);
+        this.logger.log(`[create] Guardando registro de audio asociado. path=${audio.pathAudio}`);
         const audioCreate = this.audioRepository.create({
-          path_audio: audio.path_audio,
+          pathAudio: audio.pathAudio,
           duration: audio.duration ?? 0,
           processed: audio.processed ?? false,
-          file_name: audio.file_name,
-          mime_type: audio.mime_type,
-          size_bytes: audio.size_bytes,
+          fileName: audio.fileName,
+          mimeType: audio.mimeType,
+          sizeBytes: audio.sizeBytes,
           transcription: audio.transcription,
           clientGeneratedId: audio.clientGeneratedId,
           emergency: emergencyEntity,

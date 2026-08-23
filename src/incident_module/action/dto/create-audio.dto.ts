@@ -15,7 +15,7 @@ export class CreateAudioDto {
   })
   @IsNotEmpty()
   @IsString()
-  path_audio: string;
+  pathAudio: string;
 
   @ApiPropertyOptional({
     example: 12.5,
@@ -40,7 +40,7 @@ export class CreateAudioDto {
   })
   @IsOptional()
   @IsString()
-  file_name?: string;
+  fileName?: string;
 
   @ApiPropertyOptional({
     example: 'audio/m4a',
@@ -48,7 +48,7 @@ export class CreateAudioDto {
   })
   @IsOptional()
   @IsString()
-  mime_type?: string;
+  mimeType?: string;
 
   @ApiPropertyOptional({
     example: 524288,
@@ -56,7 +56,7 @@ export class CreateAudioDto {
   })
   @IsOptional()
   @IsNumber()
-  size_bytes?: number;
+  sizeBytes?: number;
 
   @ApiPropertyOptional({
     example: 'Se requiere ambulancia en sector sur por 2 lesionados leves.',

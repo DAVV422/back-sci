@@ -29,7 +29,7 @@ describe('Form201Service', () => {
   const mockUser = {
     id: 'user-1',
     name: 'Juan',
-    last_name: 'Pérez',
+    lastName: 'Pérez',
   };
 
   beforeEach(async () => {
