@@ -30,12 +30,17 @@ export class AttendService {
   ) {}
 
   public async findOne(id: string): Promise<AttendEntity> {
+    this.logger.log(`[findOne] Buscando asistencia. id=${id}`);
     try {
       const attend: AttendEntity = await this.attendRepository.findOne({
         where: { id, isDeleted: false },
         relations: ['emergency', 'user', 'charge'],
       });
-      if (!attend) throw new NotFoundException('Asistencia no encontrada.');
+      if (!attend) {
+        this.logger.warn(`[findOne] Asistencia no encontrada. id=${id}`);
+        throw new NotFoundException('Asistencia no encontrada.');
+      }
+      this.logger.log(`[findOne] Asistencia encontrada. id=${attend.id}`);
       return attend;
     } catch (error) {
       handlerError(error, this.logger);
@@ -43,6 +48,9 @@ export class AttendService {
   }
 
   public async create(createAttendDto: CreateAttendDto): Promise<AttendEntity> {
+    this.logger.log(
+      `[create] Asignando personal/cargo a emergencia. userId=${createAttendDto.user}, emergencyId=${createAttendDto.emergency}, chargeId=${createAttendDto.charge}`,
+    );
     try {
       const { user, emergency, charge, ...createAttend } = createAttendDto;
       const userEntity = await this.userService.findOne(user);
@@ -67,22 +75,27 @@ export class AttendService {
             isDeleted: false,
           },
         });
-        if (activeCI)
+        if (activeCI) {
+          this.logger.warn(`[create] Ya existe un CI activo para la emergencia ${emergencyEntity.id}`);
           throw new ConflictException(
             'Ya existe un Comandante del Incidente activo para esta emergencia.',
           );
+        }
       }
 
       let attend_created: AttendEntity;
       try {
         attend_created = await this.attendRepository.save(attend_create);
       } catch (error) {
-        if (error?.code === '23505')
+        if (error?.code === '23505') {
+          this.logger.warn(`[create] Conflicto de exclusividad de CI: ${error.message}`);
           throw new ConflictException(
             'Ya existe un Comandante del Incidente activo para esta emergencia.',
           );
+        }
         throw error;
       }
+      this.logger.log(`[create] Asistencia asignada exitosamente. id=${attend_created.id}, charge=${chargeEntity.system_name}`);
       return await this.findOne(attend_created.id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -93,6 +106,7 @@ export class AttendService {
     id: string,
     updateAttendDto: UpdateAttendDto,
   ): Promise<AttendEntity> {
+    this.logger.log(`[update] Actualizando cargo de asistencia. id=${id}, newChargeId=${updateAttendDto.chargeId}`);
     try {
       const attend = await this.findOne(id);
       if (attend.emergency)
@@ -109,10 +123,12 @@ export class AttendService {
             isDeleted: false,
           },
         });
-        if (activeCI && activeCI.id !== attend.id)
+        if (activeCI && activeCI.id !== attend.id) {
+          this.logger.warn(`[update] Conflicto: ya existe otro CI activo para la emergencia ${attend.emergency.id}`);
           throw new ConflictException(
             'Ya existe un Comandante del Incidente activo para esta emergencia.',
           );
+        }
       }
 
       let updated;
@@ -130,6 +146,7 @@ export class AttendService {
       }
       if (updated.affected === 0)
         throw new BadRequestException('Asistencia no actualizada.');
+      this.logger.log(`[update] Asistencia actualizada exitosamente. id=${id}`);
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -137,6 +154,7 @@ export class AttendService {
   }
 
   public async delete(id: string): Promise<ApiResponse<null>> {
+    this.logger.log(`[delete] Eliminando asistencia. id=${id}`);
     try {
       const attend = await this.findOne(id);
       if (attend.emergency)
@@ -146,6 +164,7 @@ export class AttendService {
       });
       if (deletedAttend.affected === 0)
         throw new BadRequestException('Asistencia no eliminada.');
+      this.logger.log(`[delete] Asistencia eliminada exitosamente. id=${id}`);
       return {
         success: true,
         statusCode: 200,
@@ -158,15 +177,19 @@ export class AttendService {
   }
 
   public async findByEmergency(emergencyId: string): Promise<AttendEntity[]> {
+    this.logger.log(`[findByEmergency] Listando asistencias para emergencia ${emergencyId}`);
     try {
       const attends: AttendEntity[] = await this.attendRepository.find({
         where: { emergency: { id: emergencyId }, isDeleted: false },
         relations: ['emergency', 'user', 'charge'],
       });
-      if (!attends || attends.length === 0)
+      if (!attends || attends.length === 0) {
+        this.logger.warn(`[findByEmergency] No se encontraron asistencias. emergencyId=${emergencyId}`);
         throw new NotFoundException(
           'No se encontraron asistencias para esta emergencia.',
         );
+      }
+      this.logger.log(`[findByEmergency] Encontradas ${attends.length} asistencias. emergencyId=${emergencyId}`);
       return attends;
     } catch (error) {
       handlerError(error, this.logger);
@@ -174,15 +197,19 @@ export class AttendService {
   }
 
   public async findByUser(userId: string): Promise<AttendEntity[]> {
+    this.logger.log(`[findByUser] Listando asistencias para usuario ${userId}`);
     try {
       const attends: AttendEntity[] = await this.attendRepository.find({
         where: { user: { id: userId }, isDeleted: false },
         relations: ['emergency', 'user'],
       });
-      if (!attends || attends.length === 0)
+      if (!attends || attends.length === 0) {
+        this.logger.warn(`[findByUser] No se encontraron asistencias. userId=${userId}`);
         throw new NotFoundException(
           'No se encontraron asistencias para este usuario.',
         );
+      }
+      this.logger.log(`[findByUser] Encontradas ${attends.length} asistencias. userId=${userId}`);
       return attends;
     } catch (error) {
       handlerError(error, this.logger);

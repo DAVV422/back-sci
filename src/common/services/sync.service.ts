@@ -27,9 +27,17 @@ export class SyncService {
     syncBatchDto: SyncBatchDto,
     userId: string,
   ): Promise<SyncOperationResult[]> {
+    const totalOps = syncBatchDto.operations?.length || 0;
+    this.logger.log(
+      `[processBatch] Iniciando procesamiento de lote de sincronización. userId=${userId}, operaciones=${totalOps}`,
+    );
+
     const results: SyncOperationResult[] = [];
 
     for (const op of syncBatchDto.operations) {
+      this.logger.log(
+        `[processBatch] Procesando op. clientGeneratedId=${op.clientGeneratedId}, entity=${op.entity}, action=${op.action}`,
+      );
       try {
         // 1. Extraer ID de la emergencia vinculada si aplica
         const emergencyId =
@@ -45,8 +53,12 @@ export class SyncService {
               emergency.state === EmergencyStatus.Finished ||
               emergency.state === EmergencyStatus.Canceled
             ) {
-              // Notificar conflicto
               const emgCode = emergency.code || emergencyId;
+              this.logger.warn(
+                `[processBatch] Conflicto de sync: la emergencia ${emgCode} está cerrada (${emergency.state}). op=${op.clientGeneratedId}`,
+              );
+
+              // Notificar conflicto
               await this.notificationService.sendNotification({
                 userId,
                 type: 'sync_conflict',
@@ -65,7 +77,7 @@ export class SyncService {
             }
           } catch (e) {
             this.logger.warn(
-              `No se pudo verificar el estado de la emergencia ${emergencyId}: ${e.message}`,
+              `[processBatch] No se pudo verificar el estado de la emergencia ${emergencyId}: ${e.message}`,
             );
           }
         }
@@ -130,6 +142,10 @@ export class SyncService {
           }
         }
 
+        this.logger.log(
+          `[processBatch] Operación procesada con éxito. clientGeneratedId=${op.clientGeneratedId}, serverId=${createdOrUpdated?.id}`,
+        );
+
         results.push({
           clientGeneratedId: op.clientGeneratedId,
           entity: op.entity,
@@ -139,7 +155,8 @@ export class SyncService {
         });
       } catch (error) {
         this.logger.error(
-          `Error procesando operación offline ${op.clientGeneratedId}: ${error.message}`,
+          `[processBatch] Error procesando operación offline ${op.clientGeneratedId}: ${error.message}`,
+          error.stack,
         );
         results.push({
           clientGeneratedId: op.clientGeneratedId,
@@ -150,6 +167,14 @@ export class SyncService {
         });
       }
     }
+
+    const successes = results.filter((r) => r.status === 'success').length;
+    const errors = results.filter((r) => r.status === 'error').length;
+    const conflicts = results.filter((r) => r.status === 'conflict').length;
+
+    this.logger.log(
+      `[processBatch] Lote finalizado. Total=${totalOps}, Éxitos=${successes}, Errores=${errors}, Conflictos=${conflicts}`,
+    );
 
     return results;
   }

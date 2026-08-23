@@ -3,4 +3,5 @@ export enum ROLES {
   ADVANCED = 'advanced',
   MANAGER = 'manager',
   ADMIN = 'admin',
+  SUADMIN = 'suadmin',
 }

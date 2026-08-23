@@ -30,17 +30,27 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string): Promise<ILoginResponse> {
+    this.logger.log(`[login] Intento de inicio de sesión. email=${email}`);
     try {
       const user = await this.userService.findByEmail(email);
-      if (!user)
+      if (!user) {
+        this.logger.warn(`[login] Fallo de autenticación: usuario no encontrado. email=${email}`);
         throw new NotFoundException('Usuario o contraseña incorrecta.');
-      if (user.isDeleted) throw new NotFoundException('Ocurrió un problema.');
+      }
+      if (user.isDeleted) {
+        this.logger.warn(`[login] Fallo de autenticación: usuario desactivado/eliminado. userId=${user.id}`);
+        throw new NotFoundException('Ocurrió un problema.');
+      }
 
       const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch)
+      if (!isMatch) {
+        this.logger.warn(`[login] Contraseña incorrecta. email=${email}`);
         throw new NotFoundException('Usuario o contraseña incorrecta.');
+      }
 
-      return this.generateJWT(user);
+      const result = await this.generateJWT(user);
+      this.logger.log(`[login] Inicio de sesión exitoso. userId=${user.id}, role=${user.role}`);
+      return result;
     } catch (error) {
       handlerError(error, this.logger);
     }
@@ -77,32 +87,45 @@ export class AuthService {
   }
 
   async refreshToken(refreshToken: string): Promise<ILoginResponse> {
+    this.logger.log(`[refreshToken] Solicitud de renovación de token.`);
     try {
       const decoded = this.decodeRefreshToken(refreshToken);
       const stored = await this.refreshTokenRepository.findOne({
         where: { user: { id: decoded.sub }, isRevoked: false },
         order: { createdAt: 'DESC' },
       });
-      if (!stored) throw new UnauthorizedException('Refresh token no válido.');
+      if (!stored) {
+        this.logger.warn(`[refreshToken] Refresh token no encontrado o revocado. userId=${decoded.sub}`);
+        throw new UnauthorizedException('Refresh token no válido.');
+      }
       const isValid = this.hashToken(refreshToken) === stored.tokenHash;
-      if (!isValid) throw new UnauthorizedException('Refresh token no válido.');
-      if (stored.expiresAt < new Date())
+      if (!isValid) {
+        this.logger.warn(`[refreshToken] Hash de refresh token no coincide. userId=${decoded.sub}`);
+        throw new UnauthorizedException('Refresh token no válido.');
+      }
+      if (stored.expiresAt < new Date()) {
+        this.logger.warn(`[refreshToken] Refresh token expirado. userId=${decoded.sub}`);
         throw new UnauthorizedException('Refresh token expirado.');
+      }
 
       stored.isRevoked = true;
       await this.refreshTokenRepository.save(stored);
 
-      const user = await this.userService.findOne(stored.userId);
-      return this.generateJWT(user);
+      const user = await this.userService.findOne(stored.userId || decoded.sub);
+      const result = await this.generateJWT(user);
+      this.logger.log(`[refreshToken] Token renovado exitosamente. userId=${user.id}`);
+      return result;
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
   async recoverPassword(email: string): Promise<{ accessToken: string }> {
+    this.logger.log(`[recoverPassword] Solicitud de recuperación de contraseña. email=${email}`);
     const user = await this.userService.findByEmail(email);
     const payload = this.getPayload(user);
     const accessToken = this.jwtService.signToken(payload);
+    this.logger.log(`[recoverPassword] Token de recuperación generado. userId=${user.id}`);
     return { accessToken };
   }
 
@@ -114,6 +137,7 @@ export class AuthService {
     try {
       return this.jwtService.verifyToken(token) as jwt.JwtPayload;
     } catch (error) {
+      this.logger.warn(`[decodeRefreshToken] Error al decodificar token: ${error.message}`);
       throw new UnauthorizedException('Refresh token expirado o inválido.');
     }
   }
@@ -127,7 +151,7 @@ export class AuthService {
     const tokenHash = this.hashToken(refreshToken);
     await this.refreshTokenRepository.save(
       this.refreshTokenRepository.create({
-        userId,
+        user: { id: userId } as UserEntity,
         tokenHash,
         isRevoked: false,
         expiresAt,

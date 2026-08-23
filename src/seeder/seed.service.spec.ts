@@ -66,7 +66,7 @@ describe('SeedService', () => {
           password: 'ChangeMe123!',
           name: 'Administrador',
           last_name: 'Sistema',
-          role: ROLES.ADMIN,
+          role: ROLES.SUADMIN,
         }),
       );
     });

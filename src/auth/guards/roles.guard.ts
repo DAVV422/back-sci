@@ -14,6 +14,7 @@ const ROLE_HIERARCHY: Record<ROLES, number> = {
   [ROLES.ADVANCED]: 2,
   [ROLES.MANAGER]: 3,
   [ROLES.ADMIN]: 4,
+  [ROLES.SUADMIN]: 5,
 };
 
 @Injectable()

@@ -33,16 +33,14 @@ export class SeedService {
         );
       }
 
-      // 🔍 Crear usuario admin solo si no existe previamente (idempotente)
-      let adminExists = false;
+      let existingUser = null;
       try {
-        await this.userService.findByEmail(adminEmail);
-        adminExists = true;
+        existingUser = await this.userService.findByEmail(adminEmail);
       } catch (error) {
-        adminExists = false;
+        existingUser = null;
       }
 
-      if (!adminExists) {
+      if (!existingUser) {
         const user: CreateUserDto = {
           name: this.configService.get<string>('ADMIN_NAME') ?? 'Administrador',
           last_name:
@@ -52,13 +50,18 @@ export class SeedService {
           birthdate: new Date('2000-01-01'),
           email: adminEmail,
           password: adminPassword,
-          role: ROLES.ADMIN,
+          role: ROLES.SUADMIN,
         };
 
         await this.userService.createUser(user);
-        this.logger.log(`Usuario Super Admin creado exitosamente: ${adminEmail}`);
+        this.logger.log(`Usuario Super Admin (suadmin) creado exitosamente: ${adminEmail}`);
       } else {
-        this.logger.log(`Usuario Super Admin ${adminEmail} ya existe.`);
+        if (existingUser.role !== ROLES.SUADMIN) {
+          await this.userService.update(existingUser.id, { role: ROLES.SUADMIN });
+          this.logger.log(`Usuario ${adminEmail} actualizado a rol Super Admin (suadmin).`);
+        } else {
+          this.logger.log(`Usuario Super Admin (suadmin) ${adminEmail} ya existe.`);
+        }
       }
 
       // ================= CARGAR CARGOS SCI =================

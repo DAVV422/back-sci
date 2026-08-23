@@ -40,11 +40,14 @@ export class EmergencyService {
     private readonly userService: UserService,
     private readonly dataSource: DataSource,
     private readonly stateMachine: EmergencyStateMachine,
-  ) { }
+  ) {}
 
   public async findAll(
     queryDto: QueryDto,
   ): Promise<PaginatedResult<EmergencyEntity>> {
+    this.logger.log(
+      `[findAll] Consultando emergencias. limit=${queryDto.limit ?? 'N/A'}, offset=${queryDto.offset ?? 'N/A'}, attr=${queryDto.attr ?? 'N/A'}`,
+    );
     try {
       const { limit, offset, order = 'DESC', attr, value } = queryDto;
       validateAllowedAttrs(attr, EMERGENCY_ALLOWED_ATTRS);
@@ -60,6 +63,7 @@ export class EmergencyService {
       if (attr && value)
         query.andWhere(`emergency.${attr} ILIKE :value`, { value: `%${value}%` });
       const [items, total] = await query.getManyAndCount();
+      this.logger.log(`[findAll] Emergencias encontradas. total=${total}, entregadas=${items.length}`);
       return { items, total };
     } catch (error) {
       handlerError(error, this.logger);
@@ -70,6 +74,9 @@ export class EmergencyService {
     createEmergencyDto: CreateEmergencyDto,
     userId: string,
   ): Promise<EmergencyEntity> {
+    this.logger.log(
+      `[create] Iniciando creación de emergencia. userId=${userId}, name=${createEmergencyDto.name}`,
+    );
     try {
       const { ...createEmergency } = createEmergencyDto;
       const userEntity = await this.userService.findOne(userId);
@@ -95,6 +102,9 @@ export class EmergencyService {
           emergencyCreate,
         );
         await queryRunner.commitTransaction();
+        this.logger.log(
+          `[create] Emergencia creada exitosamente. id=${emergencyCreated.id}, code=${nextCode}`,
+        );
         return await this.findOne(emergencyCreated.id);
       } catch (error) {
         await queryRunner.rollbackTransaction();
@@ -108,11 +118,16 @@ export class EmergencyService {
   }
 
   public async findOne(id: string): Promise<EmergencyEntity> {
+    this.logger.log(`[findOne] Buscando emergencia. id=${id}`);
     try {
       const emergency: EmergencyEntity = await this.emergencyRepository.findOne(
         { where: { id, isDeleted: false } },
       );
-      if (!emergency) throw new NotFoundException('Emergencia no encontrada.');
+      if (!emergency) {
+        this.logger.warn(`[findOne] Emergencia no encontrada. id=${id}`);
+        throw new NotFoundException('Emergencia no encontrada.');
+      }
+      this.logger.log(`[findOne] Emergencia encontrada. id=${emergency.id}, code=${emergency.code}, state=${emergency.state}`);
       return emergency;
     } catch (error) {
       handlerError(error, this.logger);
@@ -123,6 +138,7 @@ export class EmergencyService {
     id: string,
     updateEmergencyDto: UpdateEmergencyDto,
   ): Promise<EmergencyEntity> {
+    this.logger.log(`[update] Actualizando emergencia. id=${id}`);
     try {
       const emergency: EmergencyEntity = await this.findOne(id);
       this.assertEditable(emergency);
@@ -131,8 +147,11 @@ export class EmergencyService {
         emergency.id,
         updateEmergency,
       );
-      if (emergencyUpdated.affected === 0)
+      if (emergencyUpdated.affected === 0) {
+        this.logger.warn(`[update] No se modificó ningún registro. id=${id}`);
         throw new NotFoundException('Emergencia no actualizada.');
+      }
+      this.logger.log(`[update] Emergencia actualizada exitosamente. id=${id}`);
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -141,11 +160,13 @@ export class EmergencyService {
 
   public assertEditable(emergency: EmergencyEntity): void {
     if (emergency.state === EmergencyStatus.Finished) {
+      this.logger.warn(`[assertEditable] Operación rechazada: emergencia finalizada. id=${emergency.id}`);
       throw new BadRequestException(
         'La emergencia está finalizada. No se permiten ediciones. Solicite reapertura a un administrador.',
       );
     }
     if (emergency.state === EmergencyStatus.Canceled) {
+      this.logger.warn(`[assertEditable] Operación rechazada: emergencia cancelada. id=${emergency.id}`);
       throw new BadRequestException(
         'La emergencia está cancelada. No se permiten ediciones.',
       );
@@ -158,12 +179,18 @@ export class EmergencyService {
     userId: string,
     userRole: string,
   ): Promise<EmergencyEntity> {
+    this.logger.log(
+      `[changeState] Transición de estado solicitada. id=${id}, targetState=${changeStateDto.state}, userId=${userId}, userRole=${userRole}`,
+    );
     try {
       const emergency = await this.emergencyRepository.findOne({
         where: { id, isDeleted: false },
         relations: ['form201', 'form207'],
       });
-      if (!emergency) throw new NotFoundException('Emergencia no encontrada.');
+      if (!emergency) {
+        this.logger.warn(`[changeState] Emergencia no encontrada. id=${id}`);
+        throw new NotFoundException('Emergencia no encontrada.');
+      }
 
       const from = emergency.state;
       const to = changeStateDto.state;
@@ -173,27 +200,35 @@ export class EmergencyService {
         (from === EmergencyStatus.Pending || from === EmergencyStatus.Active) &&
         to === EmergencyStatus.Canceled
       ) {
-        if (!changeStateDto.cancellation_reason)
+        if (!changeStateDto.cancellation_reason) {
+          this.logger.warn(`[changeState] Cancelación rechazada por falta de motivo. id=${id}`);
           throw new BadRequestException(
             'El motivo de cancelación es obligatorio.',
           );
+        }
       }
 
       if (from === EmergencyStatus.Active && to === EmergencyStatus.Finished) {
         const pendingForms = this.getPendingForms(emergency);
-        if (pendingForms.length)
+        if (pendingForms.length) {
+          this.logger.warn(
+            `[changeState] Finalización rechazada. Formularios pendientes: ${pendingForms.join(', ')}. id=${id}`,
+          );
           throw new BadRequestException(
             `No se puede finalizar la emergencia. Formularios pendientes de finalizar: ${pendingForms.join(
               ', ',
             )}`,
           );
+        }
       }
 
       if (from === EmergencyStatus.Finished && to === EmergencyStatus.Active) {
-        if (userRole !== ROLES.MANAGER && userRole !== ROLES.ADMIN)
+        if (userRole !== ROLES.MANAGER && userRole !== ROLES.ADMIN && userRole !== ROLES.SUADMIN) {
+          this.logger.warn(`[changeState] Reapertura rechazada por rol insuficiente. userId=${userId}, role=${userRole}`);
           throw new ForbiddenException(
             'Solo un usuario MANAGER puede reabrir una emergencia finalizada.',
           );
+        }
       }
 
       emergency.state = to;
@@ -220,6 +255,7 @@ export class EmergencyService {
         );
       }
 
+      this.logger.log(`[changeState] Estado de emergencia cambiado con éxito: ${from} -> ${to}. id=${id}`);
       return this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -227,6 +263,7 @@ export class EmergencyService {
   }
 
   public async delete(id: string): Promise<ApiResponse<null>> {
+    this.logger.log(`[delete] Eliminando emergencia. id=${id}`);
     try {
       const emergency = await this.findOne(id);
       const deletedEmergency = await this.emergencyRepository.update(
@@ -235,6 +272,7 @@ export class EmergencyService {
       );
       if (deletedEmergency.affected === 0)
         throw new BadRequestException('Emergencia no eliminada.');
+      this.logger.log(`[delete] Emergencia eliminada exitosamente. id=${id}`);
       return {
         success: true,
         statusCode: 200,

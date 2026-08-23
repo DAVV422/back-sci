@@ -40,6 +40,7 @@ export class UserService {
   public async findAll(
     queryDto: QueryDto,
   ): Promise<PaginatedResult<UserEntity>> {
+    this.logger.log(`[findAll] Consultando lista de usuarios.`);
     try {
       const { limit, offset, order, attr, value } = queryDto;
       validateAllowedAttrs(attr, USER_ALLOWED_ATTRS);
@@ -51,8 +52,9 @@ export class UserService {
       if (attr && value)
         query.andWhere(`user.${attr} ILIKE :value`, { value: `%${value}%` });
       query.andWhere('user.is_deleted = false');
-      query.andWhere('user.role != :adminRole', { adminRole: ROLES.ADMIN });
+      query.andWhere('user.role != :suadminRole', { suadminRole: ROLES.SUADMIN });
       const [items, total] = await query.getManyAndCount();
+      this.logger.log(`[findAll] Usuarios encontrados: total=${total}, devueltos=${items.length}`);
       return { items, total };
     } catch (error) {
       handlerError(error, this.logger);
@@ -60,26 +62,31 @@ export class UserService {
   }
 
   public async createUser(createUserDto: CreateUserDto): Promise<UserEntity> {
+    this.logger.log(`[createUser] Creando nuevo usuario. email=${createUserDto.email}, role=${createUserDto.role}`);
     try {
       createUserDto.password = await this.encryptPassword(
         createUserDto.password,
       );
       createUserDto.birthdate = new Date(createUserDto.birthdate);
-      const user_created: UserEntity = await this.userRepository.save(
-        createUserDto,
-      );
-      return await this.findOneBy({ key: 'email', value: createUserDto.email });
+      await this.userRepository.save(createUserDto);
+      const created = await this.findOneBy({ key: 'email', value: createUserDto.email });
+      this.logger.log(`[createUser] Usuario creado exitosamente. id=${created.id}, email=${created.email}`);
+      return created;
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
   public async findOne(id: string): Promise<UserEntity> {
+    this.logger.log(`[findOne] Buscando usuario por ID. id=${id}`);
     try {
       const user: UserEntity = await this.userRepository.findOne({
         where: { id },
       });
-      if (!user) throw new NotFoundException('Usuario no encontrado.');
+      if (!user) {
+        this.logger.warn(`[findOne] Usuario no encontrado. id=${id}`);
+        throw new NotFoundException('Usuario no encontrado.');
+      }
       return user;
     } catch (error) {
       handlerError(error, this.logger);
@@ -87,11 +94,15 @@ export class UserService {
   }
 
   public async findByEmail(email: string): Promise<UserEntity> {
+    this.logger.log(`[findByEmail] Buscando usuario por email. email=${email}`);
     try {
       const user: UserEntity = await this.userRepository.findOne({
         where: { email },
       });
-      if (!user) throw new NotFoundException('Usuario no encontrado.');
+      if (!user) {
+        this.logger.warn(`[findByEmail] Usuario no encontrado. email=${email}`);
+        throw new NotFoundException('Usuario no encontrado.');
+      }
       return user;
     } catch (error) {
       handlerError(error, this.logger);
@@ -102,6 +113,7 @@ export class UserService {
     id: string,
     updateUserDto: UpdateUserDto,
   ): Promise<UserEntity> {
+    this.logger.log(`[update] Actualizando datos de usuario (ADMIN). id=${id}`);
     try {
       if (updateUserDto.password)
         updateUserDto.password = await this.encryptPassword(
@@ -112,8 +124,11 @@ export class UserService {
         user.id,
         updateUserDto,
       );
-      if (userUpdated.affected === 0)
+      if (userUpdated.affected === 0) {
+        this.logger.warn(`[update] Usuario no actualizado. id=${id}`);
         throw new NotFoundException('Usuario no actualizado.');
+      }
+      this.logger.log(`[update] Usuario actualizado exitosamente. id=${id}`);
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -124,6 +139,7 @@ export class UserService {
     id: string,
     updateProfileDto: UpdateProfileDto,
   ): Promise<UserEntity> {
+    this.logger.log(`[updateProfile] Actualizando perfil propio. id=${id}`);
     try {
       await this.findOne(id);
       const editableFields: Partial<UpdateProfileDto> = {
@@ -138,8 +154,11 @@ export class UserService {
         }),
       };
       const userUpdated = await this.userRepository.update(id, editableFields);
-      if (userUpdated.affected === 0)
+      if (userUpdated.affected === 0) {
+        this.logger.warn(`[updateProfile] Perfil no actualizado. id=${id}`);
         throw new BadRequestException('Perfil no actualizado.');
+      }
+      this.logger.log(`[updateProfile] Perfil actualizado exitosamente. id=${id}`);
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -150,15 +169,19 @@ export class UserService {
     id: string,
     updateUserStatusDto: UpdateUserStatusDto,
   ): Promise<UserEntity> {
+    this.logger.log(`[updateStatus] Cambiando estado de usuario. id=${id}, is_active=${updateUserStatusDto.is_active}`);
     try {
       await this.findOne(id);
       const userUpdated = await this.userRepository.update(id, {
         is_active: updateUserStatusDto.is_active,
       });
-      if (userUpdated.affected === 0)
+      if (userUpdated.affected === 0) {
+        this.logger.warn(`[updateStatus] No se pudo cambiar estado. id=${id}`);
         throw new BadRequestException(
           'No se pudo cambiar el estado del usuario.',
         );
+      }
+      this.logger.log(`[updateStatus] Estado actualizado con éxito. id=${id}, active=${updateUserStatusDto.is_active}`);
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -166,12 +189,16 @@ export class UserService {
   }
 
   public async delete(id: string): Promise<ApiResponse<null>> {
+    this.logger.log(`[delete] Desactivando/eliminando usuario (soft-delete). id=${id}`);
     try {
       const user = await this.findOne(id);
       user.isDeleted = true;
       const deletedUser = await this.userRepository.update(user.id, user);
-      if (deletedUser.affected === 0)
+      if (deletedUser.affected === 0) {
+        this.logger.warn(`[delete] Usuario no eliminado. id=${id}`);
         throw new BadRequestException('Usuario no eliminado.');
+      }
+      this.logger.log(`[delete] Usuario eliminado exitosamente. id=${id}`);
       return {
         success: true,
         statusCode: 200,

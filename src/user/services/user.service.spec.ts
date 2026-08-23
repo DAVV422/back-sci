@@ -49,16 +49,16 @@ describe('UserService - whitelist QueryDto.attr', () => {
     });
   });
 
-  it('applies the ADMIN exclusion on every query', async () => {
+  it('applies the SUADMIN exclusion on every query', async () => {
     const queryDto: QueryDto = {} as any;
     await service.findAll(queryDto);
     expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-      'user.role != :adminRole',
-      { adminRole: 'admin' },
+      'user.role != :suadminRole',
+      { suadminRole: 'suadmin' },
     );
   });
 
-  it('applies the ADMIN exclusion together with attr/value filters', async () => {
+  it('applies the SUADMIN exclusion together with attr/value filters', async () => {
     const queryDto: QueryDto = { attr: 'name', value: 'juan' } as any;
     await service.findAll(queryDto);
     expect(queryBuilder.andWhere).toHaveBeenCalledWith(
@@ -68,8 +68,8 @@ describe('UserService - whitelist QueryDto.attr', () => {
       },
     );
     expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-      'user.role != :adminRole',
-      { adminRole: 'admin' },
+      'user.role != :suadminRole',
+      { suadminRole: 'suadmin' },
     );
   });
 
