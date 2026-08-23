@@ -14,7 +14,8 @@ import { ConfigService } from '@nestjs/config';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: true,
+    credentials: true,
   },
   namespace: '/notifications',
 })
