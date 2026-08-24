@@ -10,6 +10,9 @@ import { UserService } from '../../user/services/user.service';
 import { ILoginResponse } from '../interfaces/login.interface';
 import { IUserToken } from '../interfaces/userToken.interface';
 
+import { ActivateAccountDto } from '../dto/activate-account.dto';
+import { ResendActivationDto } from '../dto/resend-activation.dto';
+
 @ApiTags('Auth')
 @Controller()
 export class AuthController {
@@ -36,6 +39,37 @@ export class AuthController {
       success: true,
       statusCode: 200,
       data: await this.authService.login(email, password),
+    };
+  }
+
+  @Throttle({ short: { ttl: 60000, limit: 10 } })
+  @Post('activate')
+  public async activateAccount(
+    @Body() activateDto: ActivateAccountDto,
+  ): Promise<ApiResponse<{ message: string }>> {
+    const result = await this.authService.activateAccount(
+      activateDto.token,
+      activateDto.password,
+    );
+    return {
+      success: true,
+      statusCode: 200,
+      message: result.message,
+      data: result,
+    };
+  }
+
+  @Throttle({ short: { ttl: 60000, limit: 5 } })
+  @Post('resend-activation')
+  public async resendActivation(
+    @Body() resendDto: ResendActivationDto,
+  ): Promise<ApiResponse<{ message: string }>> {
+    const result = await this.authService.resendActivationEmail(resendDto.email);
+    return {
+      success: true,
+      statusCode: 200,
+      message: result.message,
+      data: result,
     };
   }
 
@@ -74,10 +108,4 @@ export class AuthController {
       data: await this.authService.expiredToken(token),
     };
   }
-
-  // recover password
-  // @Post('recover')
-  // public async recover(@Body() { username }) {
-  // return await this.authService.recoverPassword(username);
-  // }
 }

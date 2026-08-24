@@ -122,6 +122,49 @@ En caso de error:
   ```
 - **Response (200)**: Retorna nuevo par de `accessToken` y `refreshToken`.
 
+#### `POST /api/activate`
+- **Descripción**: Valida el token de activación enviado por correo, establece la nueva contraseña indicada por el usuario y activa la cuenta (`isActive = true`).
+- **Acceso**: Público (Rate limit: 10 req/min).
+- **Body**:
+  ```json
+  {
+    "token": "550e8400-e29b-41d4-a716-446655440000",
+    "password": "NuevaPassword123!"
+  }
+  ```
+- **Response (200)**:
+  ```json
+  {
+    "success": true,
+    "statusCode": 200,
+    "message": "Cuenta activada exitosamente. Ya puedes iniciar sesión.",
+    "data": {
+      "message": "Cuenta activada exitosamente. Ya puedes iniciar sesión."
+    }
+  }
+  ```
+
+#### `POST /api/resend-activation`
+- **Descripción**: Reenvía el correo electrónico de activación con un nuevo token para usuarios con cuenta inactiva (`isActive = false`).
+- **Acceso**: Público (Rate limit: 5 req/min).
+- **Body**:
+  ```json
+  {
+    "email": "juan.perez@sci.local"
+  }
+  ```
+- **Response (200)**:
+  ```json
+  {
+    "success": true,
+    "statusCode": 200,
+    "message": "Correo de activación reenviado exitosamente.",
+    "data": {
+      "message": "Correo de activación reenviado exitosamente."
+    }
+  }
+  ```
+
 #### `POST /api/checkToken?token=...`
 - **Descripción**: Valida la integridad y vigencia de un token JWT.
 - **Acceso**: Público.
@@ -131,7 +174,7 @@ En caso de error:
 ### 3.2 Módulo de Usuarios (`/api/user`)
 
 #### `POST /api/user`
-- **Descripción**: Crea un nuevo usuario en la plataforma.
+- **Descripción**: Crea un nuevo usuario en la plataforma. El usuario nace inactivo (`isActive = false`) y se le envía automáticamente un correo electrónico con un enlace y token de activación para que establezca su contraseña. La propiedad `password` en el body es **opcional** (si no se provee, el backend genera una contraseña temporal aleatoria).
 - **Acceso**: Requiere autenticación (`ADMIN` o `suadmin`).
 - **Body**:
   ```json

@@ -43,12 +43,13 @@ export class CreateUserDto {
   @ApiProperty({
     example: '123456',
     type: String,
-    description: 'Contraseña del usuario',
+    description: 'Contraseña inicial del usuario (opcional; si no se provee se genera una aleatoria)',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MinLength(6)
-  password: string;
+  password?: string;
 
   @ApiProperty({
     example: '67303349',

@@ -2,9 +2,10 @@ import { Column, Entity, OneToMany } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { ROLES } from '../../common/constants';
-import { EmergencyEntity } from 'src/organization_module/emergency/entities/emergency.entity';
-import { AttendEntity } from 'src/organization_module/attends/entities/attends.entity';
-import { RefreshTokenEntity } from 'src/auth/entities/refresh-token.entity';
+import { EmergencyEntity } from '../../organization_module/emergency/entities/emergency.entity';
+import { AttendEntity } from '../../organization_module/attends/entities/attends.entity';
+import { RefreshTokenEntity } from '../../auth/entities/refresh-token.entity';
+import { AuthTokenEntity } from '../../auth/entities/auth-token.entity';
 import { IUser } from '../interfaces/user.interface';
 
 @Entity({ name: 'user' })
@@ -40,7 +41,7 @@ export class UserEntity extends BaseEntity {
   @Column({ name: 'url_image', type: 'varchar', nullable: true })
   urlImage?: string;
 
-  @Column({ name: 'is_active', type: 'boolean', default: true })
+  @Column({ name: 'is_active', type: 'boolean', default: false })
   isActive: boolean;
 
   @Column({
@@ -65,4 +66,7 @@ export class UserEntity extends BaseEntity {
 
   @OneToMany(() => RefreshTokenEntity, (refreshToken) => refreshToken.user)
   refreshTokens: RefreshTokenEntity[];
+
+  @OneToMany(() => AuthTokenEntity, (authToken) => authToken.user)
+  authTokens: AuthTokenEntity[];
 }

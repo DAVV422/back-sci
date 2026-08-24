@@ -18,10 +18,10 @@ import {
 import { ChargeService } from './../services/charge.service';
 import { CreateChargeDto } from './../dto/create-charge.dto';
 import { UpdateChargeDto } from './../dto/update-charge.dto';
-import { AuthGuard, RolesGuard } from './../../../auth/guards';
-import { ApiResponse } from './../../../common/interfaces/responseMessage.interface';
-import { RolesAccess } from './../../../auth/decorators';
-import { ROLES } from './../../../common/constants';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
+import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
+import { RolesAccess } from '../../../auth/decorators';
+import { ROLES } from '../../../common/constants';
 import { ChargeEntity } from './../entities/charges.entity';
 
 @ApiTags('Charge')

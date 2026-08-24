@@ -1,7 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToOne } from 'typeorm';
-import { BaseEntity } from './../../../common/entities/base.entity';
-import { EmergencyEntity } from './../../../organization_module/emergency/entities/emergency.entity';
-import { UserEntity } from './../../../user/entities/user.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
+import { EmergencyEntity } from '../../../organization_module/emergency/entities/emergency.entity';
+import { UserEntity } from '../../../user/entities/user.entity';
 import { ActionEntity } from './action.entity';
 
 @Entity({ name: 'audio' })

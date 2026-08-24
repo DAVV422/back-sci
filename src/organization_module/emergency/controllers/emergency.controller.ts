@@ -12,18 +12,17 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 
-import { RolesAccess } from './../../../auth/decorators';
-import { AuthGuard, RolesGuard } from './../../../auth/guards';
-import { QueryDto } from './../../../common/dto/query.dto';
+import { RolesAccess, GetUser } from '../../../auth/decorators';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
+import { QueryDto } from '../../../common/dto/query.dto';
 import {
   CreateEmergencyDto,
   UpdateEmergencyDto,
   ChangeEmergencyStateDto,
 } from '../dto/';
 import { EmergencyService } from './../services/emergency.service';
-import { ApiResponse } from './../../../common/interfaces/responseMessage.interface';
-import { GetUser } from './../../../auth/decorators';
-import { ROLES } from './../../../common/constants';
+import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
+import { ROLES } from '../../../common/constants';
 import { EmergencyEntity } from '../entities/emergency.entity';
 
 @ApiTags('Emergency')

@@ -13,7 +13,7 @@ import { UpdateEmergencyDto } from '../dto/update-emergency.dto';
 import { ChangeEmergencyStateDto } from '../dto/change-emergency-state.dto';
 import { EmergencyEntity } from '../entities/emergency.entity';
 import { EmergencyStatus } from '../enums/emergency-status.enum';
-import { ActionEntity } from './../../../incident_module/action/entities/action.entity';
+import { ActionEntity } from '../../../incident_module/action/entities/action.entity';
 import { handlerError } from '../../../common/utils/handlerError.utils';
 import { QueryDto } from '../../../common/dto/query.dto';
 import {

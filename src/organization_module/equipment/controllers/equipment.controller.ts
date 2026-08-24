@@ -17,8 +17,8 @@ import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
 import { QueryDto } from '../../../common/dto/query.dto';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { RolesAccess } from '../../../auth/decorators';
-import { ROLES } from './../../../common/constants';
-import { AuthGuard, RolesGuard } from './../../../auth/guards';
+import { ROLES } from '../../../common/constants';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
 import { EquipmentEntity } from '../entities/equipment.entity';
 
 @ApiTags('Equipment')

@@ -1,6 +1,7 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { NotFoundException } from '@nestjs/common/exceptions';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { createHash } from 'node:crypto';
 import * as bcrypt from 'bcrypt';
@@ -16,6 +17,10 @@ import { JwtServiceAdapter } from './jwt.service';
 import { UserDTO } from '../../user/dto/user.dto';
 import { IUserToken } from '../interfaces/userToken.interface';
 import { RefreshTokenEntity } from '../entities/refresh-token.entity';
+import { AuthTokenService } from './auth-token.service';
+import { AuthTokenType } from '../entities/auth-token.entity';
+import { EmailService } from '../../common/services/email.service';
+import { FRONTEND_ROUTES } from '../../common/constants';
 
 @Injectable()
 export class AuthService {
@@ -27,6 +32,9 @@ export class AuthService {
     private readonly jwtService: JwtServiceAdapter,
     @InjectRepository(RefreshTokenEntity)
     private readonly refreshTokenRepository: Repository<RefreshTokenEntity>,
+    private readonly authTokenService: AuthTokenService,
+    private readonly emailService: EmailService,
+    private readonly configService: ConfigService,
   ) {}
 
   async login(email: string, password: string): Promise<ILoginResponse> {
@@ -41,6 +49,12 @@ export class AuthService {
         this.logger.warn(`[login] Fallo de autenticación: usuario desactivado/eliminado. userId=${user.id}`);
         throw new NotFoundException('Ocurrió un problema.');
       }
+      if (!user.isActive) {
+        this.logger.warn(`[login] Fallo de autenticación: usuario inactivo (cuenta no activada). userId=${user.id}`);
+        throw new UnauthorizedException(
+          'Tu cuenta no ha sido activada. Por favor revisa tu correo electrónico para activarla.',
+        );
+      }
 
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
@@ -51,6 +65,68 @@ export class AuthService {
       const result = await this.generateJWT(user);
       this.logger.log(`[login] Inicio de sesión exitoso. userId=${user.id}, role=${user.role}`);
       return result;
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
+  async activateAccount(token: string, newPassword: string): Promise<{ message: string }> {
+    this.logger.log(`[activateAccount] Procesando activación de cuenta con token.`);
+    try {
+      const authToken = await this.authTokenService.validateToken(
+        token,
+        AuthTokenType.ACTIVATION,
+      );
+
+      const user = authToken.user;
+      const hashedPassword = bcrypt.hashSync(newPassword, +process.env.HASH_SALT);
+
+      await this.userService.update(user.id, {
+        password: hashedPassword,
+        isActive: true,
+      } as any);
+
+      await this.authTokenService.markAsUsed(authToken);
+
+      this.logger.log(`[activateAccount] Cuenta activada con éxito. userId=${user.id}, email=${user.email}`);
+      return { message: 'Cuenta activada exitosamente. Ya puedes iniciar sesión.' };
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
+  async resendActivationEmail(email: string): Promise<{ message: string }> {
+    this.logger.log(`[resendActivationEmail] Solicitud de reenvío de correo de activación. email=${email}`);
+    try {
+      const user = await this.userService.findByEmail(email);
+      if (!user) {
+        this.logger.warn(`[resendActivationEmail] Usuario no encontrado. email=${email}`);
+        throw new NotFoundException('Usuario no encontrado.');
+      }
+
+      if (user.isActive) {
+        this.logger.warn(`[resendActivationEmail] La cuenta ya está activa. userId=${user.id}`);
+        throw new BadRequestException('La cuenta de usuario ya se encuentra activa.');
+      }
+
+      const expiryHours = Number(this.configService.get<number>('ACTIVATION_TOKEN_EXPIRY_HOURS')) || 72;
+      const rawToken = await this.authTokenService.createToken(
+        user,
+        AuthTokenType.ACTIVATION,
+        expiryHours,
+      );
+
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
+      const activationUrl = `${frontendUrl}${FRONTEND_ROUTES.ACTIVATE_ACCOUNT}?token=${rawToken}`;
+
+      await this.emailService.sendActivationEmail(
+        user.email,
+        `${user.name} ${user.lastName}`,
+        activationUrl,
+      );
+
+      this.logger.log(`[resendActivationEmail] Correo de activación reenviado exitosamente a ${email}`);
+      return { message: 'Correo de activación reenviado exitosamente.' };
     } catch (error) {
       handlerError(error, this.logger);
     }

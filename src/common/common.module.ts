@@ -16,6 +16,8 @@ import { RegistrationModule } from '../victim_registry_module/registration/regis
 import { ActionModule } from '../incident_module/action/action.module';
 import { NotificationModule } from '../notification/notification.module';
 
+import { EmailService } from './services/email.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([AuditLogEntity]),
@@ -29,7 +31,7 @@ import { NotificationModule } from '../notification/notification.module';
     forwardRef(() => NotificationModule),
   ],
   controllers: [SyncController],
-  providers: [AuditLogService, AuditLogSubscriber, SyncService],
-  exports: [AuditLogService, SyncService],
+  providers: [AuditLogService, AuditLogSubscriber, SyncService, EmailService],
+  exports: [AuditLogService, SyncService, EmailService],
 })
 export class CommonModule {}

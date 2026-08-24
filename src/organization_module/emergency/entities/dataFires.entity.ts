@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
-import { BaseEntity } from './../../../common/entities/base.entity';
+import { BaseEntity } from '../../../common/entities/base.entity';
 import { EmergencyEntity } from './emergency.entity';
 
 @Entity({ name: 'data_fires' })

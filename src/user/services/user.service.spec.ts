@@ -5,6 +5,9 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { UserService } from './user.service';
 import { UserEntity } from '../entities/user.entity';
 import { QueryDto } from '../../common/dto/query.dto';
+import { EmailService } from '../../common/services/email.service';
+import { AuthTokenService } from '../../auth/services/auth-token.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('UserService - whitelist QueryDto.attr', () => {
   let service: UserService;
@@ -27,6 +30,9 @@ describe('UserService - whitelist QueryDto.attr', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
+        { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token-123'), validateToken: jest.fn(), markAsUsed: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
       ],
     }).compile();
 
@@ -103,6 +109,9 @@ describe('UserService - findOne/findByEmail (admin direct access)', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
+        { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token-123'), validateToken: jest.fn(), markAsUsed: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
       ],
     }).compile();
 
@@ -143,6 +152,9 @@ describe('UserService - updateStatus', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
+        { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token-123'), validateToken: jest.fn(), markAsUsed: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
       ],
     }).compile();
 
@@ -207,6 +219,9 @@ describe('UserService - updateProfile', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
+        { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token-123'), validateToken: jest.fn(), markAsUsed: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
       ],
     }).compile();
 

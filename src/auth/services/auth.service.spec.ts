@@ -11,6 +11,9 @@ import { UserService } from '../../user/services/user.service';
 import { RefreshTokenEntity } from '../entities/refresh-token.entity';
 import { UserEntity } from '../../user/entities/user.entity';
 import { ROLES } from '../../common/constants';
+import { AuthTokenService } from './auth-token.service';
+import { EmailService } from '../../common/services/email.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('AuthService - refreshToken', () => {
   let service: AuthService;
@@ -48,6 +51,7 @@ describe('AuthService - refreshToken', () => {
       create: jest.fn().mockImplementation((data) => data),
     };
 
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -58,6 +62,9 @@ describe('AuthService - refreshToken', () => {
           provide: getRepositoryToken(RefreshTokenEntity),
           useValue: mockRefreshRepo,
         },
+        { provide: AuthTokenService, useValue: { createToken: jest.fn(), validateToken: jest.fn(), markAsUsed: jest.fn() } },
+        { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
       ],
     }).compile();
 

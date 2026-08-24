@@ -11,9 +11,9 @@ import { CreateActionDto } from './../dto/create-action.dto';
 import { CreateAudioDto } from './../dto/create-audio.dto';
 import { ActionEntity } from './../entities/action.entity';
 import { AudioEntity } from './../entities/audio.entity';
-import { handlerError } from './../../../common/utils/handlerError.utils';
-import { EmergencyService } from './../../../organization_module/emergency/services/emergency.service';
-import { UserService } from './../../../user/services/user.service';
+import { handlerError } from '../../../common/utils/handlerError.utils';
+import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
+import { UserService } from '../../../user/services/user.service';
 
 @Injectable()
 export class ActionService {

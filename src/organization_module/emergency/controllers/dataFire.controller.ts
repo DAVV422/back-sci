@@ -12,12 +12,11 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 
-import { RolesAccess } from './../../../auth/decorators';
-import { AuthGuard, RolesGuard } from './../../../auth/guards';
-import { QueryDto } from './../../../common/dto/query.dto';
-import { ApiResponse } from './../../../common/interfaces/responseMessage.interface';
-import { GetUser } from './../../../auth/decorators';
-import { ROLES } from './../../../common/constants';
+import { RolesAccess, GetUser } from '../../../auth/decorators';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
+import { QueryDto } from '../../../common/dto/query.dto';
+import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
+import { ROLES } from '../../../common/constants';
 import { DataFireService } from './../services/dataFire.service';
 import { UpdateDataFireDto } from './../dto/update-data-fire.dto';
 import { CreateDataFireDto } from './../dto/create-data-fire.dto';

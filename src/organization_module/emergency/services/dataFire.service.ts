@@ -7,12 +7,12 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { handlerError } from './../../../common/utils/handlerError.utils';
-import { QueryDto } from './../../../common/dto/query.dto';
+import { handlerError } from '../../../common/utils/handlerError.utils';
+import { QueryDto } from '../../../common/dto/query.dto';
 import {
   ApiResponse,
   PaginatedResult,
-} from './../../../common/interfaces/responseMessage.interface';
+} from '../../../common/interfaces/responseMessage.interface';
 import { DataFireEntity } from './../entities/dataFires.entity';
 import { EmergencyService } from './emergency.service';
 import { CreateDataFireDto } from '../dto/create-data-fire.dto';

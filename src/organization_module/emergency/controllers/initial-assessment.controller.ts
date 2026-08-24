@@ -9,9 +9,9 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 
-import { AuthGuard, RolesGuard } from './../../../auth/guards';
-import { GetUser } from './../../../auth/decorators';
-import { ApiResponse } from './../../../common/interfaces/responseMessage.interface';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
+import { GetUser } from '../../../auth/decorators';
+import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import {
   CreateInitialAssessmentDto,
   UpdateInitialAssessmentDto,

@@ -3,9 +3,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 
 import { SeedService } from './seed.service';
-import { UserService } from './../user/services/user.service';
-import { ChargeService } from './../sci_module/charges/services/charge.service';
-import { ROLES } from './../common/constants';
+import { UserService } from '../user/services/user.service';
+import { ChargeService } from '../sci_module/charges/services/charge.service';
+import { ROLES } from '../common/constants';
 
 describe('SeedService', () => {
   let service: SeedService;

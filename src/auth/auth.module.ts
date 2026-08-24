@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthService } from './services/auth.service';
@@ -13,19 +13,23 @@ import { JwtServiceAdapter } from './services/jwt.service';
 import { PassportModule } from '@nestjs/passport';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshTokenEntity } from './entities/refresh-token.entity';
+import { AuthTokenEntity } from './entities/auth-token.entity';
+import { AuthTokenService } from './services/auth-token.service';
+import { CommonModule } from '../common/common.module';
 
 @Global()
 @Module({
   imports: [
-    UserModule,
+    forwardRef(() => UserModule),
     ConfigModule,
-    TypeOrmModule.forFeature([RefreshTokenEntity]),
+    CommonModule,
+    TypeOrmModule.forFeature([RefreshTokenEntity, AuthTokenEntity]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
   ],
   providers: [
     {
       provide: 'ITokenStrategy',
-      useClass: JwtStrategy, // Estrategia en uso para la validacion del token
+      useClass: JwtStrategy, // Estrategia en uso para la validación del token
     },
     {
       provide: TokenValidatorService,
@@ -36,8 +40,9 @@ import { RefreshTokenEntity } from './entities/refresh-token.entity';
     AuthService,
     UserService,
     JwtServiceAdapter,
+    AuthTokenService,
   ],
   controllers: [AuthController],
-  exports: [PassportModule],
+  exports: [PassportModule, AuthTokenService, AuthService],
 })
 export class AuthModule {}

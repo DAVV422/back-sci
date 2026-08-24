@@ -12,7 +12,7 @@ import { Form201Entity } from '../../../incident_module/form-201/entities/form-2
 import { AttendEntity } from '../../attends/entities/attends.entity';
 import { ResourceEntity } from '../../resource/entities/resource.entity';
 import { ActionEntity } from '../../../incident_module/action/entities/action.entity';
-import { Form207Entity } from './../../../victim_registry_module/form-207/entities/form-207.entity';
+import { Form207Entity } from '../../../victim_registry_module/form-207/entities/form-207.entity';
 import { EmergencyStatus } from '../enums/emergency-status.enum';
 import { InitialAssessmentEntity } from './initial-assessment.entity';
 

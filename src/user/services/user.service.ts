@@ -1,12 +1,16 @@
 import { Repository } from 'typeorm';
 import {
   BadRequestException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
   UnauthorizedException,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
+import { randomBytes } from 'node:crypto';
 import * as bcrypt from 'bcrypt';
 
 import {
@@ -27,7 +31,10 @@ import {
   USER_ALLOWED_ATTRS,
   validateAllowedAttrs,
 } from '../../common/decorators/allowed-query-attrs.decorator';
-import { ROLES } from '../../common/constants';
+import { FRONTEND_ROUTES, ROLES } from '../../common/constants';
+import { EmailService } from '../../common/services/email.service';
+import { AuthTokenService } from '../../auth/services/auth-token.service';
+import { AuthTokenType } from '../../auth/entities/auth-token.entity';
 
 @Injectable()
 export class UserService {
@@ -36,6 +43,10 @@ export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    private readonly emailService: EmailService,
+    @Inject(forwardRef(() => AuthTokenService))
+    private readonly authTokenService: AuthTokenService,
+    private readonly configService: ConfigService,
   ) {}
 
   public async findAll(
@@ -89,13 +100,40 @@ export class UserService {
   public async createUser(createUserDto: CreateUserDto): Promise<UserEntity> {
     this.logger.log(`[createUser] Creando nuevo usuario. email=${createUserDto.email}, role=${createUserDto.role}`);
     try {
-      createUserDto.password = await this.encryptPassword(
-        createUserDto.password,
-      );
-      createUserDto.birthdate = new Date(createUserDto.birthdate);
-      await this.userRepository.save(createUserDto);
+      const rawPassword = createUserDto.password || randomBytes(12).toString('hex') + '!1A';
+      createUserDto.password = await this.encryptPassword(rawPassword);
+      if (createUserDto.birthdate) {
+        createUserDto.birthdate = new Date(createUserDto.birthdate);
+      }
+      
+      // Usuario nace inactivo (isActive: false) hasta activar por email
+      await this.userRepository.save({
+        ...createUserDto,
+        isActive: false,
+      });
+
       const created = await this.findOneBy({ key: 'email', value: createUserDto.email });
-      this.logger.log(`[createUser] Usuario creado exitosamente. id=${created.id}, email=${created.email}`);
+
+      // Generar token de activación
+      const expiryHours = Number(this.configService.get<number>('ACTIVATION_TOKEN_EXPIRY_HOURS')) || 72;
+      const rawToken = await this.authTokenService.createToken(
+        created,
+        AuthTokenType.ACTIVATION,
+        expiryHours,
+      );
+
+      // Construir URL de activación
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
+      const activationUrl = `${frontendUrl}${FRONTEND_ROUTES.ACTIVATE_ACCOUNT}?token=${rawToken}`;
+
+      // Enviar email de activación
+      await this.emailService.sendActivationEmail(
+        created.email,
+        `${created.name} ${created.lastName}`,
+        activationUrl,
+      );
+
+      this.logger.log(`[createUser] Usuario creado e email de activación enviado. id=${created.id}, email=${created.email}`);
       return created;
     } catch (error) {
       handlerError(error, this.logger);

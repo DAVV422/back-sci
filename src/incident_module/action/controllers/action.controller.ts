@@ -29,10 +29,10 @@ import * as path from 'path';
 import { CreateActionDto } from './../dto/create-action.dto';
 import { CreateAudioDto } from './../dto/create-audio.dto';
 import { ActionService } from './../services/action.service';
-import { QueryDto } from './../../../common/dto/query.dto';
-import { ApiResponse } from './../../../common/interfaces/responseMessage.interface';
-import { GetUser } from './../../../auth/decorators';
-import { AuthGuard, RolesGuard } from './../../../auth/guards';
+import { QueryDto } from '../../../common/dto/query.dto';
+import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
+import { GetUser } from '../../../auth/decorators';
+import { AuthGuard, RolesGuard } from '../../../auth/guards';
 import { ActionEntity } from './../entities/action.entity';
 
 @ApiTags('Action')

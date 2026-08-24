@@ -1,13 +1,13 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { handlerError } from './../common/utils/handlerError.utils';
-import { ROLES } from './../common/constants';
-import { CreateUserDto } from './../user/dto';
-import { UserService } from './../user/services/user.service';
-import { CreateChargeDto } from './../sci_module/charges/dto/create-charge.dto';
-import { ChargeService } from './../sci_module/charges/services/charge.service';
-import { ChargeEntity } from './../sci_module/charges/entities/charges.entity';
+import { handlerError } from '../common/utils/handlerError.utils';
+import { ROLES } from '../common/constants';
+import { CreateUserDto } from '../user/dto';
+import { UserService } from '../user/services/user.service';
+import { CreateChargeDto } from '../sci_module/charges/dto/create-charge.dto';
+import { ChargeService } from '../sci_module/charges/services/charge.service';
+import { ChargeEntity } from '../sci_module/charges/entities/charges.entity';
 
 @Injectable()
 export class SeedService {
