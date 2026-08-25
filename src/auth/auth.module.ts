@@ -38,7 +38,6 @@ import { CommonModule } from '../common/common.module';
       inject: ['ITokenStrategy'],
     },
     AuthService,
-    UserService,
     JwtServiceAdapter,
     AuthTokenService,
   ],

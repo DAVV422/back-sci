@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { EmergencyController } from './controllers/emergency.controller';
 import { InitialAssessmentController } from './controllers/initial-assessment.controller';
 import { EmergencyService } from './services/emergency.service';
@@ -21,7 +21,7 @@ import { DataFireService } from './services/dataFire.service';
       InitialAssessmentEntity,
       ActionEntity,
     ]),
-    UserModule,
+    forwardRef(() => UserModule),
   ],
   controllers: [
     EmergencyController,

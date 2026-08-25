@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 
@@ -13,7 +13,7 @@ import { UserModule } from '../user/user.module';
   imports: [
     TypeOrmModule.forFeature([NotificationEntity, DeviceTokenEntity]),
     JwtModule.register({}),
-    UserModule,
+    forwardRef(() => UserModule),
   ],
   controllers: [NotificationController],
   providers: [NotificationService, NotificationGateway],

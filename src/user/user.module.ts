@@ -10,7 +10,7 @@ import { AuthModule } from '../auth/auth.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([UserEntity]),
-    CommonModule,
+    forwardRef(() => CommonModule),
     forwardRef(() => AuthModule),
   ],
   providers: [UserService],

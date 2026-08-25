@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RegistrationService } from './services/registration.service';
 import { RegistrationController } from './controllers/registration.controller';
@@ -11,10 +11,10 @@ import { EmergencyModule } from '../../organization_module/emergency/emergency.m
 @Module({
   imports: [
     TypeOrmModule.forFeature([RegistrationEntity]),
-    UserModule,
-    Form207Module,
-    VictimModule,
-    EmergencyModule,
+    forwardRef(() => UserModule),
+    forwardRef(() => Form207Module),
+    forwardRef(() => VictimModule),
+    forwardRef(() => EmergencyModule),
   ],
   controllers: [RegistrationController],
   providers: [RegistrationService],

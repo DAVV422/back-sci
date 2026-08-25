@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { Form201Controller } from './controllers/form-201.controller';
 import { Form201Service } from './services/form-201.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -12,11 +12,11 @@ import { AttendsModule } from '../../organization_module/attends/attends.module'
 @Module({
   imports: [
     TypeOrmModule.forFeature([Form201Entity]),
-    ChargesModule,
-    UserModule,
-    EmergencyModule,
-    ActionModule,
-    AttendsModule,
+    forwardRef(() => ChargesModule),
+    forwardRef(() => UserModule),
+    forwardRef(() => EmergencyModule),
+    forwardRef(() => ActionModule),
+    forwardRef(() => AttendsModule),
   ],
   controllers: [Form201Controller],
   providers: [Form201Service],

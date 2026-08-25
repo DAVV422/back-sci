@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ActionController } from './controllers/action.controller';
 import { ActionService } from './services/action.service';
@@ -10,8 +10,8 @@ import { EmergencyModule } from './../../organization_module/emergency/emergency
 @Module({
   imports: [
     TypeOrmModule.forFeature([ActionEntity, AudioEntity]),
-    UserModule,
-    EmergencyModule,
+    forwardRef(() => UserModule),
+    forwardRef(() => EmergencyModule),
   ],
   controllers: [ActionController],
   providers: [ActionService],
