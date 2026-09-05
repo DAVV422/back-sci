@@ -79,10 +79,9 @@ export class AuthService {
       );
 
       const user = authToken.user;
-      const hashedPassword = bcrypt.hashSync(newPassword, +process.env.HASH_SALT);
 
       await this.userService.update(user.id, {
-        password: hashedPassword,
+        password: newPassword,
         isActive: true,
       } as any);
 

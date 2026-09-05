@@ -1,6 +1,7 @@
 import { Repository } from 'typeorm';
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -47,10 +48,11 @@ export class UserService {
     @Inject(forwardRef(() => AuthTokenService))
     private readonly authTokenService: AuthTokenService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   public async findAll(
     queryDto: QueryDto,
+    currentUserRole?: string,
   ): Promise<PaginatedResult<UserEntity>> {
     this.logger.log(`[findAll] Consultando lista de usuarios.`);
     try {
@@ -64,7 +66,9 @@ export class UserService {
       if (attr && value)
         query.andWhere(`user.${attr} ILIKE :value`, { value: `%${value}%` });
       query.andWhere('user.is_deleted = false');
-      query.andWhere('user.role != :suadminRole', { suadminRole: ROLES.SUADMIN });
+      if (currentUserRole?.toLowerCase() !== ROLES.SUADMIN) {
+        query.andWhere('user.role != :suadminRole', { suadminRole: ROLES.SUADMIN });
+      }
       const [items, total] = await query.getManyAndCount();
       this.logger.log(`[findAll] Usuarios encontrados: total=${total}, devueltos=${items.length}`);
       return { items, total };
@@ -75,6 +79,7 @@ export class UserService {
 
   public async findAllAdmin(
     queryDto: QueryDto,
+    currentUserRole?: string,
   ): Promise<PaginatedResult<AdminUserDto>> {
     this.logger.log(`[findAllAdmin] Consultando lista de usuarios con auditoría para SUADMIN/ADMIN.`);
     try {
@@ -88,16 +93,28 @@ export class UserService {
       if (attr && value)
         query.andWhere(`user.${attr} ILIKE :value`, { value: `%${value}%` });
       query.andWhere('user.is_deleted = false');
+      if (currentUserRole?.toLowerCase() !== ROLES.SUADMIN) {
+        query.andWhere('user.role != :suadminRole', { suadminRole: ROLES.SUADMIN });
+      }
       const [items, total] = await query.getManyAndCount();
       const adminUsers = items.map((user) => new AdminUserDto(user));
       this.logger.log(`[findAllAdmin] Usuarios de auditoría encontrados: total=${total}, devueltos=${adminUsers.length}`);
-      return { items: adminUsers, total };
+      return { items, total };
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async createUser(createUserDto: CreateUserDto): Promise<UserEntity> {
+  public async createUser(
+    createUserDto: CreateUserDto,
+    currentUserRole?: string,
+  ): Promise<UserEntity> {
+    if (createUserDto.role && typeof createUserDto.role === 'string') {
+      createUserDto.role = (createUserDto.role as string).toLowerCase() as ROLES;
+    }
+    if (createUserDto.role === ROLES.SUADMIN && currentUserRole?.toLowerCase() !== ROLES.SUADMIN) {
+      throw new ForbiddenException('No tienes permisos para crear un usuario Super Administrador.');
+    }
     this.logger.log(`[createUser] Creando nuevo usuario. email=${createUserDto.email}, role=${createUserDto.role}`);
     try {
       const rawPassword = createUserDto.password || randomBytes(12).toString('hex') + '!1A';
@@ -105,35 +122,40 @@ export class UserService {
       if (createUserDto.birthdate) {
         createUserDto.birthdate = new Date(createUserDto.birthdate);
       }
-      
-      // Usuario nace inactivo (isActive: false) hasta activar por email
+
+      const isActive = createUserDto.isActive ?? false;
+
       await this.userRepository.save({
         ...createUserDto,
-        isActive: false,
+        isActive,
       });
 
       const created = await this.findOneBy({ key: 'email', value: createUserDto.email });
 
-      // Generar token de activación
-      const expiryHours = Number(this.configService.get<number>('ACTIVATION_TOKEN_EXPIRY_HOURS')) || 72;
-      const rawToken = await this.authTokenService.createToken(
-        created,
-        AuthTokenType.ACTIVATION,
-        expiryHours,
-      );
+      if (!isActive) {
+        // Generar token de activación
+        const expiryHours = Number(this.configService.get<number>('ACTIVATION_TOKEN_EXPIRY_HOURS')) || 72;
+        const rawToken = await this.authTokenService.createToken(
+          created,
+          AuthTokenType.ACTIVATION,
+          expiryHours,
+        );
 
-      // Construir URL de activación
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
-      const activationUrl = `${frontendUrl}${FRONTEND_ROUTES.ACTIVATE_ACCOUNT}?token=${rawToken}`;
+        // Construir URL de activación
+        const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
+        const activationUrl = `${frontendUrl}${FRONTEND_ROUTES.ACTIVATE_ACCOUNT}?token=${rawToken}`;
 
-      // Enviar email de activación
-      await this.emailService.sendActivationEmail(
-        created.email,
-        `${created.name} ${created.lastName}`,
-        activationUrl,
-      );
+        // Enviar email de activación
+        await this.emailService.sendActivationEmail(
+          created.email,
+          `${created.name} ${created.lastName}`,
+          activationUrl,
+        );
 
-      this.logger.log(`[createUser] Usuario creado e email de activación enviado. id=${created.id}, email=${created.email}`);
+        this.logger.log(`[createUser] Usuario creado e email de activación enviado. id=${created.id}, email=${created.email}`);
+      } else {
+        this.logger.log(`[createUser] Usuario creado directamente activo. id=${created.id}, email=${created.email}`);
+      }
       return created;
     } catch (error) {
       handlerError(error, this.logger);
@@ -175,14 +197,24 @@ export class UserService {
   public async update(
     id: string,
     updateUserDto: UpdateUserDto,
+    currentUserRole?: string,
   ): Promise<UserEntity> {
+    if (updateUserDto.role && typeof updateUserDto.role === 'string') {
+      updateUserDto.role = (updateUserDto.role as string).toLowerCase() as ROLES;
+    }
     this.logger.log(`[update] Actualizando datos de usuario (ADMIN). id=${id}`);
     try {
+      const user: UserEntity = await this.findOne(id);
+      if (user.role === ROLES.SUADMIN && currentUserRole?.toLowerCase() !== ROLES.SUADMIN) {
+        throw new ForbiddenException('No tienes permisos para modificar a un usuario Super Administrador.');
+      }
+      if (updateUserDto.role === ROLES.SUADMIN && currentUserRole?.toLowerCase() !== ROLES.SUADMIN) {
+        throw new ForbiddenException('No tienes permisos para asignar el rol Super Administrador.');
+      }
       if (updateUserDto.password)
         updateUserDto.password = await this.encryptPassword(
           updateUserDto.password,
         );
-      const user: UserEntity = await this.findOne(id);
       const userUpdated = await this.userRepository.update(
         user.id,
         updateUserDto,
@@ -231,10 +263,14 @@ export class UserService {
   public async updateStatus(
     id: string,
     updateUserStatusDto: UpdateUserStatusDto,
+    currentUserRole?: string,
   ): Promise<UserEntity> {
     this.logger.log(`[updateStatus] Cambiando estado de usuario. id=${id}, isActive=${updateUserStatusDto.isActive}`);
     try {
-      await this.findOne(id);
+      const user = await this.findOne(id);
+      if (user.role === ROLES.SUADMIN && currentUserRole?.toLowerCase() !== ROLES.SUADMIN) {
+        throw new ForbiddenException('No tienes permisos para modificar a un usuario Super Administrador.');
+      }
       const userUpdated = await this.userRepository.update(id, {
         isActive: updateUserStatusDto.isActive,
       });
@@ -251,10 +287,16 @@ export class UserService {
     }
   }
 
-  public async delete(id: string): Promise<ApiResponse<null>> {
+  public async delete(
+    id: string,
+    currentUserRole?: string,
+  ): Promise<ApiResponse<null>> {
     this.logger.log(`[delete] Desactivando/eliminando usuario (soft-delete). id=${id}`);
     try {
       const user = await this.findOne(id);
+      if (user.role === ROLES.SUADMIN && currentUserRole?.toLowerCase() !== ROLES.SUADMIN) {
+        throw new ForbiddenException('No tienes permisos para eliminar a un usuario Super Administrador.');
+      }
       user.isDeleted = true;
       const deletedUser = await this.userRepository.update(user.id, user);
       if (deletedUser.affected === 0) {
@@ -311,6 +353,7 @@ export class UserService {
   }
 
   private async encryptPassword(password: string): Promise<string> {
-    return bcrypt.hashSync(password, +process.env.HASH_SALT);
+    const saltRounds = Number(this.configService.get<string>('HASH_SALT')) || 10;
+    return bcrypt.hash(password, saltRounds);
   }
 }

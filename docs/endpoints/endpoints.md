@@ -191,12 +191,12 @@ En caso de error:
   ```
 
 #### `GET /api/user`
-- **Descripción**: Lista usuarios operativos del sistema (omite metadatos de auditoría `createdAt`/`updatedAt` y oculta al superusuario `suadmin`).
+- **Descripción**: Lista usuarios operativos del sistema (omite metadatos de auditoría `createdAt`/`updatedAt` y oculta al superusuario `suadmin` para roles no-suadmin).
 - **Acceso**: `ADMIN`, `MANAGER`, `suadmin`.
 - **Query Params**: `limit`, `offset`, `order` (`ASC`/`DESC`), `attr` (`name`/`email`/`role`/`lastName`/`isActive`), `value`.
 
 #### `GET /api/user/admin/all`
-- **Descripción**: Endpoint exclusivo de auditoría para `suadmin` y `ADMIN`. Retorna la lista completa de usuarios **incluyendo marcas de auditoría temporales** (`createdAt`, `updatedAt`).
+- **Descripción**: Endpoint exclusivo de auditoría para `suadmin` y `ADMIN`. Retorna la lista completa de usuarios **incluyendo marcas de auditoría temporales** (`createdAt`, `updatedAt`). Si el consultante es `ADMIN`, se filtran y ocultan los usuarios con rol `suadmin` (solo visibles si quien consulta es `suadmin`).
 - **Acceso**: `suadmin`, `ADMIN`.
 - **Query Params**: `limit`, `offset`, `order` (`ASC`/`DESC`), `attr` (`name`/`email`/`role`/`lastName`/`isActive`), `value`.
 

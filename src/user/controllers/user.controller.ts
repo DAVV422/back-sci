@@ -43,12 +43,13 @@ export class UserController {
   @RolesAccess(ROLES.ADMIN)
   @Post()
   async createUser(
+    @GetUser('role') currentUserRole: string,
     @Body() createUserDto: CreateUserDto,
   ): Promise<ApiResponse<UserEntity>> {
     return {
       success: true,
       statusCode: 201,
-      data: await this.userService.createUser(createUserDto),
+      data: await this.userService.createUser(createUserDto, currentUserRole),
     };
   }
 
@@ -60,9 +61,10 @@ export class UserController {
   @ApiQuery({ name: 'value', type: 'string', required: false })
   @Get()
   public async findAll(
+    @GetUser('role') currentUserRole: string,
     @Query() queryDto: QueryDto,
   ): Promise<ApiResponse<UserEntity[]>> {
-    const { items, total } = await this.userService.findAll(queryDto);
+    const { items, total } = await this.userService.findAll(queryDto, currentUserRole);
     return {
       success: true,
       statusCode: 200,
@@ -83,9 +85,10 @@ export class UserController {
   @ApiQuery({ name: 'value', type: 'string', required: false })
   @Get('admin/all')
   public async findAllAdmin(
+    @GetUser('role') currentUserRole: string,
     @Query() queryDto: QueryDto,
   ): Promise<ApiResponse<AdminUserDto[]>> {
-    const { items, total } = await this.userService.findAllAdmin(queryDto);
+    const { items, total } = await this.userService.findAllAdmin(queryDto, currentUserRole);
     return {
       success: true,
       statusCode: 200,
@@ -138,13 +141,14 @@ export class UserController {
   @ApiParam({ name: 'id', type: 'string' })
   @Patch(':id')
   public async update(
+    @GetUser('role') currentUserRole: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<ApiResponse<UserEntity>> {
     return {
       success: true,
       statusCode: 200,
-      data: await this.userService.update(id, updateUserDto),
+      data: await this.userService.update(id, updateUserDto, currentUserRole),
     };
   }
 
@@ -152,6 +156,7 @@ export class UserController {
   @ApiParam({ name: 'id', type: 'string' })
   @Patch('status/:id')
   public async updateStatus(
+    @GetUser('role') currentUserRole: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserStatusDto: UpdateUserStatusDto,
   ): Promise<ApiResponse<UserEntity>> {
@@ -159,7 +164,7 @@ export class UserController {
       success: true,
       statusCode: 200,
       message: 'Estado del usuario actualizado.',
-      data: await this.userService.updateStatus(id, updateUserStatusDto),
+      data: await this.userService.updateStatus(id, updateUserStatusDto, currentUserRole),
     };
   }
 
@@ -167,8 +172,9 @@ export class UserController {
   @ApiParam({ name: 'id', type: 'string' })
   @Delete(':id')
   public async delete(
+    @GetUser('role') currentUserRole: string,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ApiResponse<null>> {
-    return await this.userService.delete(id);
+    return await this.userService.delete(id, currentUserRole);
   }
 }

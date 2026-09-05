@@ -7,6 +7,7 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ROLES } from '../../common/constants';
 
 export class CreateUserDto {
@@ -94,6 +95,16 @@ export class CreateUserDto {
     description: 'Rol del usuario',
   })
   @IsNotEmpty()
+  @Transform(({ value }) => (typeof value === 'string' ? value.toLowerCase() : value))
   @IsEnum(ROLES)
   role: ROLES;
+
+  @ApiProperty({
+    example: true,
+    type: Boolean,
+    description: 'Estado inicial de activación del usuario (por defecto false)',
+    required: false,
+  })
+  @IsOptional()
+  isActive?: boolean;
 }

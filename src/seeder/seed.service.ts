@@ -51,17 +51,23 @@ export class SeedService {
           email: adminEmail,
           password: adminPassword,
           role: ROLES.SUADMIN,
+          isActive: true,
         };
 
         await this.userService.createUser(user);
-        this.logger.log(`Usuario Super Admin (suadmin) creado exitosamente: ${adminEmail}`);
+        this.logger.log(`Usuario Super Admin (suadmin) creado exitosamente y activo: ${adminEmail}`);
       } else {
+        const updates: any = {
+          password: adminPassword,
+        };
         if (existingUser.role !== ROLES.SUADMIN) {
-          await this.userService.update(existingUser.id, { role: ROLES.SUADMIN });
-          this.logger.log(`Usuario ${adminEmail} actualizado a rol Super Admin (suadmin).`);
-        } else {
-          this.logger.log(`Usuario Super Admin (suadmin) ${adminEmail} ya existe.`);
+          updates.role = ROLES.SUADMIN;
         }
+        if (!existingUser.isActive) {
+          updates.isActive = true;
+        }
+        await this.userService.update(existingUser.id, updates);
+        this.logger.log(`Usuario Super Admin ${adminEmail} sincronizado (rol, estado activo y contraseña de .env).`);
       }
 
       // ================= CARGAR CARGOS SCI =================
