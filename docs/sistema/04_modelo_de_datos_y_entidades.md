@@ -59,8 +59,9 @@ erDiagram
 - `cellphone`: `varchar(20)` — Teléfono.
 - `grade`: `varchar(100)` — Grado o jerarquía institucional.
 - `birthdate`: `date` — Fecha de nacimiento.
-- `role`: `enum` (`BASIC`, `ADVANCED`, `MANAGER`, `ADMIN`).
-- `isActive`: `boolean` (default: `true`) — Estado operativo de guardia.
+- `role`: `enum` (`suadmin`, `admin`, `manager`, `advanced`, `basic`).
+- `isActive`: `boolean` (default: `true`) — Estado de la cuenta en la plataforma (habilita o bloquea el inicio de sesión).
+- `isOperational`: `boolean` (default: `true`) — Estado de guardia operativa (disponible / no disponible para convocatorias).
 - `refreshToken`: `text` (nullable) — Hash del token de refresco.
 
 #### `DeviceTokenEntity` (`table: device_token`)

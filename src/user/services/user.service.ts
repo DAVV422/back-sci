@@ -126,10 +126,12 @@ export class UserService {
       const requireEmailActivation =
         this.configService.get<string>('REQUIRE_EMAIL_ACTIVATION') === 'true';
       const isActive = createUserDto.isActive ?? !requireEmailActivation;
+      const isOperational = createUserDto.isOperational ?? true;
 
       await this.userRepository.save({
         ...createUserDto,
         isActive,
+        isOperational,
       });
 
       const created = await this.findOneBy({ key: 'email', value: createUserDto.email });
@@ -223,13 +225,20 @@ export class UserService {
       if (updateUserDto.role === ROLES.SUADMIN && currentUserRole?.toLowerCase() !== ROLES.SUADMIN) {
         throw new ForbiddenException('No tienes permisos para asignar el rol Super Administrador.');
       }
-      if (updateUserDto.password)
-        updateUserDto.password = await this.encryptPassword(
-          updateUserDto.password,
-        );
+
+      // Regla de negocio: Admin/Suadmin solo puede editar email, role, isActive, isOperational (y password)
+      const allowedUpdates: Partial<UserEntity> = {};
+      if (updateUserDto.email !== undefined) allowedUpdates.email = updateUserDto.email;
+      if (updateUserDto.role !== undefined) allowedUpdates.role = updateUserDto.role;
+      if (updateUserDto.isActive !== undefined) allowedUpdates.isActive = updateUserDto.isActive;
+      if (updateUserDto.isOperational !== undefined) allowedUpdates.isOperational = updateUserDto.isOperational;
+      if (updateUserDto.password) {
+        allowedUpdates.password = await this.encryptPassword(updateUserDto.password);
+      }
+
       const userUpdated = await this.userRepository.update(
         user.id,
-        updateUserDto,
+        allowedUpdates,
       );
       if (userUpdated.affected === 0) {
         this.logger.warn(`[update] Usuario no actualizado. id=${id}`);
@@ -249,7 +258,7 @@ export class UserService {
     this.logger.log(`[updateProfile] Actualizando perfil propio. id=${id}`);
     try {
       await this.findOne(id);
-      const editableFields: Partial<UpdateProfileDto> = {
+      const editableFields: Partial<UserEntity> = {
         ...(updateProfileDto.name !== undefined && {
           name: updateProfileDto.name,
         }),
@@ -258,6 +267,12 @@ export class UserService {
         }),
         ...(updateProfileDto.cellphone !== undefined && {
           cellphone: updateProfileDto.cellphone,
+        }),
+        ...(updateProfileDto.birthdate !== undefined && {
+          birthdate: updateProfileDto.birthdate,
+        }),
+        ...(updateProfileDto.urlImage !== undefined && {
+          urlImage: updateProfileDto.urlImage,
         }),
       };
       const userUpdated = await this.userRepository.update(id, editableFields);
@@ -277,22 +292,27 @@ export class UserService {
     updateUserStatusDto: UpdateUserStatusDto,
     currentUserRole?: string,
   ): Promise<UserEntity> {
-    this.logger.log(`[updateStatus] Cambiando estado de usuario. id=${id}, isActive=${updateUserStatusDto.isActive}`);
+    const operationalValue =
+      updateUserStatusDto.isOperational !== undefined
+        ? updateUserStatusDto.isOperational
+        : (updateUserStatusDto.isActive ?? true);
+
+    this.logger.log(`[updateStatus] Cambiando estado operativo de usuario. id=${id}, isOperational=${operationalValue}`);
     try {
       const user = await this.findOne(id);
       if (user.role === ROLES.SUADMIN && currentUserRole?.toLowerCase() !== ROLES.SUADMIN) {
         throw new ForbiddenException('No tienes permisos para modificar a un usuario Super Administrador.');
       }
       const userUpdated = await this.userRepository.update(id, {
-        isActive: updateUserStatusDto.isActive,
+        isOperational: operationalValue,
       });
       if (userUpdated.affected === 0) {
-        this.logger.warn(`[updateStatus] No se pudo cambiar estado. id=${id}`);
+        this.logger.warn(`[updateStatus] No se pudo cambiar estado operativo. id=${id}`);
         throw new BadRequestException(
-          'No se pudo cambiar el estado del usuario.',
+          'No se pudo cambiar el estado operativo del usuario.',
         );
       }
-      this.logger.log(`[updateStatus] Estado actualizado con éxito. id=${id}, active=${updateUserStatusDto.isActive}`);
+      this.logger.log(`[updateStatus] Estado operativo actualizado con éxito. id=${id}, isOperational=${operationalValue}`);
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);

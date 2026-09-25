@@ -39,9 +39,10 @@ Este documento es una guía práctica de diseño e implementación para los desa
 2. **Pantalla de Perfil Propio (`/profile` o `/me`)**:
    - Consume `GET /api/user/me`.
    - Permite editar teléfono, grado o fecha de nacimiento consumiendo `PATCH /api/user/me`.
-3. **Gestión de Usuarios (Solo `ADMIN` y `MANAGER`)**:
-   - `ADMIN`: Botón "Nuevo Usuario" (`POST /api/user`) y botón "Eliminar" (`DELETE /api/user/:id`).
-   - `MANAGER` / `ADMIN`: Switch / Toggle "Activo / Inactivo" (`PATCH /api/user/status/:id`).
+3. **Gestión de Usuarios (Solo `suadmin`, `admin` y `manager`)**:
+   - `suadmin` / `admin`: Botón "Nuevo Usuario" (`POST /api/user`) y botón "Eliminar" (`DELETE /api/user/:id`). El `admin` solo gestiona usuarios con rol menor o igual a `admin`.
+   - `suadmin` / `admin` / `manager`: Switch / Toggle de Guardia Operativa (`isOperational`) (`PATCH /api/user/status/:id`).
+   - `suadmin` / `admin`: Botón "Reenviar Activación" solo para usuarios cuya cuenta no está activa (`isActive = false`).
 
 ---
 
@@ -66,7 +67,7 @@ Este documento es una guía práctica de diseño e implementación para los desa
 2. **Modal / Formulario de Nueva Emergencia**:
    - Campos: Descripción, Fecha, Hora, Selectores de coordenadas en mapa interactivo.
 3. **Barra de Control de Estado de Emergencia**:
-   - Botones visibles solo para Comandante de Incidente, `MANAGER` o `ADMIN`:
+   - Botones visibles solo para Comandante de Incidente, `manager`, `admin` o `suadmin`:
      - "Activar Incidente" (`state: 'a'`)
      - "Finalizar Incidente" (`state: 'f'`)
      - "Cancelar Incidente" (`state: 'c'`)

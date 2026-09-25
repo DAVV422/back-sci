@@ -177,9 +177,41 @@ describe('UserService - updateStatus', () => {
     service = module.get<UserService>(UserService);
   });
 
-  it('changes isActive to false and returns the updated user', async () => {
-    const user = { id: 'uuid', name: 'John', isActive: true } as UserEntity;
-    const updated = { ...user, isActive: false } as UserEntity;
+  it('changes isOperational to false and returns the updated user', async () => {
+    const user = { id: 'uuid', name: 'John', isOperational: true } as UserEntity;
+    const updated = { ...user, isOperational: false } as UserEntity;
+    jest
+      .spyOn(service, 'findOne')
+      .mockResolvedValueOnce(user)
+      .mockResolvedValueOnce(updated);
+    mockRepo.update.mockResolvedValue({ affected: 1 });
+
+    const result = await service.updateStatus('uuid', { isOperational: false });
+
+    expect(mockRepo.update).toHaveBeenCalledWith('uuid', {
+      isOperational: false,
+    });
+    expect(result.isOperational).toBe(false);
+  });
+
+  it('changes isOperational to true', async () => {
+    const user = { id: 'uuid', name: 'John', isOperational: false } as UserEntity;
+    const updated = { ...user, isOperational: true } as UserEntity;
+    jest
+      .spyOn(service, 'findOne')
+      .mockResolvedValueOnce(user)
+      .mockResolvedValueOnce(updated);
+    mockRepo.update.mockResolvedValue({ affected: 1 });
+
+    const result = await service.updateStatus('uuid', { isOperational: true });
+
+    expect(mockRepo.update).toHaveBeenCalledWith('uuid', { isOperational: true });
+    expect(result.isOperational).toBe(true);
+  });
+
+  it('maps legacy isActive to isOperational in updateStatus', async () => {
+    const user = { id: 'uuid', name: 'John', isOperational: true } as UserEntity;
+    const updated = { ...user, isOperational: false } as UserEntity;
     jest
       .spyOn(service, 'findOne')
       .mockResolvedValueOnce(user)
@@ -189,24 +221,9 @@ describe('UserService - updateStatus', () => {
     const result = await service.updateStatus('uuid', { isActive: false });
 
     expect(mockRepo.update).toHaveBeenCalledWith('uuid', {
-      isActive: false,
+      isOperational: false,
     });
-    expect(result.isActive).toBe(false);
-  });
-
-  it('changes isActive to true', async () => {
-    const user = { id: 'uuid', name: 'John', isActive: false } as UserEntity;
-    const updated = { ...user, isActive: true } as UserEntity;
-    jest
-      .spyOn(service, 'findOne')
-      .mockResolvedValueOnce(user)
-      .mockResolvedValueOnce(updated);
-    mockRepo.update.mockResolvedValue({ affected: 1 });
-
-    const result = await service.updateStatus('uuid', { isActive: true });
-
-    expect(mockRepo.update).toHaveBeenCalledWith('uuid', { isActive: true });
-    expect(result.isActive).toBe(true);
+    expect(result.isOperational).toBe(false);
   });
 
   it('throws BadRequestException when the update affects 0 rows', async () => {
@@ -216,7 +233,7 @@ describe('UserService - updateStatus', () => {
     mockRepo.update.mockResolvedValue({ affected: 0 });
 
     await expect(
-      service.updateStatus('uuid', { isActive: false }),
+      service.updateStatus('uuid', { isOperational: false }),
     ).rejects.toThrow(BadRequestException);
   });
 });
@@ -293,6 +310,79 @@ describe('UserService - updateProfile', () => {
     await expect(
       service.updateProfile('uuid', { name: 'Nuevo' } as any),
     ).rejects.toThrow(BadRequestException);
+  });
+});
+
+describe('UserService - update (Admin / Suadmin restrictions)', () => {
+  let service: UserService;
+  let mockRepo: any;
+
+  beforeEach(async () => {
+    mockRepo = {
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: EmailService, useValue: {} },
+        { provide: AuthTokenService, useValue: {} },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue('10') },
+        },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+  });
+
+  it('only updates email, role, isActive, and isOperational; ignores name and lastName', async () => {
+    const user = { id: 'uuid-1', role: ROLES.BASIC } as UserEntity;
+    jest.spyOn(service, 'findOne').mockResolvedValue(user);
+
+    await service.update(
+      'uuid-1',
+      {
+        email: 'new@sci.local',
+        role: ROLES.ADVANCED,
+        isActive: true,
+        isOperational: false,
+        name: 'Ignored',
+        lastName: 'Ignored',
+      } as any,
+      ROLES.ADMIN,
+    );
+
+    expect(mockRepo.update).toHaveBeenCalledWith('uuid-1', {
+      email: 'new@sci.local',
+      role: ROLES.ADVANCED,
+      isActive: true,
+      isOperational: false,
+    });
+  });
+
+  it('prevents non-SUADMIN from promoting to SUADMIN', async () => {
+    const user = { id: 'uuid-1', role: ROLES.BASIC } as UserEntity;
+    jest.spyOn(service, 'findOne').mockResolvedValue(user);
+
+    await expect(
+      service.update('uuid-1', { role: ROLES.SUADMIN }, ROLES.ADMIN),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('prevents non-SUADMIN from updating a SUADMIN user', async () => {
+    const user = { id: 'uuid-suadmin', role: ROLES.SUADMIN } as UserEntity;
+    jest.spyOn(service, 'findOne').mockResolvedValue(user);
+
+    await expect(
+      service.update(
+        'uuid-suadmin',
+        { email: 'suadmin2@sci.local' },
+        ROLES.ADMIN,
+      ),
+    ).rejects.toThrow(ForbiddenException);
   });
 });
 

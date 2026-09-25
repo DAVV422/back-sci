@@ -6,6 +6,7 @@ export const USER_ALLOWED_ATTRS = [
   'name',
   'email',
   'isActive',
+  'isOperational',
   'role',
   'lastName',
   'urlImage',

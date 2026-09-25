@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -106,5 +107,16 @@ export class CreateUserDto {
     required: false,
   })
   @IsOptional()
+  @IsBoolean()
   isActive?: boolean;
+
+  @ApiProperty({
+    example: true,
+    type: Boolean,
+    description: 'Disponibilidad operativa inicial en emergencias (por defecto true)',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isOperational?: boolean;
 }

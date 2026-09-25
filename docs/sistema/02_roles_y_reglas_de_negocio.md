@@ -6,55 +6,67 @@ Este documento establece las definiciones oficiales de roles, jerarquías de acc
 
 ## 1. Jerarquía de Roles de Sistema
 
-El sistema cuenta con **4 roles de acceso técnico global**:
+El sistema cuenta con **5 roles de acceso técnico global** estandarizados en minúsculas:
 
 ```
            ┌──────────────────────┐
-           │        ADMIN         │ (Control Total Plataforma + CRUD Usuarios)
+           │       suadmin        │ (Super Administrador: Control Total + CRUD admins)
            └──────────┬───────────┘
                       ▼
            ┌──────────────────────┐
-           │       MANAGER        │ (Gestión Operativa Total + Activar/Desactivar Usuarios)
+           │        admin         │ (Administrador Plataforma: CRUD Usuarios hasta admin)
            └──────────┬───────────┘
                       ▼
            ┌──────────────────────┐
-           │       ADVANCED       │ (Gestión Operativa de Incidentes sin tocar Usuarios)
+           │       manager        │ (Gestión Operativa Total + Guardia de Usuarios)
            └──────────┬───────────┘
                       ▼
            ┌──────────────────────┐
-           │        BASIC         │ (Operador de Terreno / Acceso acotado a su Emergencia)
+           │       advanced       │ (Gestión Operativa de Incidentes sin tocar Usuarios)
+           └──────────┬───────────┘
+                      ▼
+           ┌──────────────────────┐
+           │        basic         │ (Operador de Terreno / Acceso acotado a su Emergencia)
            └──────────────────────┘
 ```
 
 ### Tabla Comparativa de Capacidades Globales
 
-| Funcionalidad | `ADMIN` | `MANAGER` | `ADVANCED` | `BASIC` |
-|:---|:---:|:---:|:---:|:---:|
-| **Crear Usuarios Nuevos** (`POST /api/user`) | ✅ | ❌ | ❌ | ❌ |
-| **Modificar Grado Institucional, Rol o Datos de Terceros** (`PATCH /api/user/:id`) | ✅ | ❌ | ❌ | ❌ |
-| **Eliminar Usuarios** (`DELETE /api/user/:id`) | ✅ | ❌ | ❌ | ❌ |
-| **Activar / Desactivar Usuarios** (`PATCH /api/user/status/:id`) | ✅ | ✅ | ❌ | ❌ |
-| **Ver Lista Global de Usuarios** (`GET /api/user`) | ✅ | ✅ | ❌ | ❌ |
-| **Modificar Perfil Propio (Nombre, Apellido, Celular)** (`PATCH /api/user/me`) | ✅ | ✅ | ✅ | ✅ |
-| **Crear / Editar Catálogo de Equipos** (`Equipment`) | ✅ | ✅ | ❌ | ❌ |
-| **Crear Emergencias** (`POST /api/emergency`) | ✅ | ✅ | ✅ | ✅ |
-| **Ver Emergencias Globales** (`GET /api/emergency`) | ✅ | ✅ | ✅ | ✅ |
-| **Administrar Cargos del Organigrama** (`Charge`) | ✅ | ❌ | ❌ | ❌ |
+| Funcionalidad | `suadmin` | `admin` | `manager` | `advanced` | `basic` |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| **Crear Usuarios Nuevos** (`POST /api/user`) | ✅ (cualquier rol) | ✅ (roles hasta `admin`) | ❌ | ❌ | ❌ |
+| **Modificar Rol, Email o Estado de Usuarios** (`PATCH /api/user/:id`) | ✅ (cualquier usuario) | ✅ (solo usuarios hasta `admin`) | ❌ | ❌ | ❌ |
+| **Eliminar Usuarios** (`DELETE /api/user/:id`) | ✅ (cualquier usuario) | ✅ (solo usuarios hasta `admin`) | ❌ | ❌ | ❌ |
+| **Cambiar Estado Operativo / Guardia (`isOperational`)** (`PATCH /api/user/status/:id`) | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **Ver Lista Global de Usuarios** (`GET /api/user`) | ✅ (ve todos) | ✅ (filtrados, sin `suadmin`) | ✅ (filtrados, sin `suadmin`) | ❌ | ❌ |
+| **Modificar Perfil Propio (Nombre, Apellido, Celular, Foto)** (`PATCH /api/user/me`) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Crear / Editar Catálogo de Equipos** (`Equipment`) | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **Crear Emergencias** (`POST /api/emergency`) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Ver Emergencias Globales** (`GET /api/emergency`) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Administrar Cargos del Organigrama** (`Charge`) | ✅ | ✅ | ❌ | ❌ | ❌ |
 
 ---
 
-## 2. Concepto de Usuario Inactivo vs. Eliminado
+## 2. Concepto de Cuenta Activa (`isActive`) vs. Guardia Operativa (`isOperational`) vs. Eliminado (`isDeleted`)
+
+Para evitar inconsistencias en el frontend, el backend separa de forma estricta el estado de la cuenta institucional del estado de turno o guardia operativa:
 
 - **Usuario Eliminado (Soft Delete)**: `isDeleted = true`. El usuario no existe operativamente, sus credenciales son invalidadas y no puede iniciar sesión.
-- **Usuario Inactivo**: `isActive = false`, `isDeleted = false`.
-  - Significa que el usuario **no está de turno o guardia activa** en la institución y no debe recibir notificaciones generales o masivas.
-  - **Regla Clave**: Un usuario inactivo **SÍ puede ser asignado a una emergencia**. Si el Comandante de Incidente o un Manager lo asigna a una emergencia activa, el usuario puede participar y operar con normalidad en terreno de acuerdo a su cargo asignado.
+- **Cuenta Desactivada / Bloqueada (`isActive = false`)**:
+  - Significa que la cuenta está inhabilitada administrativamente (o pendiente de activación por correo si `REQUIRE_EMAIL_ACTIVATION=true`).
+  - El usuario **no puede iniciar sesión** (retorna `401 Unauthorized`).
+  - En la interfaz del admin/suadmin, a estos usuarios se les puede reenviar el enlace de activación.
+- **Usuario Fuera de Guardia / No Operativo (`isOperational = false`)**:
+  - Significa que el bombero o brigadista **no se encuentra disponible o de turno activo** para despachos ordinarios.
+  - **SÍ puede iniciar sesión** en la plataforma normalmente y acceder a sus datos.
+  - **NO debe recibir el botón "Reenviar Activación"** en el frontend, ya que su cuenta está activa.
+  - Si un Comandante de Incidente decide asignarlo manualmente a una emergencia activa, puede operar normalmente.
 
 ---
 
 ## 3. Permisos Comunes Dentro de una Emergencia
 
-Cualquier usuario con sesión activa que esté **asignado al personal de una emergencia** (`AttendEntity` activa), sin importar si su rol de sistema es `BASIC`, `ADVANCED`, `MANAGER` o `ADMIN`, cuenta con los siguientes permisos en ese incidente:
+Cualquier usuario con sesión activa que esté **asignado al personal de una emergencia** (`AttendEntity` activa), sin importar si su rol de sistema es `basic`, `advanced`, `manager`, `admin` o `suadmin`, cuenta con los siguientes permisos en ese incidente:
 
 1. **Bitácora y Notas de Voz (`Action`)**: Puede registrar acciones, eventos y notas de voz con audio en la línea de tiempo del incidente.
 2. **Registro de Víctimas (`Victim` & `Registration`)**: Puede registrar los datos básicos de personas lesionadas y asentar evaluaciones de triage START/SALT dentro de las planillas del Formulario 207 activas.
@@ -71,7 +83,7 @@ El **Comandante del Incidente** es la máxima autoridad táctica en el lugar del
 - **Evaluación Inicial**: Es el encargado de registrar la evaluación preliminar de riesgos y recursos requeridos (`InitialAssessment`).
 - **Facultades sobre el Formulario 207**: Puede crear y finalizar planillas del Formulario 207.
 - **Asignación de Personal**: Puede convocar brigadistas y asignar sus cargos SCI.
-- **Regla de Elevación Táctica**: Si un usuario cuyo rol de sistema es `BASIC` asume el cargo SCI de *Comandante del Incidente*, obtiene **permisos de gestión total sobre esa emergencia específica** (equivalentes a `MANAGER`/`ADMIN`), pero única y exclusivamente limitados al perímetro de ese incidente.
+- **Regla de Elevación Táctica**: Si un usuario cuyo rol de sistema es `basic` asume el cargo SCI de *Comandante del Incidente*, obtiene **permisos de gestión total sobre esa emergencia específica** (equivalentes a `manager`/`admin`), pero única y exclusivamente limitados al perímetro de ese incidente.
 
 ---
 
@@ -87,7 +99,7 @@ El **Comandante del Incidente** es la máxima autoridad táctica en el lugar del
 
 - En el organigrama SCI, la Unidad Médica pertenece a la Rama de Servicios de la Sección de Logística.
 - El usuario con cargo SCI de *Líder de Unidad Médica* tiene **permiso expreso para crear y finalizar el Formulario 207** (`POST /api/emergency/:id/form207`), aliviando la carga administrativa del Comandante de Incidente en eventos con víctimas en masa.
-- Los roles de sistema `MANAGER` y `ADMIN` también pueden crear el Formulario 207.
+- Los roles de sistema `manager` y `admin` (y `suadmin`) también pueden crear el Formulario 207.
 
 ---
 

@@ -34,4 +34,24 @@ export class UpdateProfileDto {
   @IsString()
   @MinLength(8)
   cellphone?: string;
+
+  @ApiProperty({
+    example: '1995-05-20',
+    type: String,
+    description: 'Fecha de nacimiento del usuario',
+    required: false,
+  })
+  @IsOptional()
+  birthdate?: Date;
+
+  @ApiProperty({
+    example: 'https://example.com/avatar.jpg',
+    type: String,
+    description: 'URL de la imagen de perfil',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  urlImage?: string;
 }
+

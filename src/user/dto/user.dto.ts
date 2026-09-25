@@ -90,10 +90,18 @@ export class UserDTO {
   @ApiProperty({
     example: true,
     type: Boolean,
-    description: 'Estado del usuario en la institución',
+    description: 'Estado de la cuenta (activo / inactivo para acceder al sistema)',
   })
   @IsBoolean()
   isActive: boolean;
+
+  @ApiProperty({
+    example: true,
+    type: Boolean,
+    description: 'Estado de disponibilidad operativa en emergencias (en servicio / fuera de servicio)',
+  })
+  @IsBoolean()
+  isOperational: boolean;
 
   @IsEnum(ROLES)
   role: ROLES;
@@ -108,6 +116,7 @@ export class UserDTO {
     this.urlImage = user.urlImage;
     this.birthdate = user.birthdate;
     this.isActive = user.isActive;
+    this.isOperational = user.isOperational ?? true;
     this.role = user.role;
   }
 }

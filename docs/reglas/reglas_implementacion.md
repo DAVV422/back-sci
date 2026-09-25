@@ -83,7 +83,7 @@ export abstract class BaseEntity {
 El SCI requiere una estructura jerárquica clara, modularidad en operaciones y trazabilidad absoluta.
 
 ### Cadena de Mando y Asignación de Cargos
-* **Separación de Capas**: Los **ROLES** del sistema (`BASIC`, `ADVANCED`, `MANAGER`, `ADMIN`) controlan el acceso técnico a los endpoints de la API. Los **CHARGES** (Cargos) del SCI (`Comandante del Incidente`, `Jefe de Operaciones`, etc.) se asignan dinámicamente a nivel operativo por cada emergencia mediante `AttendEntity`.
+* **Separación de Capas**: Los **ROLES** del sistema (`basic`, `advanced`, `manager`, `admin`, `suadmin`) controlan el acceso técnico a los endpoints de la API. Los **CHARGES** (Cargos) del SCI (`Comandante del Incidente`, `Jefe de Operaciones`, etc.) se asignan dinámicamente a nivel operativo por cada emergencia mediante `AttendEntity`.
 * **Identificación del Comandante del Incidente (CI)**: El Cargo de "Comandante del Incidente" debe poseer una propiedad interna (`system_name: 'incident_commander'`) a nivel de base de datos para identificarlo por código. Solo puede existir un único CI activo por emergencia.
 * **Traspaso de Comando**: Para delegar el comando del incidente a otro usuario se requiere una acción formal de traspaso.
   * **Regla de Negocio**: Antes de realizar el traspaso de comando, los formularios 201 y 207 activos (si los hubiera) deben estar obligatoriamente en estado finalizado (`is_finalized: true`).
@@ -91,9 +91,9 @@ El SCI requiere una estructura jerárquica clara, modularidad en operaciones y t
 
 ### 2.1 Cadena de Mando y Asignación de Cargos
 
-* **Separación de Capas**: los **ROLES** (`BASIC`, `ADVANCED`, `MANAGER`, `ADMIN`) controlan acceso técnico a endpoints. Los **CHARGES** del SCI se asignan dinámicamente por emergencia mediante `AttendEntity`.
-* **Prioridad y Override del Comandante del Incidente (CI)**: Si un usuario con rol de sistema `BASIC` tiene asignado activamente el cargo de "Comandante del Incidente" (`system_name: 'incident_commander'`) en una emergencia en curso, adquiere privilegios de edición en esa emergencia específica, asimilándose temporalmente a los roles `MANAGER` o `ADMIN`.
-* **Privacidad del Administrador**: El usuario con rol `ADMIN` (administrador del sistema) debe ser excluido explícitamente en todas las consultas y listados de usuarios de cara a la interfaz para proteger el acceso prioritario al sistema.
+* **Separación de Capas**: los **ROLES** (`basic`, `advanced`, `manager`, `admin`, `suadmin`) controlan acceso técnico a endpoints. Los **CHARGES** del SCI se asignan dinámicamente por emergencia mediante `AttendEntity`.
+* **Prioridad y Override del Comandante del Incidente (CI)**: Si un usuario con rol de sistema `basic` tiene asignado activamente el cargo de "Comandante del Incidente" (`system_name: 'incident_commander'`) en una emergencia en curso, adquiere privilegios de edición en esa emergencia específica, asimilándose temporalmente a los roles `manager` o `admin`.
+* **Privacidad del Administrador**: El usuario con rol `suadmin` debe ser excluido explícitamente en todas las consultas y listados de usuarios de cara a la interfaz para usuarios que no sean `suadmin`.
 * **Identificación del Comandante del Incidente (CI)**: el Cargo "Comandante del Incidente" posee `system_name: 'incident_commander'` a nivel de base de datos.
 * **Tabla y Flujo de Auditoría Global**: Para garantizar la trazabilidad operacional de los datos del sistema, se debe registrar en una tabla específica toda operación de creación, actualización y eliminación. Contendrá quién realizó el cambio, su rol, tipo de evento (`CREATE`, `UPDATE`, `DELETE`), entidad afectada, `old_values` y `new_values`. Se implementará mediante interceptores de NestJS o suscriptores de eventos de TypeORM.
 
@@ -178,17 +178,17 @@ Se define explícitamente qué transiciones son válidas, en lugar de permitir c
 |---|---|---|---|---|
 | **Pendiente (p)** | — | ✅ | ❌ | ✅ |
 | **Activa (a)** | ❌ | ✅ (reapertura) | ✅ (con validación) | ✅ |
-| **Finalizada (f)** | ❌ | ✅ (solo ADMIN, reapertura) | — | ❌ |
+| **Finalizada (f)** | ❌ | ✅ (solo admin o suadmin, reapertura) | — | ❌ |
 | **Cancelada (c)** | ❌ | ❌ | ❌ | — |
 
 Reglas asociadas:
 * **`p → a`**: se registra fecha/hora de activación en `ActionEntity`.
 * **`* → c`**: requiere motivo de cancelación obligatorio, guardado en `ActionEntity`. Una emergencia **Cancelada** es un estado terminal (no transiciona a ningún otro estado).
 * **`a → f`**: se valida que **todos** los formularios asociados (F201 y F207 activos) tengan `is_finalized: true`; si no, se rechaza con `BadRequestException` listando los formularios pendientes.
-* **`f → a`**: solo permitido a usuarios con rol `ADMIN`; se registra la reapertura en `ActionEntity` (usuario, hora, motivo opcional).
+* **`f → a`**: solo permitido a usuarios con rol `admin` o `suadmin`; se registra la reapertura en `ActionEntity` (usuario, hora, motivo opcional).
 * Cualquier transición no listada en la tabla debe rechazarse explícitamente con un mensaje indicando las transiciones válidas desde el estado actual. Se recomienda implementar esto como un mapa de transiciones permitidas en el servicio (`EmergencyStateMachine`), no como una cadena de `if/else`.
 
-**Bloqueo en estado Finalizada**: no se permite edición de la emergencia ni de recursos asociados salvo la reapertura por ADMIN descrita arriba.
+**Bloqueo en estado Finalizada**: no se permite edición de la emergencia ni de recursos asociados salvo la reapertura por admin o suadmin descrita arriba.
 
 ### 2.4 Modo Offline (Aplicación Móvil)
 
@@ -329,9 +329,9 @@ Ejecutadas contra una base de datos real (PostgreSQL de test, vía Docker/Testco
 * **Concurrencia en correlativo de F207**: crear N formularios 207 en paralelo para la misma emergencia y verificar que todos los códigos correlativos sean únicos y consecutivos, sin colisiones.
 * **Transacción de traspaso de comando**: forzar un error a mitad del traspaso (ej. fallo al escribir `ActionEntity`) y verificar que la transacción completa haga rollback (el CI saliente sigue activo, no queda estado intermedio inconsistente).
 * **Liberación de slot F201 tras soft delete**: eliminar (soft delete) el F201 activo de una emergencia y verificar que inmediatamente se puede crear uno nuevo.
-* **Máquina de estados end-to-end**: recorrer el ciclo completo `p → a → f → a (reapertura ADMIN) → f`, verificando registros correctos en `ActionEntity` en cada paso, y confirmar que transiciones inválidas (ej. `c → a`) devuelven error HTTP 400/409 según corresponda.
+* **Máquina de estados end-to-end**: recorrer el ciclo completo `p → a → f → a (reapertura admin/suadmin) → f`, verificando registros correctos en `ActionEntity` en cada paso, y confirmar que transiciones inválidas (ej. `c → a`) devuelven error HTTP 400/409 según corresponda.
 * **Sincronización offline**: simular el envío de una acción con `client_generated_id` ya existente (reintento de red) y verificar idempotencia (no se duplica el registro). Simular también el caso `SYNC_CONFLICT_EMERGENCY_CLOSED`.
-* **Bloqueo de edición en emergencia Finalizada**: intentar modificar un recurso asociado a una emergencia finalizada y verificar rechazo, luego reabrir como ADMIN y verificar que la edición vuelve a permitirse.
+* **Bloqueo de edición en emergencia Finalizada**: intentar modificar un recurso asociado a una emergencia finalizada y verificar rechazo, luego reabrir como admin/suadmin y verificar que la edición vuelve a permitirse.
 
 These tests must run in CI (pipeline) against an ephemeral PostgreSQL instance, not mocks, because they validate database constraint behavior and transactions that mocks cannot faithfully reproduce.
 

@@ -8,21 +8,25 @@ Este documento centraliza y detalla todos los endpoints disponibles en el backen
 
 ### 1.1 Jerarquía de Roles de Sistema
 
+> **Convención Estándar de Roles**: En el sistema SCI, todos los roles se definen, almacenan y transmiten de manera estandarizada en **minúsculas**: `suadmin`, `admin`, `manager`, `advanced`, `basic`. Tanto en la base de datos como en los payloads JSON (`"role": "admin"`), parámetros de consulta (`attr=role&value=admin`) y decoradores de acceso, se emplea siempre este estándar.
+
 | Rol | Alcance y Facultades | Restricciones |
 |:---|:---|:---|
-| **`suadmin`** | Super Administrador del Sistema. Nivel jerárquico máximo. Puede crear, listar, modificar y eliminar cualquier entidad o usuario (incluyendo usuarios con rol `ADMIN`). Acceso exclusivo a endpoints de auditoría con marcas temporales de sistema (`GET /api/user/admin/all`). | Ninguna. |
-| **`ADMIN`** | Gestión total de la plataforma. Puede crear, listar, modificar y eliminar usuarios y recursos del sistema (`ADMIN`, `MANAGER`, `ADVANCED`, `BASIC`). | Ninguna. |
-| **`MANAGER`** | Gestión operativa total del sistema y recursos. Puede gestionar emergencias, equipamiento, asignaciones y activar/desactivar el estado de usuarios (`PATCH /api/user/status/:id`). | **No puede** crear nuevos usuarios ni eliminarlos físicamente de la base de datos. |
-| **`ADVANCED`** | Gestión operativa de emergencias, incidentes, bitácoras, formularios y recursos. | **No puede** crear, activar, desactivar ni eliminar usuarios. |
-| **`BASIC`** | Operador táctico de campo. Solo gestiona la información de la emergencia en la que está activamente asignado según su rol/cargo SCI. | Solo accede a recursos de emergencias donde participa. |
+| **`suadmin`** | Super Administrador del Sistema. Nivel jerárquico máximo. Puede crear, listar, modificar y eliminar cualquier entidad o usuario (incluyendo usuarios con rol `admin`). Acceso exclusivo a endpoints de auditoría con marcas temporales de sistema (`GET /api/user/admin/all`). | Ninguna. |
+| **`admin`** | Gestión administrativa de la plataforma. Puede crear, listar, modificar y eliminar usuarios (`admin`, `manager`, `advanced`, `basic`) y recursos del sistema. | **No puede** crear, ver en listados, consultar por ID, modificar, cambiar de estado ni eliminar usuarios con rol `suadmin`, ni promover a otros usuarios al rol `suadmin`. |
+| **`manager`** | Gestión operativa total del sistema y recursos. Puede gestionar emergencias, equipamiento, asignaciones y cambiar la disponibilidad operativa de usuarios (`PATCH /api/user/status/:id`). | **No puede** crear nuevos usuarios ni eliminarlos de la base de datos. No puede interactuar con usuarios `suadmin`. |
+| **`advanced`** | Gestión operativa de emergencias, incidentes, bitácoras, formularios y recursos. | **No puede** crear, activar, desactivar ni eliminar usuarios. |
+| **`basic`** | Operador táctico de campo. Solo gestiona la información de la emergencia en la que está activamente asignado según su rol/cargo SCI. | Solo accede a recursos de emergencias donde participa. |
 
-> **Nota sobre Usuarios Inactivos**: Un usuario inactivo (`isActive = false`) **no está eliminado**; significa que no participa activamente de guardia y no recibe notificaciones generales. No obstante, un usuario inactivo **puede ser asignado a una emergencia** y operar con normalidad según su cargo SCI asignado.
+> **Distinción Clave: Estado de Cuenta (`isActive`) vs Disponibilidad Operativa (`isOperational`)**:
+> - **`isActive` (Estado de Cuenta / Acceso)**: Define si el usuario tiene permitido iniciar sesión en la plataforma (`true`) o si su cuenta está inactiva/suspendida/pendiente de activación por correo (`false`). Si `isActive = false`, el backend rechaza el login (`401 Unauthorized`).
+> - **`isOperational` (Disponibilidad Operativa en Emergencias / Guardia)**: Define si el usuario se encuentra **en servicio / de guardia activa** (`true`) o **fuera de servicio / descanso** (`false`) para ser convocado a unidades de emergencia. **Un usuario con `isOperational = false` SÍ puede iniciar sesión e interactuar con la plataforma.**
 
 ---
 
 ### 1.2 Permisos Comunes Dentro de una Emergencia
 
-Todo usuario asignado a una emergencia (sin importar si su rol de sistema es `BASIC`, `ADVANCED`, `MANAGER`, `ADMIN` o `suadmin`) tiene permiso para:
+Todo usuario asignado a una emergencia (sin importar si su rol de sistema es `basic`, `advanced`, `manager`, `admin` o `suadmin`) tiene permiso para:
 1. **Registrar acciones en bitácora (`Action`)**: Registrar sus propios eventos y novedades operativas.
 2. **Registrar y gestionar víctimas (`Victim` & `Registration`)**: Registrar datos de lesionados y triage START/SALT.
 3. **Gestionar recursos (`Resource`)**: Solicitar despacho y registrar utilización de equipamiento asignado al incidente.
@@ -36,9 +40,9 @@ Todo usuario asignado a una emergencia (sin importar si su rol de sistema es `BA
    - Es el encargado de la **Evaluación Inicial** preliminar del incidente (`POST /api/emergency/:id/assessment`).
    - Tiene facultad para crear y finalizar el **Formulario 207**.
    - Puede asignar personal a la emergencia y definir sus cargos SCI.
-   - **Elevación Táctica**: Si un usuario con rol de sistema `BASIC` ocupa el cargo SCI de *Comandante de Incidente*, obtiene automáticamente facultades de gestión total sobre dicha emergencia (equivalente a `MANAGER` / `ADMIN`), limitadas estrictamente al ámbito de ese incidente.
+   - **Elevación Táctica**: Si un usuario con rol de sistema `basic` ocupa el cargo SCI de *Comandante de Incidente*, obtiene automáticamente facultades de gestión total sobre dicha emergencia (equivalente a `manager` / `admin`), limitadas estrictamente al ámbito de ese incidente.
 2. **Líder de Unidad Médica (`medical_unit_leader`)**:
-   - Tiene permiso expreso para crear y gestionar el **Formulario 207** (`POST /api/emergency/:id/form207`), además de los roles `MANAGER`, `ADVANCED` y el Comandante de Incidente.
+   - Tiene permiso expreso para crear y gestionar el **Formulario 207** (`POST /api/emergency/:id/form207`), además de los roles `manager`, `advanced` y el Comandante de Incidente.
 3. **Asignación de Personal y Rol por Defecto**:
    - Al incorporar un nuevo miembro a la emergencia sin especificar cargo, el rol SCI por defecto es **Equipo de Ataque (`EQ-ATK`)**.
 4. **Regla Especial del Creador de la Emergencia**:
@@ -175,10 +179,11 @@ En caso de error:
 
 #### `POST /api/user`
 - **Descripción**: Crea un nuevo usuario en la plataforma.
-  - **Estado de activación (`isActive`)**: Controlado por la variable de entorno `REQUIRE_EMAIL_ACTIVATION` (si no está definida o es `false`, el usuario nace directamente activo `isActive = true`; si es `true`, nace inactivo `isActive = false` y se le envía automáticamente un correo electrónico con enlace y token de activación). Puede sobreescribirse enviando `isActive` explícitamente en el body.
+  - **Estado de activación (`isActive`)**: Controlado por la variable de entorno `REQUIRE_EMAIL_ACTIVATION`. Si es `false` (o no está definida), el usuario nace directamente activo (`isActive = true`). Si es `true`, nace inactivo (`isActive = false`) y se envía correo con token de activación. Puede sobreescribirse enviando `isActive` explícitamente en el body.
+  - **Disponibilidad operativa (`isOperational`)**: Por defecto `true` (en servicio).
   - **Contraseña inicial (`password`)**: Es **opcional** (si no se provee, el backend genera una contraseña temporal aleatoria).
-  - **Permisos de rol**: Un usuario con rol `ADMIN` no puede crear usuarios con rol `suadmin` (retorna `403 Forbidden`). Solo `suadmin` puede crear `suadmin`.
-- **Acceso**: Requiere autenticación (`ADMIN` o `suadmin`).
+  - **Restricción de rol**: Un `admin` no puede crear usuarios con rol `suadmin` (`403 Forbidden`). Solo `suadmin` puede crear `suadmin`.
+- **Acceso**: Requiere autenticación (`admin` o `suadmin`).
 - **Body**:
   ```json
   {
@@ -189,66 +194,82 @@ En caso de error:
     "cellphone": "+56912345678",
     "grade": "Capitán",
     "birthdate": "1990-05-15",
-    "role": "BASIC"
+    "role": "basic",
+    "isOperational": true
   }
   ```
 
 #### `GET /api/user`
-- **Descripción**: Lista usuarios operativos del sistema (omite metadatos de auditoría `createdAt`/`updatedAt` y oculta al superusuario `suadmin` para roles no-suadmin).
-- **Acceso**: `ADMIN`, `MANAGER`, `suadmin`.
-- **Query Params**: `limit`, `offset`, `order` (`ASC`/`DESC`), `attr` (`name`/`email`/`role`/`lastName`/`isActive`), `value`.
+- **Descripción**: Lista usuarios operativos del sistema (omite metadatos de auditoría `createdAt`/`updatedAt` y oculta al superusuario `suadmin` para roles no-suadmin). Retorna tanto `isActive` (estado de cuenta) como `isOperational` (en servicio / fuera de servicio).
+- **Acceso**: `admin`, `manager`, `suadmin`.
+- **Query Params**: `limit`, `offset`, `order` (`ASC`/`DESC`), `attr` (`name`/`email`/`role`/`lastName`/`isActive`/`isOperational`), `value`.
 
 #### `GET /api/user/admin/all`
-- **Descripción**: Endpoint exclusivo de auditoría para `suadmin` y `ADMIN`. Retorna la lista completa de usuarios **incluyendo marcas de auditoría temporales** (`createdAt`, `updatedAt`). Si el consultante es `ADMIN`, se filtran y ocultan los usuarios con rol `suadmin` (solo visibles si quien consulta es `suadmin`).
-- **Acceso**: `suadmin`, `ADMIN`.
-- **Query Params**: `limit`, `offset`, `order` (`ASC`/`DESC`), `attr` (`name`/`email`/`role`/`lastName`/`isActive`), `value`.
+- **Descripción**: Endpoint de auditoría para `suadmin` y `admin`. Retorna la lista completa de usuarios **incluyendo marcas de auditoría temporales** (`createdAt`, `updatedAt`). Si el consultante es `admin`, se filtran y ocultan los usuarios con rol `suadmin` (solo visibles si quien consulta es `suadmin`).
+- **Acceso**: `suadmin`, `admin`.
+- **Query Params**: `limit`, `offset`, `order` (`ASC`/`DESC`), `attr` (`name`/`email`/`role`/`lastName`/`isActive`/`isOperational`), `value`.
 
 #### `GET /api/user/me`
-- **Descripción**: Obtiene el perfil completo del usuario autenticado.
-- **Acceso**: Autenticado (`BASIC` o superior).
+- **Descripción**: Obtiene el perfil completo del usuario autenticado actual.
+- **Acceso**: Autenticado (`basic` o superior).
 
 #### `PATCH /api/user/me`
-- **Descripción**: Actualiza los datos de contacto del perfil propio (`name`, `lastName`, `cellphone`). El grado institucional (`grade`), el correo y el rol (`role`) están protegidos.
-- **Acceso**: Autenticado (`BASIC` o superior).
+- **Descripción**: Actualiza los datos de identidad y contacto del perfil propio del usuario autenticado.
+  - **Campos permitidos**: `name`, `lastName`, `cellphone`, `birthdate`, `urlImage`.
+  - **Campos protegidos (NO editables por el propio usuario)**: `email`, `grade`, `role`, `isActive`, `isOperational` (requieren gestión administrativa).
+- **Acceso**: Autenticado (`basic` o superior).
 - **Body**:
   ```json
   {
     "name": "Juan",
     "lastName": "Pérez",
-    "cellphone": "+56912345678"
+    "cellphone": "+56912345678",
+    "birthdate": "1990-05-15",
+    "urlImage": "https://example.com/foto.jpg"
   }
   ```
 
 #### `GET /api/user/:id`
-- **Descripción**: Obtiene el detalle de un usuario por su ID.
-  - **Restricción de rol**: Si el usuario consultado tiene rol `suadmin` y quien consulta no es `suadmin`, el backend responde con `404 Not Found` (ocultamiento del superusuario).
+- **Descripción**: Obtiene el detalle de un usuario específico por su ID.
+  - **Restricción de rol**: Si el usuario consultado tiene rol `suadmin` y quien consulta no es `suadmin`, el backend responde con `404 Not Found` (garantizando opacidad del superusuario).
 - **Acceso**: Autenticado.
 
 #### `PATCH /api/user/:id`
-- **Descripción**: Actualiza los datos y configuración institucional de un usuario (incluyendo `grade` institucional, `role`, `email`, etc.).
+- **Descripción**: Actualiza la configuración administrativa e institucional de una cuenta de usuario por parte de `admin` o `suadmin`.
+  - **Regla de negocio sobre campos editables**:
+    - **Permitidos para admin/suadmin**: `email`, `role`, `isActive` (habilitar/suspender cuenta), `isOperational` (disponibilidad operativa) y `password` (reset/cambio de contraseña).
+    - **Protegidos**: Los campos de identidad personal (`name`, `lastName`, `cellphone`, etc.) los mantiene el propio usuario en su perfil (`PATCH /api/user/me`).
   - **Restricciones de rol**:
-    - Un `ADMIN` no puede modificar a un usuario con rol `suadmin` (`403 Forbidden`).
-    - Un `ADMIN` no puede asignar o promover a ningún usuario al rol `suadmin` (`403 Forbidden`).
-- **Acceso**: Exclusivo `ADMIN` / `suadmin`.
+    - Un `admin` no puede modificar a un usuario con rol `suadmin` (`403 Forbidden`).
+    - Un `admin` no puede asignar o promover a ningún usuario al rol `suadmin` (`403 Forbidden`).
+- **Acceso**: Exclusivo `admin` / `suadmin`.
 - **Body**:
   ```json
   {
-    "grade": "Teniente 1°",
-    "role": "ADVANCED",
-    "cellphone": "+56912345678"
+    "email": "nuevo.correo@sci.local",
+    "role": "advanced",
+    "isActive": true,
+    "isOperational": true
   }
   ```
 
 #### `PATCH /api/user/status/:id`
-- **Descripción**: Activa o desactiva a un usuario del servicio operativo (`isActive`).
-  - **Restricción de rol**: Un `ADMIN` o `MANAGER` no puede activar ni desactivar a un usuario con rol `suadmin` (`403 Forbidden`).
-- **Acceso**: `ADMIN`, `MANAGER`, `suadmin`.
-- **Body**: `{ "isActive": false }`
+- **Descripción**: Cambia la disponibilidad operativa en emergencias del usuario (`isOperational`: en servicio / de guardia vs fuera de servicio / descanso).
+  - **Impacto en inicio de sesión**: Poner a un usuario "fuera de servicio" (`isOperational = false`) **NO** le impide iniciar sesión en la plataforma ni bloquea su cuenta (`isActive` se mantiene intacto).
+  - **Compatibilidad**: Admite `{ "isOperational": false }` y mapea también `{ "isActive": false }` por retrocompatibilidad con clientes existentes.
+  - **Restricción de rol**: Un `admin` o `manager` no puede activar ni desactivar a un usuario con rol `suadmin` (`403 Forbidden`).
+- **Acceso**: `admin`, `manager`, `suadmin`.
+- **Body**:
+  ```json
+  {
+    "isOperational": false
+  }
+  ```
 
 #### `DELETE /api/user/:id`
-- **Descripción**: Soft delete del usuario en base de datos.
-  - **Restricción de rol**: Un `ADMIN` no puede eliminar a un usuario con rol `suadmin` (`403 Forbidden`).
-- **Acceso**: Exclusivo `ADMIN` / `suadmin`.
+- **Descripción**: Desactivación lógica (soft delete) del usuario en la base de datos (`isDeleted = true`).
+  - **Restricción de rol**: Un `admin` no puede eliminar a un usuario con rol `suadmin` (`403 Forbidden`).
+- **Acceso**: Exclusivo `admin` / `suadmin`.
 
 ---
 
@@ -256,7 +277,7 @@ En caso de error:
 
 #### `POST /api/charge`
 - **Descripción**: Registra un nuevo cargo en el organigrama del SCI.
-- **Acceso**: `ADMIN`.
+- **Acceso**: `admin`.
 - **Body**:
   ```json
   {
@@ -270,7 +291,7 @@ En caso de error:
 
 #### `GET /api/charge`
 - **Descripción**: Lista todos los cargos estándar del organigrama SCI ordenados por nivel y peso.
-- **Acceso**: Autenticado (`BASIC` o superior).
+- **Acceso**: Autenticado (`basic` o superior).
 
 #### `GET /api/charge/:id` | `GET /api/charge/name/:name`
 - **Descripción**: Consulta de cargo por ID o por nombre.
@@ -278,7 +299,7 @@ En caso de error:
 
 #### `PATCH /api/charge/:id` | `DELETE /api/charge/:id`
 - **Descripción**: Modificación o eliminación de un cargo.
-- **Acceso**: `ADMIN`.
+- **Acceso**: `admin`.
 
 ---
 
@@ -309,16 +330,16 @@ En caso de error:
 
 #### `PATCH /api/emergency/:id`
 - **Descripción**: Actualiza datos de la emergencia (solo si no se encuentra en estado `Finalizada`).
-- **Acceso**: `ADMIN`, `MANAGER` o Comandante del Incidente.
+- **Acceso**: `admin`, `manager` o Comandante del Incidente.
 
 #### `PATCH /api/emergency/:id/state`
 - **Descripción**: Transición del estado de la emergencia mediante máquina de estados (`p` Pendiente -> `a` Activa -> `f` Finalizada o `c` Cancelada).
-- **Acceso**: `ADMIN`, `MANAGER` o Comandante del Incidente.
+- **Acceso**: `admin`, `manager` o Comandante del Incidente.
 - **Body**: `{ "state": "a" }`
 
 #### `DELETE /api/emergency/:id`
 - **Descripción**: Soft delete de la emergencia.
-- **Acceso**: `ADMIN`.
+- **Acceso**: `admin`.
 
 ---
 
@@ -326,7 +347,7 @@ En caso de error:
 
 #### `POST /api/emergency/:id/assessment`
 - **Descripción**: Registra la evaluación preliminar de riesgos, magnitud y condiciones del incidente.
-- **Acceso**: Comandante de Incidente o `ADMIN`/`MANAGER`.
+- **Acceso**: Comandante de Incidente o `admin`/`manager`.
 - **Body**:
   ```json
   {
@@ -347,7 +368,7 @@ En caso de error:
 
 #### `POST /api/attend`
 - **Descripción**: Asigna un usuario a una emergencia con un cargo SCI. Si no se indica cargo, se asigna `Equipo de Ataque` por defecto. Valida exclusividad del Comandante de Incidente activo.
-- **Acceso**: Creador de la emergencia, Comandante de Incidente o `MANAGER`/`ADMIN`.
+- **Acceso**: Creador de la emergencia, Comandante de Incidente o `manager`/`admin`.
 - **Body**:
   ```json
   {
@@ -360,15 +381,15 @@ En caso de error:
 
 #### `GET /api/attend/emergency/:emergencyId`
 - **Descripción**: Lista todo el personal asignado a la emergencia con sus cargos SCI y estados de vigencia.
-- **Acceso**: Autenticado (`BASIC` o superior).
+- **Acceso**: Autenticado (`basic` o superior).
 
 #### `PATCH /api/attend/:id`
 - **Descripción**: Modifica el cargo o estado de asignación de un miembro (ej. traspaso de mando).
-- **Acceso**: Comandante de Incidente o `MANAGER`/`ADMIN`.
+- **Acceso**: Comandante de Incidente o `manager`/`admin`.
 
 #### `DELETE /api/attend/:id`
 - **Descripción**: Desvincula o desmoviliza a un miembro de la emergencia.
-- **Acceso**: Comandante de Incidente o `MANAGER`/`ADMIN`.
+- **Acceso**: Comandante de Incidente o `manager`/`admin`.
 
 ---
 
@@ -376,7 +397,7 @@ En caso de error:
 
 #### `POST /api/emergency/:emergencyId/form201`
 - **Descripción**: Crea el Formulario 201 para la emergencia. Genera código correlativo `F201-XXX`, captura un snapshot del organigrama SCI activo (`attends`) y bloquea la creación de otro F201 si ya existe uno activo.
-- **Acceso**: Comandante de Incidente (`BASIC` con cargo CI) o `ADMIN`/`MANAGER`.
+- **Acceso**: Comandante de Incidente (`basic` con cargo CI) o `admin`/`manager`.
 - **Body**:
   ```json
   {
@@ -395,11 +416,11 @@ En caso de error:
 
 #### `PATCH /api/form201/:id`
 - **Descripción**: Actualiza el contenido del Formulario 201 (solo si no está finalizado ni la emergencia cerrada).
-- **Acceso**: Comandante de Incidente o `ADMIN`/`MANAGER`.
+- **Acceso**: Comandante de Incidente o `admin`/`manager`.
 
 #### `PATCH /api/form201/:id/finalize`
 - **Descripción**: Finaliza el Formulario 201 de forma inmutable y registra la acción en la bitácora (`Action`).
-- **Acceso**: Comandante de Incidente o `ADMIN`/`MANAGER`.
+- **Acceso**: Comandante de Incidente o `admin`/`manager`.
 
 ---
 
@@ -407,7 +428,7 @@ En caso de error:
 
 #### `POST /api/emergency/:emergencyId/form207`
 - **Descripción**: Crea una nueva planilla de Formulario 207 con código correlativo `F207-XXX` mediante incremento atómico seguro.
-- **Acceso**: Comandante de Incidente, Líder de Unidad Médica, `MANAGER` o `ADMIN`.
+- **Acceso**: Comandante de Incidente, Líder de Unidad Médica, `manager` o `admin`.
 - **Body**:
   ```json
   {
@@ -424,7 +445,7 @@ En caso de error:
 
 #### `PATCH /api/form207/:id/finalize`
 - **Descripción**: Cierra y finaliza la planilla del F207 de forma inmutable.
-- **Acceso**: Comandante de Incidente, Líder de Unidad Médica o `ADMIN`/`MANAGER`.
+- **Acceso**: Comandante de Incidente, Líder de Unidad Médica o `admin`/`manager`.
 
 ---
 
@@ -432,7 +453,7 @@ En caso de error:
 
 #### `POST /api/victim`
 - **Descripción**: Registra los datos de filiación base de una víctima.
-- **Acceso**: Todo personal asignado a la emergencia (`BASIC` o superior).
+- **Acceso**: Todo personal asignado a la emergencia (`basic` o superior).
 - **Body**:
   ```json
   {
@@ -476,7 +497,7 @@ En caso de error:
 
 #### `POST /api/equipment`
 - **Descripción**: Da de alta un nuevo equipo o recurso en el inventario.
-- **Acceso**: `ADMIN`, `MANAGER`.
+- **Acceso**: `admin`, `manager`.
 - **Body**:
   ```json
   {
@@ -492,7 +513,7 @@ En caso de error:
 
 #### `PATCH /api/equipment/:id` | `DELETE /api/equipment/:id`
 - **Descripción**: Actualización de stock/datos o eliminación de equipo.
-- **Acceso**: `ADMIN`, `MANAGER`.
+- **Acceso**: `admin`, `manager`.
 
 ---
 
@@ -500,7 +521,7 @@ En caso de error:
 
 #### `POST /api/resource`
 - **Descripción**: Asigna y despacha unidades de equipamiento a una emergencia, descontando automáticamente del stock disponible.
-- **Acceso**: Todo usuario asignado a la emergencia (`BASIC` o superior).
+- **Acceso**: Todo usuario asignado a la emergencia (`basic` o superior).
 - **Body**:
   ```json
   {
@@ -514,7 +535,7 @@ En caso de error:
 
 #### `PATCH /api/resource/:id/return`
 - **Descripción**: Registra la devolución de equipamiento desmovilizado, reincorporando el stock al inventario global.
-- **Acceso**: `MANAGER`, `ADMIN` o Comandante de Incidente.
+- **Acceso**: `manager`, `admin` o Comandante de Incidente.
 - **Body**: `{ "amountReturned": 2 }`
 
 #### `GET /api/resource/by-emergency/:emergencyId`
@@ -526,7 +547,7 @@ En caso de error:
 
 #### `POST /api/action`
 - **Descripción**: Registra un evento, decisión, novedad o nota de voz (con metadatos de audio) en la bitácora cronológica del incidente.
-- **Acceso**: Todo usuario asignado a la emergencia (`BASIC` o superior).
+- **Acceso**: Todo usuario asignado a la emergencia (`basic` o superior).
 - **Body**:
   ```json
   {
@@ -561,7 +582,7 @@ En caso de error:
 
 #### `GET /api/action/emergency/:emergencyId`
 - **Descripción**: Obtiene la línea de tiempo completa de acciones y eventos registrados en el incidente (incluyendo sus notas de voz y estados de procesamiento NLP).
-- **Acceso**: Autenticado (`BASIC` o superior).
+- **Acceso**: Autenticado (`basic` o superior).
 
 ---
 
@@ -606,7 +627,7 @@ En caso de error:
 
 #### `POST /api/sync/batch`
 - **Descripción**: Procesa la cola de operaciones acumuladas durante la pérdida de conectividad móvil. Las procesa en orden cronológico, ejecuta comprobación de idempotencia vía `client_generated_id` y emite alertas de conflicto si la emergencia fue cerrada mientras el cliente estaba offline.
-- **Acceso**: Autenticado (`BASIC` o superior).
+- **Acceso**: Autenticado (`basic` o superior).
 - **Body**:
   ```json
   {

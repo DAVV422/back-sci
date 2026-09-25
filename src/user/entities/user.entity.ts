@@ -44,6 +44,9 @@ export class UserEntity extends BaseEntity {
   @Column({ name: 'is_active', type: 'boolean', default: false })
   isActive: boolean;
 
+  @Column({ name: 'is_operational', type: 'boolean', default: true })
+  isOperational: boolean;
+
   @Column({
     name: 'role',
     type: 'enum',
