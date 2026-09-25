@@ -221,10 +221,14 @@ En caso de error:
 
 #### `GET /api/user/:id`
 - **Descripción**: Obtiene el detalle de un usuario por su ID.
+  - **Restricción de rol**: Si el usuario consultado tiene rol `suadmin` y quien consulta no es `suadmin`, el backend responde con `404 Not Found` (ocultamiento del superusuario).
 - **Acceso**: Autenticado.
 
 #### `PATCH /api/user/:id`
 - **Descripción**: Actualiza los datos y configuración institucional de un usuario (incluyendo `grade` institucional, `role`, `email`, etc.).
+  - **Restricciones de rol**:
+    - Un `ADMIN` no puede modificar a un usuario con rol `suadmin` (`403 Forbidden`).
+    - Un `ADMIN` no puede asignar o promover a ningún usuario al rol `suadmin` (`403 Forbidden`).
 - **Acceso**: Exclusivo `ADMIN` / `suadmin`.
 - **Body**:
   ```json
@@ -237,11 +241,13 @@ En caso de error:
 
 #### `PATCH /api/user/status/:id`
 - **Descripción**: Activa o desactiva a un usuario del servicio operativo (`isActive`).
+  - **Restricción de rol**: Un `ADMIN` o `MANAGER` no puede activar ni desactivar a un usuario con rol `suadmin` (`403 Forbidden`).
 - **Acceso**: `ADMIN`, `MANAGER`, `suadmin`.
 - **Body**: `{ "isActive": false }`
 
 #### `DELETE /api/user/:id`
 - **Descripción**: Soft delete del usuario en base de datos.
+  - **Restricción de rol**: Un `ADMIN` no puede eliminar a un usuario con rol `suadmin` (`403 Forbidden`).
 - **Acceso**: Exclusivo `ADMIN` / `suadmin`.
 
 ---

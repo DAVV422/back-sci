@@ -137,6 +137,21 @@ describe('UserService - findOne/findByEmail (admin direct access)', () => {
     mockRepo.findOne.mockResolvedValue(null);
     await expect(service.findOne('missing')).rejects.toThrow(NotFoundException);
   });
+
+  it('findOne throws NotFoundException when non-SUADMIN attempts to query a SUADMIN user', async () => {
+    const suadmin = { id: 'suadmin-id', role: 'suadmin', name: 'SuperAdmin' };
+    mockRepo.findOne.mockResolvedValue(suadmin);
+    await expect(service.findOne('suadmin-id', 'admin')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('findOne returns SUADMIN user when caller is SUADMIN', async () => {
+    const suadmin = { id: 'suadmin-id', role: 'suadmin', name: 'SuperAdmin' };
+    mockRepo.findOne.mockResolvedValue(suadmin);
+    const result = await service.findOne('suadmin-id', 'suadmin');
+    expect(result).toEqual(suadmin);
+  });
 });
 
 describe('UserService - updateStatus', () => {

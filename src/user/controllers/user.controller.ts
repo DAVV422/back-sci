@@ -128,12 +128,13 @@ export class UserController {
   @ApiParam({ name: 'id', type: 'string' })
   @Get(':id')
   public async findOne(
+    @GetUser('role') currentUserRole: string,
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ApiResponse<UserEntity>> {
     return {
       success: true,
       statusCode: 200,
-      data: await this.userService.findOne(id),
+      data: await this.userService.findOne(id, currentUserRole),
     };
   }
 

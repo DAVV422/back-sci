@@ -164,7 +164,7 @@ export class UserService {
     }
   }
 
-  public async findOne(id: string): Promise<UserEntity> {
+  public async findOne(id: string, currentUserRole?: string): Promise<UserEntity> {
     this.logger.log(`[findOne] Buscando usuario por ID. id=${id}`);
     try {
       const user: UserEntity = await this.userRepository.findOne({
@@ -172,6 +172,16 @@ export class UserService {
       });
       if (!user) {
         this.logger.warn(`[findOne] Usuario no encontrado. id=${id}`);
+        throw new NotFoundException('Usuario no encontrado.');
+      }
+      if (
+        user.role === ROLES.SUADMIN &&
+        currentUserRole &&
+        currentUserRole.toLowerCase() !== ROLES.SUADMIN
+      ) {
+        this.logger.warn(
+          `[findOne] Acceso denegado: intento de consultar un SUADMIN por rol no autorizado. id=${id}`,
+        );
         throw new NotFoundException('Usuario no encontrado.');
       }
       return user;
