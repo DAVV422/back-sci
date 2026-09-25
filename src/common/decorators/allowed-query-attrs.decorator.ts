@@ -9,6 +9,7 @@ export const USER_ALLOWED_ATTRS = [
   'isOperational',
   'role',
   'lastName',
+  'grade',
   'urlImage',
 ] as const;
 

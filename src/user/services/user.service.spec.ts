@@ -584,3 +584,94 @@ describe('UserService - bulkUpdateGrades', () => {
   });
 });
 
+describe('UserService - combined filters (findAll & findAllAdmin)', () => {
+  let service: UserService;
+  let queryBuilder: any;
+
+  beforeEach(async () => {
+    queryBuilder = {
+      take: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+    };
+    const mockRepo = {
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: EmailService, useValue: {} },
+        { provide: AuthTokenService, useValue: {} },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('10') } },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+  });
+
+  it('applies multiple combined filters simultaneously (name, role, isActive, isOperational, grade)', async () => {
+    await service.findAll({
+      name: 'Diego',
+      role: ROLES.ADMIN,
+      isActive: true,
+      isOperational: false,
+      grade: 'Capitán',
+    });
+
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('user.name ILIKE :filterName', {
+      filterName: '%Diego%',
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('user.role = :filterRole', {
+      filterRole: 'admin',
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('user.isActive = :filterIsActive', {
+      filterIsActive: true,
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'user.isOperational = :filterIsOperational',
+      { filterIsOperational: false },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('user.grade ILIKE :filterGrade', {
+      filterGrade: '%Capitán%',
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('user.is_deleted = false');
+  });
+
+  it('applies global search across name, lastName, and email', async () => {
+    await service.findAll({
+      search: 'silva',
+    });
+
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      '(user.name ILIKE :search OR user.lastName ILIKE :search OR user.email ILIKE :search)',
+      { search: '%silva%' },
+    );
+  });
+
+  it('allows combining global search with specific role and operational filters', async () => {
+    await service.findAll({
+      search: 'silva',
+      role: ROLES.BASIC,
+      isOperational: true,
+    });
+
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      '(user.name ILIKE :search OR user.lastName ILIKE :search OR user.email ILIKE :search)',
+      { search: '%silva%' },
+    );
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith('user.role = :filterRole', {
+      filterRole: 'basic',
+    });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'user.isOperational = :filterIsOperational',
+      { filterIsOperational: true },
+    );
+  });
+});
+
+

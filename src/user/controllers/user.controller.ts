@@ -27,9 +27,9 @@ import {
   UpdateProfileDto,
   AdminUserDto,
   BulkUpdateGradeDto,
+  UserQueryDto,
 } from '../dto/';
 import { UserService } from '../services/user.service';
-import { QueryDto } from '../../common/dto/query.dto';
 import { ApiResponse } from './../../common/interfaces/responseMessage.interface';
 import { ROLES } from './../../common/constants';
 import { UserEntity } from '../entities/user.entity';
@@ -58,12 +58,20 @@ export class UserController {
   @ApiQuery({ name: 'limit', type: 'number', required: false })
   @ApiQuery({ name: 'offset', type: 'number', required: false })
   @ApiQuery({ name: 'order', type: 'string', required: false })
-  @ApiQuery({ name: 'attr', type: 'string', required: false })
-  @ApiQuery({ name: 'value', type: 'string', required: false })
+  @ApiQuery({ name: 'search', type: 'string', required: false, description: 'Búsqueda por texto libre en nombre, apellido o correo' })
+  @ApiQuery({ name: 'name', type: 'string', required: false, description: 'Filtro específico por nombre' })
+  @ApiQuery({ name: 'lastName', type: 'string', required: false, description: 'Filtro específico por apellido' })
+  @ApiQuery({ name: 'email', type: 'string', required: false, description: 'Filtro específico por correo' })
+  @ApiQuery({ name: 'role', enum: ROLES, required: false, description: 'Filtro por rol institucional' })
+  @ApiQuery({ name: 'grade', type: 'string', required: false, description: 'Filtro por grado institucional' })
+  @ApiQuery({ name: 'isActive', type: 'boolean', required: false, description: 'Filtro por estado de cuenta en plataforma' })
+  @ApiQuery({ name: 'isOperational', type: 'boolean', required: false, description: 'Filtro por disponibilidad operativa de guardia' })
+  @ApiQuery({ name: 'attr', type: 'string', required: false, description: 'Atributo dinámico (retrocompatibilidad)' })
+  @ApiQuery({ name: 'value', type: 'string', required: false, description: 'Valor dinámico (retrocompatibilidad)' })
   @Get()
   public async findAll(
     @GetUser('role') currentUserRole: string,
-    @Query() queryDto: QueryDto,
+    @Query() queryDto: UserQueryDto,
   ): Promise<ApiResponse<UserEntity[]>> {
     const { items, total } = await this.userService.findAll(queryDto, currentUserRole);
     return {
@@ -82,12 +90,20 @@ export class UserController {
   @ApiQuery({ name: 'limit', type: 'number', required: false })
   @ApiQuery({ name: 'offset', type: 'number', required: false })
   @ApiQuery({ name: 'order', type: 'string', required: false })
-  @ApiQuery({ name: 'attr', type: 'string', required: false })
-  @ApiQuery({ name: 'value', type: 'string', required: false })
+  @ApiQuery({ name: 'search', type: 'string', required: false, description: 'Búsqueda por texto libre en nombre, apellido o correo' })
+  @ApiQuery({ name: 'name', type: 'string', required: false, description: 'Filtro específico por nombre' })
+  @ApiQuery({ name: 'lastName', type: 'string', required: false, description: 'Filtro específico por apellido' })
+  @ApiQuery({ name: 'email', type: 'string', required: false, description: 'Filtro específico por correo' })
+  @ApiQuery({ name: 'role', enum: ROLES, required: false, description: 'Filtro por rol institucional' })
+  @ApiQuery({ name: 'grade', type: 'string', required: false, description: 'Filtro por grado institucional' })
+  @ApiQuery({ name: 'isActive', type: 'boolean', required: false, description: 'Filtro por estado de cuenta en plataforma' })
+  @ApiQuery({ name: 'isOperational', type: 'boolean', required: false, description: 'Filtro por disponibilidad operativa de guardia' })
+  @ApiQuery({ name: 'attr', type: 'string', required: false, description: 'Atributo dinámico (retrocompatibilidad)' })
+  @ApiQuery({ name: 'value', type: 'string', required: false, description: 'Valor dinámico (retrocompatibilidad)' })
   @Get('admin/all')
   public async findAllAdmin(
     @GetUser('role') currentUserRole: string,
-    @Query() queryDto: QueryDto,
+    @Query() queryDto: UserQueryDto,
   ): Promise<ApiResponse<AdminUserDto[]>> {
     const { items, total } = await this.userService.findAllAdmin(queryDto, currentUserRole);
     return {

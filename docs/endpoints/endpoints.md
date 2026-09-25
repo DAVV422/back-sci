@@ -88,6 +88,45 @@ En caso de error:
 
 ---
 
+### 2.1 Estándar de Filtros Combinados y Parámetros de Consulta (Query Params)
+
+Para permitir que el Frontend gestione tablas interactivas con filtros múltiples simultáneos (sin tener que limpiar filtros ni realizar filtrados en cliente que rompan la paginación del servidor), el backend soporta **filtros combinados nativos en el servidor**:
+
+| Parámetro | Tipo | Descripción | Ejemplo |
+| :--- | :--- | :--- | :--- |
+| **`limit`** | `number` | Cantidad máxima de registros por página. | `limit=10` |
+| **`offset`** | `number` | Desplazamiento / salto de registros para paginación. | `offset=0` |
+| **`order`** | `string` | Dirección de ordenamiento cronológico (`ASC` o `DESC`). | `order=DESC` |
+| **`search`** | `string` | **Búsqueda global por texto libre**. Busca coincidencias parciales (insensible a mayúsculas/minúsculas) en nombre, apellido y correo simultáneamente. | `search=juan` |
+| **`name`** | `string` | Filtro específico por nombre de pila (coincidencia parcial `ILIKE`). | `name=Diego` |
+| **`lastName`** | `string` | Filtro específico por apellido (coincidencia parcial `ILIKE`). | `lastName=Silva` |
+| **`email`** | `string` | Filtro específico por correo electrónico (coincidencia parcial `ILIKE`). | `email=@sci.local` |
+| **`role`** | `string` | Filtro exacto por rol institucional en minúsculas (`suadmin`, `admin`, `manager`, `advanced`, `basic`). | `role=admin` |
+| **`grade`** | `string` | Filtro específico por grado institucional (coincidencia parcial). | `grade=Capitán` |
+| **`isActive`** | `boolean` | Filtro por estado de cuenta en plataforma (`true` = habilitada para login, `false` = suspendida/inactiva). Acepta strings `"true"`/`"false"`. | `isActive=true` |
+| **`isOperational`**| `boolean` | Filtro por disponibilidad operativa de guardia (`true` = en servicio, `false` = fuera de servicio). Acepta strings `"true"`/`"false"`. | `isOperational=true` |
+| **`attr` & `value`**| `string` | Par clave-valor dinámico soportado por **retrocompatibilidad** con código cliente existente. | `attr=name&value=juan` |
+
+#### Ejemplos de Consultas Combinadas para el Frontend:
+1. **Búsqueda global por texto + Rol + Estado Operativo**:
+   ```http
+   GET /api/user?search=diego&role=admin&isOperational=true&limit=10&offset=0
+   ```
+2. **Filtrar personal de guardia disponible con rol específico**:
+   ```http
+   GET /api/user?role=basic&isActive=true&isOperational=true
+   ```
+3. **Buscar bomberos por grado y nombre**:
+   ```http
+   GET /api/user?name=Carlos&grade=Teniente
+   ```
+4. **Listar cuentas inactivas para modal de reenvío de activación**:
+   ```http
+   GET /api/user?isActive=false
+   ```
+
+---
+
 ## 3. Catálogo Detallado de Endpoints
 
 ### 3.1 Módulo de Autenticación (`/api`)
@@ -200,14 +239,21 @@ En caso de error:
   ```
 
 #### `GET /api/user`
-- **Descripción**: Lista usuarios operativos del sistema (omite metadatos de auditoría `createdAt`/`updatedAt` y oculta al superusuario `suadmin` para roles no-suadmin). Retorna tanto `isActive` (estado de cuenta) como `isOperational` (en servicio / fuera de servicio).
+- **Descripción**: Lista usuarios del sistema con soporte para **filtros combinados múltiples en el servidor** (omite metadatos de auditoría `createdAt`/`updatedAt` y oculta al superusuario `suadmin` para roles no-suadmin). Retorna tanto `isActive` (estado de cuenta) como `isOperational` (en servicio / fuera de servicio).
 - **Acceso**: `admin`, `manager`, `suadmin`.
-- **Query Params**: `limit`, `offset`, `order` (`ASC`/`DESC`), `attr` (`name`/`email`/`role`/`lastName`/`isActive`/`isOperational`), `value`.
+- **Query Params**: Ver [Sección 2.1](#21-estándar-de-filtros-combinados-y-parámetros-de-consulta-query-params). Admite simultáneamente:
+  - `limit` (número), `offset` (número), `order` (`ASC` o `DESC`).
+  - `search` (búsqueda global en nombre, apellido o email).
+  - `name`, `lastName`, `email`, `role`, `grade`.
+  - `isActive` (`true` o `false`), `isOperational` (`true` o `false`).
+  - `attr` y `value` (retrocompatibilidad).
+- **Ejemplo**: `GET /api/user?search=juan&role=basic&isOperational=true&limit=10&offset=0`
 
 #### `GET /api/user/admin/all`
-- **Descripción**: Endpoint de auditoría para `suadmin` y `admin`. Retorna la lista completa de usuarios **incluyendo marcas de auditoría temporales** (`createdAt`, `updatedAt`). Si el consultante es `admin`, se filtran y ocultan los usuarios con rol `suadmin` (solo visibles si quien consulta es `suadmin`).
+- **Descripción**: Endpoint de auditoría para `suadmin` y `admin` con soporte para **filtros combinados múltiples en el servidor**. Retorna la lista completa de usuarios **incluyendo marcas de auditoría temporales** (`createdAt`, `updatedAt`). Si el consultante es `admin`, se filtran y ocultan los usuarios con rol `suadmin` (solo visibles si quien consulta es `suadmin`).
 - **Acceso**: `suadmin`, `admin`.
-- **Query Params**: `limit`, `offset`, `order` (`ASC`/`DESC`), `attr` (`name`/`email`/`role`/`lastName`/`isActive`/`isOperational`), `value`.
+- **Query Params**: Ver [Sección 2.1](#21-estándar-de-filtros-combinados-y-parámetros-de-consulta-query-params). Admite los mismos parámetros y filtros combinados que `GET /api/user`.
+- **Ejemplo**: `GET /api/user/admin/all?role=admin&isActive=true&order=DESC`
 
 #### `GET /api/user/me`
 - **Descripción**: Obtiene el perfil completo del usuario autenticado actual.

@@ -31,4 +31,8 @@ export class QueryDto {
 
   @IsOptional()
   value: string;
+
+  @IsString()
+  @IsOptional()
+  search?: string;
 }

@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import {
   BadRequestException,
   ForbiddenException,
@@ -21,6 +21,7 @@ import {
   UpdateProfileDto,
   AdminUserDto,
   BulkUpdateGradeDto,
+  UserQueryDto,
 } from '../dto/';
 import { UserEntity } from '../entities/user.entity';
 import { handlerError } from '../../common/utils/handlerError.utils';
@@ -51,21 +52,100 @@ export class UserService {
     private readonly configService: ConfigService,
   ) { }
 
+  private applyUserFilters(
+    query: SelectQueryBuilder<UserEntity>,
+    queryDto: UserQueryDto,
+  ): void {
+    const {
+      attr,
+      value,
+      search,
+      name,
+      lastName,
+      email,
+      role,
+      grade,
+      isActive,
+      isOperational,
+    } = queryDto;
+
+    // 1. Retrocompatibilidad: attr y value dinámico
+    if (attr) {
+      validateAllowedAttrs(attr, USER_ALLOWED_ATTRS);
+      if (value !== undefined && value !== null && value !== '') {
+        query.andWhere(`user.${attr} ILIKE :value`, {
+          value: `%${value}%`,
+        });
+      }
+    }
+
+    // 2. Búsqueda global por texto (search)
+    if (search && search.trim() !== '') {
+      query.andWhere(
+        '(user.name ILIKE :search OR user.lastName ILIKE :search OR user.email ILIKE :search)',
+        { search: `%${search.trim()}%` },
+      );
+    }
+
+    // 3. Filtros específicos combinables
+    if (name && name.trim() !== '') {
+      query.andWhere('user.name ILIKE :filterName', {
+        filterName: `%${name.trim()}%`,
+      });
+    }
+
+    if (lastName && lastName.trim() !== '') {
+      query.andWhere('user.lastName ILIKE :filterLastName', {
+        filterLastName: `%${lastName.trim()}%`,
+      });
+    }
+
+    if (email && email.trim() !== '') {
+      query.andWhere('user.email ILIKE :filterEmail', {
+        filterEmail: `%${email.trim()}%`,
+      });
+    }
+
+    if (role) {
+      query.andWhere('user.role = :filterRole', {
+        filterRole: (role as string).toLowerCase(),
+      });
+    }
+
+    if (grade && grade.trim() !== '') {
+      query.andWhere('user.grade ILIKE :filterGrade', {
+        filterGrade: `%${grade.trim()}%`,
+      });
+    }
+
+    if (isActive !== undefined) {
+      query.andWhere('user.isActive = :filterIsActive', {
+        filterIsActive: isActive,
+      });
+    }
+
+    if (isOperational !== undefined) {
+      query.andWhere('user.isOperational = :filterIsOperational', {
+        filterIsOperational: isOperational,
+      });
+    }
+  }
+
   public async findAll(
-    queryDto: QueryDto,
+    queryDto: UserQueryDto,
     currentUserRole?: string,
   ): Promise<PaginatedResult<UserEntity>> {
-    this.logger.log(`[findAll] Consultando lista de usuarios.`);
+    this.logger.log(`[findAll] Consultando lista de usuarios con filtros.`);
     try {
-      const { limit, offset, order, attr, value } = queryDto;
-      validateAllowedAttrs(attr, USER_ALLOWED_ATTRS);
+      const { limit, offset, order } = queryDto;
       const query = this.userRepository.createQueryBuilder('user');
       if (limit) query.take(limit);
       if (offset) query.skip(offset);
       if (order)
         query.orderBy('user.createdAt', order.toLocaleUpperCase() as any);
-      if (attr && value)
-        query.andWhere(`user.${attr} ILIKE :value`, { value: `%${value}%` });
+
+      this.applyUserFilters(query, queryDto);
+
       query.andWhere('user.is_deleted = false');
       if (currentUserRole?.toLowerCase() !== ROLES.SUADMIN) {
         query.andWhere('user.role != :suadminRole', { suadminRole: ROLES.SUADMIN });
@@ -79,20 +159,20 @@ export class UserService {
   }
 
   public async findAllAdmin(
-    queryDto: QueryDto,
+    queryDto: UserQueryDto,
     currentUserRole?: string,
   ): Promise<PaginatedResult<AdminUserDto>> {
     this.logger.log(`[findAllAdmin] Consultando lista de usuarios con auditoría para SUADMIN/ADMIN.`);
     try {
-      const { limit, offset, order, attr, value } = queryDto;
-      validateAllowedAttrs(attr, USER_ALLOWED_ATTRS);
+      const { limit, offset, order } = queryDto;
       const query = this.userRepository.createQueryBuilder('user');
       if (limit) query.take(limit);
       if (offset) query.skip(offset);
       if (order)
         query.orderBy('user.createdAt', order.toLocaleUpperCase() as any);
-      if (attr && value)
-        query.andWhere(`user.${attr} ILIKE :value`, { value: `%${value}%` });
+
+      this.applyUserFilters(query, queryDto);
+
       query.andWhere('user.is_deleted = false');
       if (currentUserRole?.toLowerCase() !== ROLES.SUADMIN) {
         query.andWhere('user.role != :suadminRole', { suadminRole: ROLES.SUADMIN });
