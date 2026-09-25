@@ -20,6 +20,7 @@ import {
   UpdateUserStatusDto,
   UpdateProfileDto,
   AdminUserDto,
+  BulkUpdateGradeDto,
 } from '../dto/';
 import { UserEntity } from '../entities/user.entity';
 import { handlerError } from '../../common/utils/handlerError.utils';
@@ -226,12 +227,13 @@ export class UserService {
         throw new ForbiddenException('No tienes permisos para asignar el rol Super Administrador.');
       }
 
-      // Regla de negocio: Admin/Suadmin solo puede editar email, role, isActive, isOperational (y password)
+      // Regla de negocio: Admin/Suadmin puede editar email, role, isActive, isOperational, grade (y password)
       const allowedUpdates: Partial<UserEntity> = {};
       if (updateUserDto.email !== undefined) allowedUpdates.email = updateUserDto.email;
       if (updateUserDto.role !== undefined) allowedUpdates.role = updateUserDto.role;
       if (updateUserDto.isActive !== undefined) allowedUpdates.isActive = updateUserDto.isActive;
       if (updateUserDto.isOperational !== undefined) allowedUpdates.isOperational = updateUserDto.isOperational;
+      if (updateUserDto.grade !== undefined) allowedUpdates.grade = updateUserDto.grade;
       if (updateUserDto.password) {
         allowedUpdates.password = await this.encryptPassword(updateUserDto.password);
       }
@@ -378,6 +380,137 @@ export class UserService {
     } catch (error) {
       handlerError(error, this.logger);
     }
+  }
+
+  public async bulkUpdateGrades(
+    dto: BulkUpdateGradeDto,
+    currentUserRole?: string,
+  ): Promise<{
+    summary: { total: number; successful: number; failed: number };
+    results: Array<{
+      userId: string;
+      success: boolean;
+      grade?: string;
+      message?: string;
+      error?: string;
+    }>;
+  }> {
+    this.logger.log(
+      `[bulkUpdateGrades] Procesando actualización masiva de grados institucionales. currentUserRole=${currentUserRole}`,
+    );
+
+    const operations: Array<{ userId: string; grade?: string }> = [];
+
+    if (dto.userIds && Array.isArray(dto.userIds) && dto.userIds.length > 0) {
+      for (const userId of dto.userIds) {
+        operations.push({ userId, grade: dto.grade });
+      }
+    }
+
+    if (dto.users && Array.isArray(dto.users) && dto.users.length > 0) {
+      for (const item of dto.users) {
+        operations.push({
+          userId: item.userId,
+          grade: item.grade !== undefined ? item.grade : dto.grade,
+        });
+      }
+    }
+
+    if (operations.length === 0) {
+      throw new BadRequestException(
+        'Debes proporcionar al menos un usuario para actualizar el grado institucional.',
+      );
+    }
+
+    const results: Array<{
+      userId: string;
+      success: boolean;
+      grade?: string;
+      message?: string;
+      error?: string;
+    }> = [];
+
+    const roleLower = currentUserRole?.toLowerCase();
+
+    for (const op of operations) {
+      try {
+        if (op.grade === undefined) {
+          results.push({
+            userId: op.userId,
+            success: false,
+            error: 'No se especificó el grado a asignar para este usuario.',
+          });
+          continue;
+        }
+
+        const user = await this.userRepository.findOne({
+          where: { id: op.userId, isDeleted: false },
+        });
+
+        if (!user) {
+          results.push({
+            userId: op.userId,
+            success: false,
+            error: 'Usuario no encontrado o dado de baja.',
+          });
+          continue;
+        }
+
+        // Restricciones de jerarquía:
+        // 1. admin no puede modificar el grado de un suadmin
+        if (roleLower === ROLES.ADMIN && user.role === ROLES.SUADMIN) {
+          results.push({
+            userId: op.userId,
+            success: false,
+            error:
+              'No tienes permisos para modificar el grado de un usuario Super Administrador.',
+          });
+          continue;
+        }
+
+        // 2. manager no puede modificar el grado de un admin ni suadmin
+        if (
+          roleLower === ROLES.MANAGER &&
+          (user.role === ROLES.SUADMIN || user.role === ROLES.ADMIN)
+        ) {
+          results.push({
+            userId: op.userId,
+            success: false,
+            error:
+              'Un manager solo puede modificar el grado institucional de usuarios con rol basic, advanced o manager.',
+          });
+          continue;
+        }
+
+        await this.userRepository.update(op.userId, { grade: op.grade });
+
+        results.push({
+          userId: op.userId,
+          success: true,
+          grade: op.grade,
+          message: 'Grado institucional actualizado exitosamente.',
+        });
+      } catch (err: any) {
+        results.push({
+          userId: op.userId,
+          success: false,
+          error:
+            err?.message || 'Error inesperado al procesar la actualización.',
+        });
+      }
+    }
+
+    const successful = results.filter((r) => r.success).length;
+    const failed = results.filter((r) => !r.success).length;
+
+    return {
+      summary: {
+        total: results.length,
+        successful,
+        failed,
+      },
+      results,
+    };
   }
 
   async countUsers(): Promise<number> {

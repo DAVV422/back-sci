@@ -56,6 +56,16 @@ export class UpdateUserDto {
   isOperational?: boolean;
 
   @ApiProperty({
+    example: 'Capitán',
+    type: String,
+    description: 'Grado o jerarquía institucional del personal de emergencia',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  grade?: string;
+
+  @ApiProperty({
     example: 'NuevaPassword123*',
     type: String,
     description: 'Nueva contraseña del usuario',

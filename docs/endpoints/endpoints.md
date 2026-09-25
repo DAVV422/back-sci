@@ -14,7 +14,7 @@ Este documento centraliza y detalla todos los endpoints disponibles en el backen
 |:---|:---|:---|
 | **`suadmin`** | Super Administrador del Sistema. Nivel jerárquico máximo. Puede crear, listar, modificar y eliminar cualquier entidad o usuario (incluyendo usuarios con rol `admin`). Acceso exclusivo a endpoints de auditoría con marcas temporales de sistema (`GET /api/user/admin/all`). | Ninguna. |
 | **`admin`** | Gestión administrativa de la plataforma. Puede crear, listar, modificar y eliminar usuarios (`admin`, `manager`, `advanced`, `basic`) y recursos del sistema. | **No puede** crear, ver en listados, consultar por ID, modificar, cambiar de estado ni eliminar usuarios con rol `suadmin`, ni promover a otros usuarios al rol `suadmin`. |
-| **`manager`** | Gestión operativa total del sistema y recursos. Puede gestionar emergencias, equipamiento, asignaciones y cambiar la disponibilidad operativa de usuarios (`PATCH /api/user/status/:id`). | **No puede** crear nuevos usuarios ni eliminarlos de la base de datos. No puede interactuar con usuarios `suadmin`. |
+| **`manager`** | Gestión operativa total del sistema y recursos. Puede gestionar emergencias, equipamiento, asignaciones, cambiar la disponibilidad operativa de usuarios (`PATCH /api/user/status/:id`) y actualizar grados institucionales del personal por lote o individual (`PATCH /api/user/grades`). | **No puede** crear nuevos usuarios ni eliminarlos de la base de datos. No puede modificar roles de sistema ni interactuar con usuarios `admin` o `suadmin`. |
 | **`advanced`** | Gestión operativa de emergencias, incidentes, bitácoras, formularios y recursos. | **No puede** crear, activar, desactivar ni eliminar usuarios. |
 | **`basic`** | Operador táctico de campo. Solo gestiona la información de la emergencia en la que está activamente asignado según su rol/cargo SCI. | Solo accede a recursos de emergencias donde participa. |
 
@@ -237,8 +237,8 @@ En caso de error:
 #### `PATCH /api/user/:id`
 - **Descripción**: Actualiza la configuración administrativa e institucional de una cuenta de usuario por parte de `admin` o `suadmin`.
   - **Regla de negocio sobre campos editables**:
-    - **Permitidos para admin/suadmin**: `email`, `role`, `isActive` (habilitar/suspender cuenta), `isOperational` (disponibilidad operativa) y `password` (reset/cambio de contraseña).
-    - **Protegidos**: Los campos de identidad personal (`name`, `lastName`, `cellphone`, etc.) los mantiene el propio usuario en su perfil (`PATCH /api/user/me`).
+    - **Permitidos para admin/suadmin**: `email`, `role`, `grade` (grado o jerarquía institucional), `isActive` (habilitar/suspender cuenta), `isOperational` (disponibilidad operativa) y `password` (reset/cambio de contraseña).
+    - **Protegidos**: Los campos de identidad personal (`name`, `lastName`, `cellphone`, `birthdate`, `urlImage`) los mantiene el propio usuario en su perfil (`PATCH /api/user/me`).
   - **Restricciones de rol**:
     - Un `admin` no puede modificar a un usuario con rol `suadmin` (`403 Forbidden`).
     - Un `admin` no puede asignar o promover a ningún usuario al rol `suadmin` (`403 Forbidden`).
@@ -248,8 +248,77 @@ En caso de error:
   {
     "email": "nuevo.correo@sci.local",
     "role": "advanced",
+    "grade": "Teniente Segundo",
     "isActive": true,
     "isOperational": true
+  }
+  ```
+
+#### `PATCH /api/user/grades`
+- **Descripción**: Actualización masiva o individual del grado institucional (`grade`) del personal en la unidad de emergencias (utilizado para ascensos periódicos o anuales por lotes de bomberos/brigadistas).
+  - **Tolerancia a fallos parciales (Partial Success)**: El endpoint procesa todos los elementos de la solicitud. Si un usuario falla (ej: ID inexistente o permisos insuficientes), esa operación se reporta con `success: false` y su mensaje de error, pero **no interrumpe ni revierte los usuarios válidos del lote**.
+  - **Restricciones de rol**:
+    - `suadmin`: Puede actualizar el grado de cualquier usuario institucional.
+    - `admin`: Puede actualizar el grado de cualquier usuario excepto cuentas `suadmin`.
+    - `manager`: Puede actualizar el grado de personal operativo (`basic`, `advanced`, `manager`). No puede modificar el grado de cuentas `admin` ni `suadmin`.
+- **Acceso**: `manager`, `admin`, `suadmin` (`@RolesAccess(ROLES.MANAGER)`).
+- **Body (Modalidad A: Selección múltiple con el mismo grado)**:
+  ```json
+  {
+    "userIds": [
+      "d3b07384-d113-494e-9c8e-aa8939b4e12e",
+      "a1c07384-d113-494e-9c8e-aa8939b4e12f"
+    ],
+    "grade": "Bombero Primero"
+  }
+  ```
+- **Body (Modalidad B: Asignación heterogénea o individual)**:
+  ```json
+  {
+    "users": [
+      {
+        "userId": "d3b07384-d113-494e-9c8e-aa8939b4e12e",
+        "grade": "Capitán"
+      },
+      {
+        "userId": "a1c07384-d113-494e-9c8e-aa8939b4e12f",
+        "grade": "Teniente Primero"
+      }
+    ]
+  }
+  ```
+- **Response (200 OK con desglose)**:
+  ```json
+  {
+    "success": true,
+    "statusCode": 200,
+    "message": "Actualización de grados institucionales procesada.",
+    "data": {
+      "summary": {
+        "total": 3,
+        "successful": 2,
+        "failed": 1
+      },
+      "results": [
+        {
+          "userId": "d3b07384-d113-494e-9c8e-aa8939b4e12e",
+          "success": true,
+          "grade": "Bombero Primero",
+          "message": "Grado institucional actualizado exitosamente."
+        },
+        {
+          "userId": "e4c08495-e224-405f-0d9f-bb9040c5f23f",
+          "success": false,
+          "error": "No tienes permisos para modificar el grado de un usuario Super Administrador."
+        },
+        {
+          "userId": "f5d19506-f335-416a-1e0a-cc0151d6a34a",
+          "success": true,
+          "grade": "Bombero Primero",
+          "message": "Grado institucional actualizado exitosamente."
+        }
+      ]
+    }
   }
   ```
 

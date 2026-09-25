@@ -35,7 +35,8 @@ El sistema cuenta con **5 roles de acceso técnico global** estandarizados en mi
 | Funcionalidad | `suadmin` | `admin` | `manager` | `advanced` | `basic` |
 |:---|:---:|:---:|:---:|:---:|:---:|
 | **Crear Usuarios Nuevos** (`POST /api/user`) | ✅ (cualquier rol) | ✅ (roles hasta `admin`) | ❌ | ❌ | ❌ |
-| **Modificar Rol, Email o Estado de Usuarios** (`PATCH /api/user/:id`) | ✅ (cualquier usuario) | ✅ (solo usuarios hasta `admin`) | ❌ | ❌ | ❌ |
+| **Modificar Rol, Email, Grado o Estado de Usuarios** (`PATCH /api/user/:id`) | ✅ (cualquier usuario) | ✅ (solo usuarios hasta `admin`) | ❌ | ❌ | ❌ |
+| **Actualizar Grado Institucional (`grade`) por Lote o Individual** (`PATCH /api/user/grades`) | ✅ (cualquier usuario) | ✅ (excepto `suadmin`) | ✅ (personal operativo) | ❌ | ❌ |
 | **Eliminar Usuarios** (`DELETE /api/user/:id`) | ✅ (cualquier usuario) | ✅ (solo usuarios hasta `admin`) | ❌ | ❌ | ❌ |
 | **Cambiar Estado Operativo / Guardia (`isOperational`)** (`PATCH /api/user/status/:id`) | ✅ | ✅ | ✅ | ❌ | ❌ |
 | **Ver Lista Global de Usuarios** (`GET /api/user`) | ✅ (ve todos) | ✅ (filtrados, sin `suadmin`) | ✅ (filtrados, sin `suadmin`) | ❌ | ❌ |

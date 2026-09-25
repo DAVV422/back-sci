@@ -501,3 +501,86 @@ describe('UserService - createUser and REQUIRE_EMAIL_ACTIVATION', () => {
     );
   });
 });
+
+describe('UserService - bulkUpdateGrades', () => {
+  let service: UserService;
+  let mockRepo: any;
+
+  beforeEach(async () => {
+    mockRepo = {
+      findOne: jest.fn(),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: EmailService, useValue: {} },
+        { provide: AuthTokenService, useValue: {} },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('10') } },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+  });
+
+  it('updates grade for multiple users when userIds and grade are provided (manager)', async () => {
+    mockRepo.findOne.mockImplementation(({ where }: any) => {
+      if (where.id === 'user-1') return Promise.resolve({ id: 'user-1', role: ROLES.BASIC, grade: 'Bombero' });
+      if (where.id === 'user-2') return Promise.resolve({ id: 'user-2', role: ROLES.ADVANCED, grade: 'Bombero' });
+      return Promise.resolve(null);
+    });
+
+    const result = await service.bulkUpdateGrades(
+      { userIds: ['user-1', 'user-2'], grade: 'Teniente Segundo' },
+      ROLES.MANAGER,
+    );
+
+    expect(result.summary).toEqual({ total: 2, successful: 2, failed: 0 });
+    expect(mockRepo.update).toHaveBeenCalledWith('user-1', { grade: 'Teniente Segundo' });
+    expect(mockRepo.update).toHaveBeenCalledWith('user-2', { grade: 'Teniente Segundo' });
+  });
+
+  it('handles partial failures (user not found or insufficient permissions) without aborting others', async () => {
+    mockRepo.findOne.mockImplementation(({ where }: any) => {
+      if (where.id === 'user-1') return Promise.resolve({ id: 'user-1', role: ROLES.BASIC, grade: 'Bombero' });
+      if (where.id === 'user-suadmin') return Promise.resolve({ id: 'user-suadmin', role: ROLES.SUADMIN, grade: 'Comandante' });
+      if (where.id === 'user-404') return Promise.resolve(null);
+      return Promise.resolve(null);
+    });
+
+    const result = await service.bulkUpdateGrades(
+      {
+        users: [
+          { userId: 'user-1', grade: 'Teniente' },
+          { userId: 'user-suadmin', grade: 'Director' },
+          { userId: 'user-404', grade: 'Capitán' },
+        ],
+      },
+      ROLES.ADMIN,
+    );
+
+    expect(result.summary).toEqual({ total: 3, successful: 1, failed: 2 });
+    expect(result.results[0].success).toBe(true);
+    expect(result.results[1].success).toBe(false);
+    expect(result.results[1].error).toContain('Super Administrador');
+    expect(result.results[2].success).toBe(false);
+    expect(result.results[2].error).toContain('no encontrado');
+  });
+
+  it('prevents manager from updating grade of admin or suadmin users', async () => {
+    mockRepo.findOne.mockResolvedValue({ id: 'admin-1', role: ROLES.ADMIN, grade: 'Capitán' });
+
+    const result = await service.bulkUpdateGrades(
+      { userIds: ['admin-1'], grade: 'Comandante' },
+      ROLES.MANAGER,
+    );
+
+    expect(result.summary).toEqual({ total: 1, successful: 0, failed: 1 });
+    expect(result.results[0].success).toBe(false);
+    expect(result.results[0].error).toContain('Un manager solo puede modificar el grado institucional');
+    expect(mockRepo.update).not.toHaveBeenCalled();
+  });
+});
+

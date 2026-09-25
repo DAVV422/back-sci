@@ -26,6 +26,7 @@ import {
   UpdateUserStatusDto,
   UpdateProfileDto,
   AdminUserDto,
+  BulkUpdateGradeDto,
 } from '../dto/';
 import { UserService } from '../services/user.service';
 import { QueryDto } from '../../common/dto/query.dto';
@@ -135,6 +136,24 @@ export class UserController {
       success: true,
       statusCode: 200,
       data: await this.userService.findOne(id, currentUserRole),
+    };
+  }
+
+  @RolesAccess(ROLES.MANAGER)
+  @Patch('grades')
+  public async bulkUpdateGrades(
+    @GetUser('role') currentUserRole: string,
+    @Body() bulkUpdateGradeDto: BulkUpdateGradeDto,
+  ): Promise<ApiResponse<any>> {
+    const data = await this.userService.bulkUpdateGrades(
+      bulkUpdateGradeDto,
+      currentUserRole,
+    );
+    return {
+      success: true,
+      statusCode: 200,
+      message: 'Actualización de grados institucionales procesada.',
+      data,
     };
   }
 
