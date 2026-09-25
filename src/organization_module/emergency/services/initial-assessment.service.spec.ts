@@ -11,12 +11,15 @@ import { EmergencyStatus } from '../enums/emergency-status.enum';
 import { SeverityLevel } from '../enums/severity-level.enum';
 import { ActionEntity } from '../../../incident_module/action/entities/action.entity';
 import { UserService } from '../../../user/services/user.service';
+import { AttendEntity } from '../../attends/entities/attends.entity';
+import { ROLES } from '../../../common/constants';
 
 describe('InitialAssessmentService', () => {
   let service: InitialAssessmentService;
   let mockAssessmentRepo: any;
   let mockEmergencyRepo: any;
   let mockActionRepo: any;
+  let mockAttendRepo: any;
   let mockUserService: any;
 
   const emergencyId = '3f2b5f1a-9e8d-4c7b-a6e5-1d2c3b4a5f6e';
@@ -51,6 +54,9 @@ describe('InitialAssessmentService', () => {
       create: jest.fn(),
       save: jest.fn(),
     };
+    mockAttendRepo = {
+      findOne: jest.fn(),
+    };
     mockUserService = {
       findOne: jest.fn(),
     };
@@ -69,6 +75,10 @@ describe('InitialAssessmentService', () => {
         {
           provide: getRepositoryToken(ActionEntity),
           useValue: mockActionRepo,
+        },
+        {
+          provide: getRepositoryToken(AttendEntity),
+          useValue: mockAttendRepo,
         },
         { provide: UserService, useValue: mockUserService },
       ],
@@ -97,7 +107,7 @@ describe('InitialAssessmentService', () => {
     });
 
     it('persiste la evaluación y registra la acción automática', async () => {
-      const result = await service.create(emergencyId, dto as any, userId);
+      const result = await service.create(emergencyId, dto as any, userId, ROLES.ADMIN);
 
       expect(mockAssessmentRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -126,7 +136,7 @@ describe('InitialAssessmentService', () => {
       });
 
       await expect(
-        service.create(emergencyId, dto as any, userId),
+        service.create(emergencyId, dto as any, userId, ROLES.ADMIN),
       ).rejects.toThrow(BadRequestException);
       expect(mockAssessmentRepo.save).not.toHaveBeenCalled();
     });
@@ -138,7 +148,7 @@ describe('InitialAssessmentService', () => {
       });
 
       await expect(
-        service.create(emergencyId, dto as any, userId),
+        service.create(emergencyId, dto as any, userId, ROLES.ADMIN),
       ).rejects.toThrow(BadRequestException);
       expect(mockAssessmentRepo.save).not.toHaveBeenCalled();
     });
@@ -150,7 +160,7 @@ describe('InitialAssessmentService', () => {
       });
 
       await expect(
-        service.create(emergencyId, dto as any, userId),
+        service.create(emergencyId, dto as any, userId, ROLES.ADMIN),
       ).rejects.toThrow(BadRequestException);
     });
 
@@ -158,7 +168,7 @@ describe('InitialAssessmentService', () => {
       mockEmergencyRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        service.create(emergencyId, dto as any, userId),
+        service.create(emergencyId, dto as any, userId, ROLES.ADMIN),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -177,9 +187,14 @@ describe('InitialAssessmentService', () => {
         initialAssessment: { id: 'assessment-1' },
       });
 
-      const result = await service.update(emergencyId, {
-        weather_conditions: 'Sin viento',
-      } as any);
+      const result = await service.update(
+        emergencyId,
+        {
+          weather_conditions: 'Sin viento',
+        } as any,
+        userId,
+        ROLES.ADMIN,
+      );
 
       expect(mockAssessmentRepo.update).toHaveBeenCalledWith('assessment-1', {
         weather_conditions: 'Sin viento',
@@ -194,9 +209,14 @@ describe('InitialAssessmentService', () => {
       mockEmergencyRepo.findOne.mockResolvedValue({ ...emergencyBase });
 
       await expect(
-        service.update(emergencyId, {
-          weather_conditions: 'Sin viento',
-        } as any),
+        service.update(
+          emergencyId,
+          {
+            weather_conditions: 'Sin viento',
+          } as any,
+          userId,
+          ROLES.ADMIN,
+        ),
       ).rejects.toThrow(NotFoundException);
       expect(mockAssessmentRepo.update).not.toHaveBeenCalled();
     });

@@ -4,16 +4,24 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 
-import { CreateEmergencyDto } from '../dto/create-emergency.dto';
-import { UpdateEmergencyDto } from '../dto/update-emergency.dto';
-import { ChangeEmergencyStateDto } from '../dto/change-emergency-state.dto';
+import {
+  CreateEmergencyDto,
+  UpdateEmergencyDto,
+  ChangeEmergencyStateDto,
+  AssignCommanderDto,
+  TransferCommandDto,
+} from '../dto/';
 import { EmergencyEntity } from '../entities/emergency.entity';
 import { EmergencyStatus } from '../enums/emergency-status.enum';
 import { ActionEntity } from '../../../incident_module/action/entities/action.entity';
+import { AttendEntity } from '../../attends/entities/attends.entity';
+import { ChargeEntity } from '../../../sci_module/charges/entities/charges.entity';
+import { Form201Entity } from '../../../incident_module/form-201/entities/form-201.entity';
 import { handlerError } from '../../../common/utils/handlerError.utils';
 import { QueryDto } from '../../../common/dto/query.dto';
 import {
@@ -101,6 +109,60 @@ export class EmergencyService {
         const emergencyCreated = await queryRunner.manager.save(
           emergencyCreate,
         );
+
+        // Auto-asignación del creador como Comandante de Incidente inicial (Punto 3)
+        try {
+          const commanderCharge = await queryRunner.manager.findOne(
+            ChargeEntity,
+            { where: { systemName: 'incident_commander', isDeleted: false } },
+          );
+          if (commanderCharge) {
+            const now = new Date();
+            const hourStr = `${String(now.getHours()).padStart(2, '0')}:${String(
+              now.getMinutes(),
+            ).padStart(2, '0')}`;
+
+            const initialCommanderAttend = queryRunner.manager.create(
+              AttendEntity,
+              {
+                date: now,
+                hour: hourStr,
+                isActive: true,
+                chargeSystemName: 'incident_commander',
+                user: { id: userEntity.id },
+                emergency: { id: emergencyCreated.id },
+                charge: { id: commanderCharge.id },
+              },
+            );
+            await queryRunner.manager.save(initialCommanderAttend);
+
+            // Registro en bitácora
+            const creatorName =
+              `${userEntity.name || ''} ${userEntity.lastName || ''}`.trim() ||
+              userEntity.email;
+            const actionRecord = queryRunner.manager.create(ActionEntity, {
+              description: `Emergencia creada. Comandante de Incidente inicial asignado: ${creatorName}`,
+              date: now,
+              hour: hourStr,
+              user: { id: userEntity.id },
+              emergency: { id: emergencyCreated.id },
+            });
+            await queryRunner.manager.save(actionRecord);
+
+            this.logger.log(
+              `[create] Comandante de Incidente inicial auto-asignado: user=${userEntity.id}, emergency=${emergencyCreated.id}`,
+            );
+          } else {
+            this.logger.warn(
+              `[create] Cargo 'incident_commander' no encontrado en catálogo. No se pudo auto-asignar CI inicial.`,
+            );
+          }
+        } catch (ciError: any) {
+          this.logger.warn(
+            `[create] Advertencia al auto-asignar CI inicial: ${ciError.message}`,
+          );
+        }
+
         await queryRunner.commitTransaction();
         this.logger.log(
           `[create] Emergencia creada exitosamente. id=${emergencyCreated.id}, code=${nextCode}`,
@@ -118,16 +180,40 @@ export class EmergencyService {
   }
 
   public async findOne(id: string): Promise<EmergencyEntity> {
-    this.logger.log(`[findOne] Buscando emergencia. id=${id}`);
+    this.logger.log(`[findOne] Buscando emergencia con relaciones completas. id=${id}`);
     try {
-      const emergency: EmergencyEntity = await this.emergencyRepository.findOne(
-        { where: { id, isDeleted: false } },
-      );
+      const emergency: EmergencyEntity = await this.emergencyRepository.findOne({
+        where: { id, isDeleted: false },
+        relations: [
+          'user',
+          'attends',
+          'attends.user',
+          'attends.charge',
+          'initialAssessment',
+          'form201',
+        ],
+      });
+
+      if (emergency) {
+        if (emergency.attends) {
+          emergency.attends = emergency.attends.filter(
+            (attend) => !attend.isDeleted,
+          );
+        }
+        if (emergency.form201) {
+          emergency.form201 = emergency.form201.filter(
+            (form) => !form.isDeleted,
+          );
+        }
+      }
+
       if (!emergency) {
         this.logger.warn(`[findOne] Emergencia no encontrada. id=${id}`);
         throw new NotFoundException('Emergencia no encontrada.');
       }
-      this.logger.log(`[findOne] Emergencia encontrada. id=${emergency.id}, code=${emergency.code}, state=${emergency.state}`);
+      this.logger.log(
+        `[findOne] Emergencia encontrada. id=${emergency.id}, code=${emergency.code}, state=${emergency.state}`,
+      );
       return emergency;
     } catch (error) {
       handlerError(error, this.logger);
@@ -279,6 +365,289 @@ export class EmergencyService {
         message: 'Emergencia eliminada.',
         data: null,
       };
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
+  public async assignCommander(
+    emergencyId: string,
+    assignCommanderDto: AssignCommanderDto,
+    requesterId: string,
+    requesterRole: string,
+  ): Promise<EmergencyEntity> {
+    this.logger.log(
+      `[assignCommander] Asignando CI inicial para emergencia ${emergencyId}. nuevoCI=${assignCommanderDto.commanderUserId}, requester=${requesterId}`,
+    );
+    try {
+      const emergency = await this.findOne(emergencyId);
+      this.assertEditable(emergency);
+
+      const roleLower = requesterRole?.toLowerCase();
+      const isManagerOrAbove =
+        roleLower === ROLES.MANAGER ||
+        roleLower === ROLES.ADMIN ||
+        roleLower === ROLES.SUADMIN;
+      const isCreator = emergency.user?.id === requesterId;
+
+      if (!isManagerOrAbove && !isCreator) {
+        throw new ForbiddenException(
+          'Solo un usuario con rol Manager o superior, o el creador de la emergencia, puede asignar al Comandante de Incidente inicial.',
+        );
+      }
+
+      const newCommanderUser = await this.userService.findOne(
+        assignCommanderDto.commanderUserId,
+      );
+      if (!newCommanderUser || !newCommanderUser.isActive) {
+        throw new BadRequestException(
+          'El usuario a asignar como Comandante de Incidente no existe o se encuentra inactivo.',
+        );
+      }
+
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        const commanderCharge = await queryRunner.manager.findOne(
+          ChargeEntity,
+          { where: { systemName: 'incident_commander', isDeleted: false } },
+        );
+        if (!commanderCharge) {
+          throw new NotFoundException(
+            'Cargo de Comandante del Incidente no encontrado en el catálogo.',
+          );
+        }
+
+        // Buscar si ya hay un CI activo
+        const currentActiveCI = await queryRunner.manager.findOne(AttendEntity, {
+          where: {
+            emergency: { id: emergencyId },
+            chargeSystemName: 'incident_commander',
+            isActive: true,
+            isDeleted: false,
+          },
+          relations: ['user'],
+        });
+
+        if (currentActiveCI?.user?.id === newCommanderUser.id) {
+          throw new ConflictException(
+            'El usuario indicado ya es el Comandante del Incidente activo.',
+          );
+        }
+
+        // Al ser asignación inicial (no traspaso formal), se libera la asignación previa provisional
+        if (currentActiveCI) {
+          currentActiveCI.isActive = false;
+          currentActiveCI.isDeleted = true;
+          await queryRunner.manager.save(currentActiveCI);
+        }
+
+        const now = new Date();
+        const hourStr = `${String(now.getHours()).padStart(2, '0')}:${String(
+          now.getMinutes(),
+        ).padStart(2, '0')}`;
+
+        // Asignar el nuevo CI
+        const newCIAttend = queryRunner.manager.create(AttendEntity, {
+          date: now,
+          hour: hourStr,
+          isActive: true,
+          chargeSystemName: 'incident_commander',
+          charge: { id: commanderCharge.id },
+          user: { id: newCommanderUser.id },
+          emergency: { id: emergency.id },
+        });
+        await queryRunner.manager.save(newCIAttend);
+
+        const newName =
+          `${newCommanderUser.name || ''} ${newCommanderUser.lastName || ''}`.trim() ||
+          newCommanderUser.email;
+        const actionRecord = queryRunner.manager.create(ActionEntity, {
+          description: `Comandante de Incidente inicial asignado: ${newName}`,
+          date: now,
+          hour: hourStr,
+          user: { id: requesterId },
+          emergency: { id: emergency.id },
+        });
+        await queryRunner.manager.save(actionRecord);
+
+        await queryRunner.commitTransaction();
+        this.logger.log(
+          `[assignCommander] CI asignado exitosamente: user=${newCommanderUser.id} en emergencia=${emergencyId}`,
+        );
+        return await this.findOne(emergencyId);
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      } finally {
+        await queryRunner.release();
+      }
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
+  public async transferCommand(
+    emergencyId: string,
+    transferCommandDto: TransferCommandDto,
+    requesterId: string,
+    requesterRole: string,
+  ): Promise<EmergencyEntity> {
+    this.logger.log(
+      `[transferCommand] Iniciando traspaso formal de mando en emergencia ${emergencyId}. nuevoCI=${transferCommandDto.newCommanderUserId}, requester=${requesterId}`,
+    );
+    try {
+      const emergency = await this.findOne(emergencyId);
+      this.assertEditable(emergency);
+
+      // 1. Validar que no haya Formulario 201 activo sin finalizar
+      const activeF201 = await this.emergencyRepository.manager.findOne(
+        Form201Entity,
+        {
+          where: {
+            emergency: { id: emergencyId },
+            isFinalized: false,
+            isDeleted: false,
+          },
+        },
+      );
+      if (activeF201) {
+        this.logger.warn(
+          `[transferCommand] Traspaso rechazado: Formulario 201 (${activeF201.id}) aún no finalizado.`,
+        );
+        throw new BadRequestException(
+          'Finaliza el Formulario 201 activo antes de traspasar el mando.',
+        );
+      }
+
+      // 2. Verificar permisos del solicitante: Rol >= MANAGER O CI activo actual
+      const roleLower = requesterRole?.toLowerCase();
+      const isManagerOrAbove =
+        roleLower === ROLES.MANAGER ||
+        roleLower === ROLES.ADMIN ||
+        roleLower === ROLES.SUADMIN;
+
+      const currentActiveCI = await this.emergencyRepository.manager.findOne(
+        AttendEntity,
+        {
+          where: {
+            emergency: { id: emergencyId },
+            chargeSystemName: 'incident_commander',
+            isActive: true,
+            isDeleted: false,
+          },
+          relations: ['user'],
+        },
+      );
+
+      const isCurrentCI = currentActiveCI?.user?.id === requesterId;
+      if (!isManagerOrAbove && !isCurrentCI) {
+        throw new ForbiddenException(
+          'Solo el Comandante del Incidente activo o un usuario con rol Manager o superior puede traspasar el mando.',
+        );
+      }
+
+      // 3. Validar nuevo CI
+      const newCommanderUser = await this.userService.findOne(
+        transferCommandDto.newCommanderUserId,
+      );
+      if (!newCommanderUser || !newCommanderUser.isActive) {
+        throw new BadRequestException(
+          'El usuario a asumir como nuevo Comandante de Incidente no existe o está inactivo.',
+        );
+      }
+
+      if (currentActiveCI?.user?.id === newCommanderUser.id) {
+        throw new ConflictException(
+          'El usuario indicado ya es el Comandante del Incidente activo.',
+        );
+      }
+
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        const commanderCharge = await queryRunner.manager.findOne(
+          ChargeEntity,
+          { where: { systemName: 'incident_commander', isDeleted: false } },
+        );
+        if (!commanderCharge) {
+          throw new NotFoundException(
+            'Cargo de Comandante del Incidente no encontrado en el catálogo.',
+          );
+        }
+
+        // 4. Sellar periodo del CI anterior: isActive = false (mantiene historial del periodo)
+        if (currentActiveCI) {
+          currentActiveCI.isActive = false;
+          await queryRunner.manager.save(currentActiveCI);
+        }
+
+        // Si el nuevo CI tenía otro attend activo en la emergencia, cerrarlo para asumir mando
+        const existingAttendNewCI = await queryRunner.manager.findOne(
+          AttendEntity,
+          {
+            where: {
+              emergency: { id: emergencyId },
+              user: { id: newCommanderUser.id },
+              isActive: true,
+              isDeleted: false,
+            },
+          },
+        );
+        if (existingAttendNewCI) {
+          existingAttendNewCI.isActive = false;
+          await queryRunner.manager.save(existingAttendNewCI);
+        }
+
+        // 5. Iniciar nuevo periodo de mando para el nuevo CI
+        const now = new Date();
+        const hourStr = `${String(now.getHours()).padStart(2, '0')}:${String(
+          now.getMinutes(),
+        ).padStart(2, '0')}`;
+
+        const newPeriodCIAttend = queryRunner.manager.create(AttendEntity, {
+          date: now,
+          hour: hourStr,
+          isActive: true,
+          chargeSystemName: 'incident_commander',
+          charge: { id: commanderCharge.id },
+          user: { id: newCommanderUser.id },
+          emergency: { id: emergency.id },
+        });
+        await queryRunner.manager.save(newPeriodCIAttend);
+
+        // 6. Registro formal en bitácora
+        const prevName = currentActiveCI?.user
+          ? `${currentActiveCI.user.name || ''} ${currentActiveCI.user.lastName || ''}`.trim()
+          : 'Comandante previo';
+        const newName =
+          `${newCommanderUser.name || ''} ${newCommanderUser.lastName || ''}`.trim() ||
+          newCommanderUser.email;
+
+        const actionRecord = queryRunner.manager.create(ActionEntity, {
+          description: `Traspaso de mando: de ${prevName} a ${newName}`,
+          date: now,
+          hour: hourStr,
+          user: { id: requesterId },
+          emergency: { id: emergency.id },
+        });
+        await queryRunner.manager.save(actionRecord);
+
+        await queryRunner.commitTransaction();
+        this.logger.log(
+          `[transferCommand] Traspaso de mando completado exitosamente: de ${prevName} a ${newName} en emergencia ${emergencyId}`,
+        );
+        return await this.findOne(emergencyId);
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      } finally {
+        await queryRunner.release();
+      }
     } catch (error) {
       handlerError(error, this.logger);
     }

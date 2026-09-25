@@ -16,7 +16,7 @@ import { CreateAttendDto } from '../dto/create-attend.dto';
 import { UpdateAttendDto } from '../dto/update-attend.dto';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { AuthGuard, RolesGuard } from '../../../auth/guards';
-import { RolesAccess } from '../../../auth/decorators';
+import { RolesAccess, GetUser } from '../../../auth/decorators';
 import { ROLES } from '../../../common/constants';
 import { AttendEntity } from '../entities/attends.entity';
 
@@ -40,39 +40,54 @@ export class AttendController {
     };
   }
 
-  @RolesAccess(ROLES.MANAGER)
+  @RolesAccess(ROLES.BASIC)
   @Post()
   public async create(
     @Body() createAttendDto: CreateAttendDto,
+    @GetUser('id') requesterId: string,
+    @GetUser('role') requesterRole: string,
   ): Promise<ApiResponse<AttendEntity>> {
     return {
       success: true,
       statusCode: 201,
-      data: await this.attendService.create(createAttendDto),
+      data: await this.attendService.create(
+        createAttendDto,
+        requesterId,
+        requesterRole,
+      ),
     };
   }
 
   @ApiParam({ name: 'id', type: 'string' })
-  @RolesAccess(ROLES.MANAGER)
+  @RolesAccess(ROLES.BASIC)
   @Patch(':id')
   public async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateAttendDto: UpdateAttendDto,
+    @GetUser('id') requesterId: string,
+    @GetUser('role') requesterRole: string,
   ): Promise<ApiResponse<AttendEntity>> {
     return {
       success: true,
       statusCode: 200,
-      data: await this.attendService.update(id, updateAttendDto),
+      data: await this.attendService.update(
+        id,
+        updateAttendDto,
+        requesterId,
+        requesterRole,
+      ),
     };
   }
 
   @ApiParam({ name: 'id', type: 'string' })
-  @RolesAccess(ROLES.MANAGER)
+  @RolesAccess(ROLES.BASIC)
   @Delete(':id')
   public async delete(
     @Param('id', ParseUUIDPipe) id: string,
+    @GetUser('id') requesterId: string,
+    @GetUser('role') requesterRole: string,
   ): Promise<ApiResponse<null>> {
-    return await this.attendService.delete(id);
+    return await this.attendService.delete(id, requesterId, requesterRole);
   }
 
   @ApiParam({ name: 'emergencyId', type: 'string' })

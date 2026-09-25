@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +16,7 @@ import { EmergencyService } from '../../../organization_module/emergency/service
 import { UserService } from '../../../user/services/user.service';
 import { AttendEntity } from '../../../organization_module/attends/entities/attends.entity';
 import { ActionEntity } from '../../action/entities/action.entity';
+import { ROLES } from '../../../common/constants';
 
 @Injectable()
 export class Form201Service {
@@ -31,15 +33,83 @@ export class Form201Service {
     private readonly userService: UserService,
   ) {}
 
+  public async assertCanManageForm201(
+    emergencyId: string,
+    userId: string,
+    userRole: string,
+  ): Promise<void> {
+    const roleLower = userRole?.toLowerCase();
+    if (
+      roleLower === ROLES.MANAGER ||
+      roleLower === ROLES.ADMIN ||
+      roleLower === ROLES.SUADMIN
+    ) {
+      return;
+    }
+
+    const activeCI = await this.attendRepository.findOne({
+      where: {
+        emergency: { id: emergencyId },
+        user: { id: userId },
+        chargeSystemName: 'incident_commander',
+        isActive: true,
+        isDeleted: false,
+      },
+    });
+
+    if (!activeCI) {
+      this.logger.warn(
+        `[assertCanManageForm201] Acceso denegado: userId=${userId}, role=${userRole} no es CI activo ni Manager+ en emergencia=${emergencyId}`,
+      );
+      throw new ForbiddenException(
+        'Solo el Comandante del Incidente activo o un usuario con rol Manager o superior puede gestionar el Formulario 201.',
+      );
+    }
+  }
+
+  public async assertCanDeleteForm201(
+    emergencyId: string,
+    userId: string,
+    userRole: string,
+  ): Promise<void> {
+    const roleLower = userRole?.toLowerCase();
+    if (roleLower === ROLES.ADMIN || roleLower === ROLES.SUADMIN) {
+      return;
+    }
+
+    const activeCI = await this.attendRepository.findOne({
+      where: {
+        emergency: { id: emergencyId },
+        user: { id: userId },
+        chargeSystemName: 'incident_commander',
+        isActive: true,
+        isDeleted: false,
+      },
+    });
+
+    if (!activeCI) {
+      this.logger.warn(
+        `[assertCanDeleteForm201] Acceso denegado a eliminar F201: userId=${userId}, role=${userRole} no es Admin ni CI activo en emergencia=${emergencyId}`,
+      );
+      throw new ForbiddenException(
+        'La eliminación de un Formulario 201 está restringida a Administradores o al Comandante de Incidente activo de la emergencia.',
+      );
+    }
+  }
+
   async create(
     emergencyId: string,
     createForm201Dto: CreateForm201Dto,
     userId: string,
+    userRole?: string,
   ): Promise<Form201Entity> {
     this.logger.log(
       `[create] Iniciando creación de Form201. emergencyId=${emergencyId}, userId=${userId}, clientGeneratedId=${createForm201Dto.clientGeneratedId ?? 'N/A'}`,
     );
     try {
+      if (userRole) {
+        await this.assertCanManageForm201(emergencyId, userId, userRole);
+      }
       if (createForm201Dto.clientGeneratedId) {
         const existing = await this.form201Repository.findOne({
           where: { clientGeneratedId: createForm201Dto.clientGeneratedId },
@@ -185,11 +255,21 @@ export class Form201Service {
   async update(
     id: string,
     updateForm201Dto: UpdateForm201Dto,
+    userId?: string,
+    userRole?: string,
   ): Promise<Form201Entity> {
     this.logger.log(`[update] Actualizando Form201. id=${id}`);
     try {
       const form201 = await this.findOne(id);
       this.emergencyService.assertEditable(form201.emergency);
+
+      if (userId && userRole) {
+        await this.assertCanManageForm201(
+          form201.emergency.id,
+          userId,
+          userRole,
+        );
+      }
 
       if (form201.isFinalized) {
         this.logger.warn(`[update] Intento de actualizar Form201 ya finalizado. id=${id}`);
@@ -209,11 +289,23 @@ export class Form201Service {
     }
   }
 
-  async finalize(id: string, userId: string): Promise<Form201Entity> {
+  async finalize(
+    id: string,
+    userId: string,
+    userRole?: string,
+  ): Promise<Form201Entity> {
     this.logger.log(`[finalize] Finalizando Form201. id=${id}, userId=${userId}`);
     try {
       const form201 = await this.findOne(id);
       this.emergencyService.assertEditable(form201.emergency);
+
+      if (userRole) {
+        await this.assertCanManageForm201(
+          form201.emergency.id,
+          userId,
+          userRole,
+        );
+      }
 
       if (form201.isFinalized) {
         this.logger.warn(`[finalize] Form201 ya estaba finalizado. id=${id}`);
@@ -246,11 +338,23 @@ export class Form201Service {
     }
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(
+    id: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<void> {
     this.logger.log(`[delete] Eliminando Form201. id=${id}`);
     try {
       const form201 = await this.findOne(id);
       this.emergencyService.assertEditable(form201.emergency);
+
+      if (userId && userRole) {
+        await this.assertCanDeleteForm201(
+          form201.emergency.id,
+          userId,
+          userRole,
+        );
+      }
 
       await this.form201Repository.update(id, { isDeleted: true });
       this.logger.log(`[delete] Form201 eliminado exitosamente. id=${id}`);

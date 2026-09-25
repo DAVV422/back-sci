@@ -37,20 +37,45 @@ Todo usuario asignado a una emergencia (sin importar si su rol de sistema es `ba
 
 1. **Comandante de Incidente (CI)**:
    - Es el responsable exclusivo del **Formulario 201** (creación, edición y finalización).
-   - Es el encargado de la **Evaluación Inicial** preliminar del incidente (`POST /api/emergency/:id/assessment`).
+   - Es el encargado de la **Evaluación Inicial** preliminar del incidente (`GET/POST/PATCH /api/emergency/:id/assessment`).
    - Tiene facultad para crear y finalizar el **Formulario 207**.
-   - Puede asignar personal a la emergencia y definir sus cargos SCI.
-   - **Elevación Táctica**: Si un usuario con rol de sistema `basic` ocupa el cargo SCI de *Comandante de Incidente*, obtiene automáticamente facultades de gestión total sobre dicha emergencia (equivalente a `manager` / `admin`), limitadas estrictamente al ámbito de ese incidente.
-2. **Líder de Unidad Médica (`medical_unit_leader`)**:
+   - Puede asignar personal a la emergencia y definir sus cargos SCI (`/api/attend`).
+   - **Elevación Táctica**: Si un usuario con rol de sistema `basic` o `advanced` ocupa el cargo SCI de *Comandante de Incidente* activo en una emergencia, obtiene automáticamente facultades de gestión sobre los recursos y formularios de dicho incidente (equivalente a `manager`), limitadas estrictamente al ámbito de esa emergencia.
+   - **Protección de CI Activo**: El Comandante de Incidente en ejercicio no puede ser modificado ni desmovilizado a través de los endpoints ordinarios de personal (`PATCH/DELETE /api/attend/:id`). El cambio de mando debe gestionarse mediante los endpoints específicos de asignación o traspaso.
+
+2. **Asignación de CI vs Traspaso de Mando Formal**:
+   - **Asignación de Comandante (`POST /api/emergency/:id/attend/assign-commander`)**:
+     - Utilizado para establecer o corregir la designación inicial del CI oficial (por ejemplo, cuando quien creó la emergencia en el sistema no es el oficial a cargo en terreno, o para fijar al primer CI sin ceremonia de traspaso).
+     - **No requiere** que el Formulario 201 esté finalizado.
+     - **No genera** historial de traspaso táctico ni registro formal de cambio de mando en la bitácora.
+     - Si el CI anterior era el creador asignado automáticamente, actualiza o reemplaza la asignación de mando.
+     - **Acceso**: Roles globales ≥ `manager` (`manager`, `admin`, `suadmin`) o el **creador** de la emergencia.
+   - **Traspaso de Mando Formal (`POST /api/emergency/:id/attend/transfer-command`)**:
+     - Ceremonia táctica de relevo de mando operativo durante la evolución del incidente.
+     - **Regla estricta de F201**: Requiere obligatoriamente que **todos los Formularios 201 activos estén previamente finalizados** (`isFinalized = true`). Si existe un F201 en borrador o editable, el backend rechaza el traspaso (`400 Bad Request`).
+     - **Historial cronológico de comandantes**: Da por concluido el período del CI saliente marcando su registro de asignación como inactivo (`isActive = false`) y crea un nuevo registro activo para el nuevo Comandante de Incidente. Si un bombero asume la comandancia en múltiples períodos distintos dentro del mismo incidente, cada mandato queda registrado independientemente.
+     - **Bitácora**: Registra automáticamente la acción formal de traspaso en la bitácora del incidente (`ActionEntity`).
+     - **Acceso**: Roles globales ≥ `manager` (`manager`, `admin`, `suadmin`) o el **Comandante de Incidente activo** de la emergencia.
+
+3. **Líder de Unidad Médica (`medical_unit_leader`)**:
    - Tiene permiso expreso para crear y gestionar el **Formulario 207** (`POST /api/emergency/:id/form207`), además de los roles `manager`, `advanced` y el Comandante de Incidente.
-3. **Asignación de Personal y Rol por Defecto**:
+
+4. **Asignación de Personal y Rol por Defecto**:
    - Al incorporar un nuevo miembro a la emergencia sin especificar cargo, el rol SCI por defecto es **Equipo de Ataque (`EQ-ATK`)**.
-4. **Regla Especial del Creador de la Emergencia**:
-   - Al crearse una emergencia, el usuario creador asume automáticamente la función de Comandante de Incidente inicial.
-   - Es el único con permiso para convocar y asignar personal hasta que traspase formalmente el mando a otra persona.
-   - **Aun cuando traspase el mando de CI a otro usuario**, el creador conserva de forma permanente la potestad de añadir personal a la emergencia por su condición de originador del incidente.
-5. **Formularios Activos**:
-   - En esta fase solo existen el **Formulario 201** (Resumen del Incidente) y el **Formulario 207** (Registro de Víctimas).
+
+5. **Regla Especial del Creador de la Emergencia**:
+   - Al crearse una emergencia, el usuario creador asume **automáticamente** la función de Comandante de Incidente inicial (creando su registro correspondiente en `attend`).
+   - **Potestad Permanente del Creador**: Aun cuando el mando de CI sea transferido a otro usuario, el creador conserva de forma permanente la potestad de añadir y convocar personal a la emergencia (`POST /api/attend`, `PATCH /api/attend/:id`, `DELETE /api/attend/:id`) por su condición originadora del incidente, sin importar si su rol institucional global es `basic` o `advanced`.
+
+6. **Convención de Estructura del Organigrama (`level` y `weight`)**:
+   - En el catálogo de cargos (`ChargeEntity`), la jerarquía del organigrama se define sin dependencias jerárquicas rígidas padre-hijo, permitiendo una representación visual limpia:
+     - **`level` (1 a 5)**: Orden **vertical** — define la fila o estrato jerárquico del cargo en el diagrama (1 = Mando/CI, 2 = Staff de Comando, 3 = Secciones, 4 = Ramas/Divisiones/Grupos, 5 = Unidades/Equipos de Ataque).
+     - **`weight` (decimal)**: Orden **horizontal** dentro de cada fila `level` (a menor valor numérico, más a la izquierda se posiciona). Los valores de `weight` solo se comparan entre cargos del mismo `level`.
+     - El frontend agrupa los cargos asignados (`attends`) por `level` y los ordena internamente por `weight`, omitiendo filas vacías.
+
+7. **Formularios Activos y Eliminación**:
+   - En esta fase existen el **Formulario 201** (Resumen del Incidente) y el **Formulario 207** (Registro de Víctimas).
+   - **Eliminación Lógica**: No se realiza eliminación física en formularios ni asignaciones (`isDeleted = true`). La eliminación de un Formulario 201 solo puede ser ejecutada por usuarios con rol `admin`, `suadmin` o por el **Comandante de Incidente activo** de la emergencia.
 
 ---
 
@@ -419,9 +444,22 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
 
 ### 3.3 Módulo de Cargos SCI (`/api/charge`)
 
+#### Convención de Jerarquía del Organigrama (`level` y `weight`)
+El organigrama SCI se estructura dinámicamente mediante dos atributos en `ChargeEntity`:
+- **`level` (entero 1 a 5)**: Ordenamiento **vertical**. Representa la fila o estrato jerárquico en la visualización:
+  - `1`: Mando (Comandante de Incidente / `incident_commander`).
+  - `2`: Staff de Comando (Oficial de Seguridad, Información Pública, Enlace).
+  - `3`: Jefaturas de Sección (Operaciones, Planificación, Logística, Administración/Finanzas).
+  - `4`: Direcciones de Rama, Divisiones y Grupos.
+  - `5`: Líderes de Unidad, Equipos de Intervención y Equipos de Ataque (`EQ-ATK`).
+- **`weight` (decimal, ej. `1.1`, `3.2`, `5.4`)**: Ordenamiento **horizontal** dentro de cada `level`.
+  - A menor valor de `weight`, el nodo se posiciona más a la **izquierda** de la fila.
+  - El valor de `weight` es relativo y **solo se evalúa entre cargos que compartan el mismo `level`** (no es global ni único entre niveles distintos).
+  - **Sin relación rígida `parentId`**: El árbol táctico agrupa automáticamente los cargos activos (`attends`) por `level` y los ordena internamente por `weight`, descartando visualmente filas o niveles que no tengan personal asignado.
+
 #### `POST /api/charge`
-- **Descripción**: Registra un nuevo cargo en el organigrama del SCI.
-- **Acceso**: `admin`.
+- **Descripción**: Registra un nuevo cargo en el organigrama del SCI respetando la convención `level` y `weight`.
+- **Acceso**: `admin`, `suadmin`.
 - **Body**:
   ```json
   {
@@ -434,7 +472,7 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
   ```
 
 #### `GET /api/charge`
-- **Descripción**: Lista todos los cargos estándar del organigrama SCI ordenados por nivel y peso.
+- **Descripción**: Lista todos los cargos estándar del organigrama SCI ordenados jerárquicamente por `level ASC, weight ASC`.
 - **Acceso**: Autenticado (`basic` o superior).
 
 #### `GET /api/charge/:id` | `GET /api/charge/name/:name`
@@ -442,15 +480,16 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
 - **Acceso**: Autenticado.
 
 #### `PATCH /api/charge/:id` | `DELETE /api/charge/:id`
-- **Descripción**: Modificación o eliminación de un cargo.
-- **Acceso**: `admin`.
+- **Descripción**: Modificación o eliminación lógica de un cargo.
+- **Acceso**: `admin`, `suadmin`.
 
 ---
 
 ### 3.4 Módulo de Emergencias (`/api/emergency`)
 
 #### `POST /api/emergency`
-- **Descripción**: Crea una nueva emergencia. Asigna código correlativo `EMG-XXX` y estado inicial Pendiente (`p`). El usuario creador se establece como el Comandante de Incidente inicial.
+- **Descripción**: Crea una nueva emergencia con código correlativo `EMG-XXX` y estado inicial Pendiente (`p`).
+  - **Auto-asignación de Comandante de Incidente inicial**: Dentro de la misma transacción, el backend asigna automáticamente al usuario creador como el Comandante de Incidente inicial (`incident_commander`), creando su registro correspondiente en `AttendEntity` y registrando el evento inicial en la bitácora (`ActionEntity`).
 - **Acceso**: Autenticado.
 - **Body**:
   ```json
@@ -465,33 +504,161 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
   ```
 
 #### `GET /api/emergency`
-- **Descripción**: Lista las emergencias registradas (con paginación y búsqueda).
+- **Descripción**: Lista las emergencias registradas con paginación, ordenamiento y búsqueda global.
 - **Acceso**: Autenticado.
 
 #### `GET /api/emergency/:id`
-- **Descripción**: Obtiene el detalle completo de la emergencia (incluye evaluación inicial, personal asignado y formularios asociados).
+- **Descripción**: Obtiene el detalle completo y exhaustivo de la emergencia con todas sus relaciones tácticas cargadas en un solo llamado:
+  - `user`: Identidad del usuario creador/originador del incidente.
+  - `initialAssessment`: Registro de Evaluación Inicial (o `null` si aún no ha sido completada).
+  - `attends`: Lista del personal asignado y desplegado, con sus relaciones internas `user` (datos del bombero) y `charge` (datos del cargo SCI: `level`, `weight`, `name`, `systemName`). Excluye registros eliminados (`isDeleted = false`).
+  - `form201`: Lista de Formularios 201 históricos y activos vinculados al incidente. Excluye registros eliminados (`isDeleted = false`).
 - **Acceso**: Autenticado.
+- **Response (200)**:
+  ```json
+  {
+    "success": true,
+    "statusCode": 200,
+    "data": {
+      "id": "e4b10738-d113-494e-9c8e-aa8939b4e12a",
+      "code": "EMG-001",
+      "description": "Incendio estructural en sector industrial",
+      "state": "a",
+      "date": "2026-08-19",
+      "time": "14:30",
+      "coordinates_i": [-70.6506, -33.4372],
+      "user": {
+        "id": "u1-uuid",
+        "name": "Carlos",
+        "lastName": "Mendoza",
+        "email": "carlos.mendoza@sci.local"
+      },
+      "initialAssessment": {
+        "id": "ia-uuid",
+        "hazardAssessment": "Riesgo de colapso y propagación",
+        "characterization": "Estructural / Químico",
+        "initialObjectives": "Contención perimetral"
+      },
+      "attends": [
+        {
+          "id": "att-1-uuid",
+          "isActive": true,
+          "isDeleted": false,
+          "user": {
+            "id": "u1-uuid",
+            "name": "Carlos",
+            "lastName": "Mendoza"
+          },
+          "charge": {
+            "id": "ch-ci-uuid",
+            "name": "Comandante de Incidente",
+            "abbreviation": "CI",
+            "level": 1,
+            "weight": 1.0,
+            "system_name": "incident_commander"
+          }
+        }
+      ],
+      "form201": [
+        {
+          "id": "f201-1-uuid",
+          "code": "F201-001",
+          "isFinalized": false,
+          "incidentName": "Incendio Sector Industrial Quilicura"
+        }
+      ]
+    }
+  }
+  ```
 
 #### `PATCH /api/emergency/:id`
-- **Descripción**: Actualiza datos de la emergencia (solo si no se encuentra en estado `Finalizada`).
-- **Acceso**: `admin`, `manager` o Comandante del Incidente.
+- **Descripción**: Actualiza datos descriptivos o geográficos de la emergencia (solo si no se encuentra en estado `Finalizada`).
+- **Acceso**: `admin`, `manager` o el Comandante de Incidente activo.
 
 #### `PATCH /api/emergency/:id/state`
 - **Descripción**: Transición del estado de la emergencia mediante máquina de estados (`p` Pendiente -> `a` Activa -> `f` Finalizada o `c` Cancelada).
-- **Acceso**: `admin`, `manager` o Comandante del Incidente.
+- **Acceso**: `admin`, `manager` o el Comandante de Incidente activo.
 - **Body**: `{ "state": "a" }`
 
 #### `DELETE /api/emergency/:id`
 - **Descripción**: Soft delete de la emergencia.
-- **Acceso**: `admin`.
+- **Acceso**: `admin`, `suadmin`.
+
+#### `POST /api/emergency/:id/attend/assign-commander`
+- **Descripción**: Asigna o corrige el Comandante de Incidente oficial de la emergencia de forma directa (por ejemplo, para fijar al primer oficial al mando o corregir la designación inicial sin ceremonia formal de relevo).
+  - **No requiere** que el Formulario 201 esté finalizado.
+  - **No genera** registro formal de traspaso en la bitácora ni abre historial de mandatos sucesivos.
+  - Si el usuario designado ya tiene una asignación en la emergencia, actualiza su cargo a `incident_commander`. Si no estaba asignado, crea el nuevo registro `attend`.
+- **Acceso**: Roles globales ≥ `manager` (`manager`, `admin`, `suadmin`) o el **creador** de la emergencia (`emergency.user.id === requesterId`).
+- **Body**:
+  ```json
+  {
+    "userId": "uuid-usuario-comandante"
+  }
+  ```
+- **Response (200)**:
+  ```json
+  {
+    "success": true,
+    "statusCode": 200,
+    "message": "Comandante de Incidente asignado exitosamente.",
+    "data": { ... }
+  }
+  ```
+
+#### `POST /api/emergency/:id/attend/transfer-command`
+- **Descripción**: Ejecuta el **traspaso de mando formal** del Comandante de Incidente en una sola transacción atómica y segura:
+  - **Regla de integridad F201**: Verifica que **no existan Formularios 201 activos sin finalizar**. Si existe un F201 con `isFinalized = false`, la operación se aborta con `400 Bad Request` indicando que debe finalizarse primero.
+  - **Validación de identidad**: Impide transferir el mando a la misma persona que ya ejerce como CI activo.
+  - **Historial cronológico de comandantes**: Desactiva el `attend` del CI saliente (`isActive = false`), cerrando su período de comandancia, y crea un nuevo registro `attend` activo (`isActive = true`) para el nuevo CI. Esto garantiza trazabilidad histórica en caso de que un bombero ejerza como CI en distintos períodos de la misma emergencia.
+  - **Bitácora**: Registra de forma automática la acción formal de transferencia de mando en `ActionEntity`.
+- **Acceso**: Roles globales ≥ `manager` (`manager`, `admin`, `suadmin`) o el **Comandante de Incidente activo** de la emergencia.
+- **Body**:
+  ```json
+  {
+    "newCommanderUserId": "uuid-usuario-nuevo-ci"
+  }
+  ```
+- **Response (200)**:
+  ```json
+  {
+    "success": true,
+    "statusCode": 200,
+    "message": "Mando transferido exitosamente.",
+    "data": {
+      "attend": { ... },
+      "previousCommanderUserId": "uuid-ci-anterior",
+      "newCommanderUserId": "uuid-nuevo-ci"
+    }
+  }
+  ```
 
 ---
 
 ### 3.5 Evaluación Inicial de Incidente (`/api/emergency/:id/assessment`)
 
+#### `GET /api/emergency/:id/assessment`
+- **Descripción**: Obtiene la Evaluación Inicial preliminar registrada para la emergencia especificada. Si la emergencia no cuenta con evaluación inicial guardada aún, responde con `404 Not Found`.
+- **Acceso**: Autenticado (`basic` o superior).
+- **Response (200)**:
+  ```json
+  {
+    "success": true,
+    "statusCode": 200,
+    "data": {
+      "id": "ia-uuid",
+      "hazardAssessment": "Riesgo de colapso de estructura y propagación a bodegas colindantes.",
+      "characterization": "Estructural / Químico",
+      "specialConsiderations": "Presencia de cilindros de gas licuado en sector norte.",
+      "initialObjectives": "Contención perimetral y evacuación de 100m a la redonda.",
+      "createdAt": "2026-08-19T14:35:00.000Z"
+    }
+  }
+  ```
+
 #### `POST /api/emergency/:id/assessment`
-- **Descripción**: Registra la evaluación preliminar de riesgos, magnitud y condiciones del incidente.
-- **Acceso**: Comandante de Incidente o `admin`/`manager`.
+- **Descripción**: Registra la evaluación preliminar de riesgos, magnitud y condiciones del incidente. Solo puede registrarse una evaluación inicial por emergencia.
+- **Acceso**: Exclusivo para roles globales ≥ `manager` (`manager`, `admin`, `suadmin`) o el **Comandante de Incidente activo** de esa emergencia (elevación táctica).
 - **Body**:
   ```json
   {
@@ -504,15 +671,18 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
   ```
 
 #### `PATCH /api/emergency/:id/assessment`
-- **Descripción**: Actualiza los datos de la evaluación inicial (mientras la emergencia esté editable).
+- **Descripción**: Actualiza los datos de la evaluación inicial (mientras la emergencia se encuentre en estado editable `p` o `a`).
+- **Acceso**: Roles globales ≥ `manager` (`manager`, `admin`, `suadmin`) o el **Comandante de Incidente activo** de esa emergencia.
 
 ---
 
 ### 3.6 Personal Asignado a Emergencia (`/api/attend`)
 
 #### `POST /api/attend`
-- **Descripción**: Asigna un usuario a una emergencia con un cargo SCI. Si no se indica cargo, se asigna `Equipo de Ataque` por defecto. Valida exclusividad del Comandante de Incidente activo.
-- **Acceso**: Creador de la emergencia, Comandante de Incidente o `manager`/`admin`.
+- **Descripción**: Asigna un usuario a una emergencia con un cargo SCI. Si no se indica cargo, se asigna `Equipo de Ataque` (`EQ-ATK`) por defecto.
+  - **Autorización por Elevación Táctica y Potestad del Creador**: Permite convocar personal a usuarios con rol global ≥ `manager`, al **creador originador de la emergencia** (independiente de su rol global), o al **Comandante de Incidente activo**.
+  - **Protección de CI**: No permite asignar un cargo de `incident_commander` si ya existe otro CI activo. Para asignar o relevar al comandante, deben usarse los endpoints específicos `assign-commander` o `transfer-command`.
+- **Acceso**: Roles globales ≥ `manager`, **creador** de la emergencia, o **Comandante de Incidente activo**.
 - **Body**:
   ```json
   {
@@ -524,24 +694,32 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
   ```
 
 #### `GET /api/attend/emergency/:emergencyId`
-- **Descripción**: Lista todo el personal asignado a la emergencia con sus cargos SCI y estados de vigencia.
+- **Descripción**: Lista todo el personal asignado a la emergencia con sus cargos SCI, datos de usuario y estados de vigencia. Excluye asignaciones eliminadas.
 - **Acceso**: Autenticado (`basic` o superior).
 
 #### `PATCH /api/attend/:id`
-- **Descripción**: Modifica el cargo o estado de asignación de un miembro (ej. traspaso de mando).
-- **Acceso**: Comandante de Incidente o `manager`/`admin`.
+- **Descripción**: Modifica el cargo o estado de asignación de un miembro en la emergencia.
+  - **Protección de CI Activo**: Si la asignación corresponde al Comandante de Incidente activo, este endpoint rechaza la modificación (`400 Bad Request`). Los cambios de mando deben realizarse mediante `assign-commander` o `transfer-command`.
+- **Acceso**: Roles globales ≥ `manager`, **creador** de la emergencia, o **Comandante de Incidente activo**.
+- **Body**:
+  ```json
+  {
+    "chargeId": "uuid-nuevo-cargo"
+  }
+  ```
 
 #### `DELETE /api/attend/:id`
-- **Descripción**: Desvincula o desmoviliza a un miembro de la emergencia.
-- **Acceso**: Comandante de Incidente o `manager`/`admin`.
+- **Descripción**: Desvincula o desmoviliza lógicamente a un miembro de la emergencia (`isDeleted = true`).
+  - **Protección de CI Activo**: Si la asignación corresponde al Comandante de Incidente activo, este endpoint rechaza la eliminación (`400 Bad Request`). No se puede dejar acéfala la comandancia del incidente mediante eliminación ordinaria.
+- **Acceso**: Roles globales ≥ `manager`, **creador** de la emergencia, o **Comandante de Incidente activo**.
 
 ---
 
 ### 3.7 Formulario 201 — Resumen del Incidente (`/api/form201`)
 
 #### `POST /api/emergency/:emergencyId/form201`
-- **Descripción**: Crea el Formulario 201 para la emergencia. Genera código correlativo `F201-XXX`, captura un snapshot del organigrama SCI activo (`attends`) y bloquea la creación de otro F201 si ya existe uno activo.
-- **Acceso**: Comandante de Incidente (`basic` con cargo CI) o `admin`/`manager`.
+- **Descripción**: Crea el Formulario 201 para la emergencia. Genera código correlativo `F201-XXX`, captura un snapshot del organigrama SCI activo (`attends`) y bloquea la creación de otro F201 si ya existe uno activo sin finalizar.
+- **Acceso**: Roles globales ≥ `manager` (`manager`, `admin`, `suadmin`) o el **Comandante de Incidente activo** de la emergencia (elevación táctica).
 - **Body**:
   ```json
   {
@@ -555,16 +733,20 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
   ```
 
 #### `GET /api/emergency/:emergencyId/form201`
-- **Descripción**: Obtiene los Formularios 201 de la emergencia.
+- **Descripción**: Obtiene los Formularios 201 de la emergencia (excluyendo eliminados).
 - **Acceso**: Autenticado.
 
 #### `PATCH /api/form201/:id`
 - **Descripción**: Actualiza el contenido del Formulario 201 (solo si no está finalizado ni la emergencia cerrada).
-- **Acceso**: Comandante de Incidente o `admin`/`manager`.
+- **Acceso**: Roles globales ≥ `manager` o el **Comandante de Incidente activo** de la emergencia.
 
 #### `PATCH /api/form201/:id/finalize`
-- **Descripción**: Finaliza el Formulario 201 de forma inmutable y registra la acción en la bitácora (`Action`).
-- **Acceso**: Comandante de Incidente o `admin`/`manager`.
+- **Descripción**: Finaliza el Formulario 201 de forma inmutable (`isFinalized = true`) y registra la acción en la bitácora (`Action`).
+- **Acceso**: Roles globales ≥ `manager` o el **Comandante de Incidente activo** de la emergencia.
+
+#### `DELETE /api/form201/:id`
+- **Descripción**: Eliminación lógica (soft delete) del Formulario 201 (`isDeleted = true`). No se realiza borrado físico.
+- **Acceso**: Exclusivo para `admin`, `suadmin`, o el **Comandante de Incidente activo** de la emergencia.
 
 ---
 

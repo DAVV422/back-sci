@@ -3,3 +3,6 @@ export { UpdateEmergencyDto } from './update-emergency.dto';
 export { CreateInitialAssessmentDto } from './create-initial-assessment.dto';
 export { UpdateInitialAssessmentDto } from './update-initial-assessment.dto';
 export { ChangeEmergencyStateDto } from './change-emergency-state.dto';
+export { AssignCommanderDto } from './assign-commander.dto';
+export { TransferCommandDto } from './transfer-command.dto';
+

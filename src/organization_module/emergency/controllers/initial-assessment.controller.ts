@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -29,11 +30,24 @@ export class InitialAssessmentController {
   ) {}
 
   @ApiParam({ name: 'id', type: 'string' })
+  @Get(':id/assessment')
+  public async findAssessment(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ApiResponse<InitialAssessmentEntity>> {
+    return {
+      success: true,
+      statusCode: 200,
+      data: await this.initialAssessmentService.findByEmergency(id),
+    };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
   @Post(':id/assessment')
   public async createAssessment(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() createAssessmentDto: CreateInitialAssessmentDto,
     @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<InitialAssessmentEntity>> {
     return {
       success: true,
@@ -42,6 +56,7 @@ export class InitialAssessmentController {
         id,
         createAssessmentDto,
         userId,
+        userRole,
       ),
     };
   }
@@ -51,11 +66,19 @@ export class InitialAssessmentController {
   public async updateAssessment(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateAssessmentDto: UpdateInitialAssessmentDto,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<InitialAssessmentEntity>> {
     return {
       success: true,
       statusCode: 200,
-      data: await this.initialAssessmentService.update(id, updateAssessmentDto),
+      data: await this.initialAssessmentService.update(
+        id,
+        updateAssessmentDto,
+        userId,
+        userRole,
+      ),
     };
   }
 }
+

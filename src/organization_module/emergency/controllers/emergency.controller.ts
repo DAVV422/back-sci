@@ -19,6 +19,8 @@ import {
   CreateEmergencyDto,
   UpdateEmergencyDto,
   ChangeEmergencyStateDto,
+  AssignCommanderDto,
+  TransferCommandDto,
 } from '../dto/';
 import { EmergencyService } from './../services/emergency.service';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
@@ -103,6 +105,50 @@ export class EmergencyController {
         userId,
         userRole,
       ),
+    };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
+  @Post(':id/attend/assign-commander')
+  public async assignCommander(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() assignCommanderDto: AssignCommanderDto,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
+  ): Promise<ApiResponse<EmergencyEntity>> {
+    const data = await this.emergencyService.assignCommander(
+      id,
+      assignCommanderDto,
+      userId,
+      userRole,
+    );
+    return {
+      success: true,
+      statusCode: 200,
+      message: 'Comandante de Incidente inicial asignado exitosamente.',
+      data,
+    };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
+  @Post(':id/attend/transfer-command')
+  public async transferCommand(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() transferCommandDto: TransferCommandDto,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
+  ): Promise<ApiResponse<EmergencyEntity>> {
+    const data = await this.emergencyService.transferCommand(
+      id,
+      transferCommandDto,
+      userId,
+      userRole,
+    );
+    return {
+      success: true,
+      statusCode: 200,
+      message: 'Traspaso de mando completado exitosamente.',
+      data,
     };
   }
 

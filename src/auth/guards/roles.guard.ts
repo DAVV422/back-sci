@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { ROLES, ROLES_KEY } from '../../common/constants';
+import { ROLES, ROLES_KEY, PUBLIC_KEY } from '../../common/constants';
 
 const ROLE_HIERARCHY: Record<ROLES, number> = {
   [ROLES.BASIC]: 1,

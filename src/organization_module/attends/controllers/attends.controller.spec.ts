@@ -45,10 +45,10 @@ describe('AttendController', () => {
     return Reflect.getMetadata(ROLES_KEY, handler);
   };
 
-  it('requiere rol mínimo MANAGER para POST, PATCH y DELETE (AC2)', () => {
-    expect(rolesOf('create')).toContain(ROLES.MANAGER);
-    expect(rolesOf('update')).toContain(ROLES.MANAGER);
-    expect(rolesOf('delete')).toContain(ROLES.MANAGER);
+  it('permite acceso desde rol BASIC para mutaciones con autorización táctica en servicio (AC2)', () => {
+    expect(rolesOf('create')).toContain(ROLES.BASIC);
+    expect(rolesOf('update')).toContain(ROLES.BASIC);
+    expect(rolesOf('delete')).toContain(ROLES.BASIC);
   });
 
   it('requiere rol mínimo BASIC para los GET (AC3)', () => {
@@ -60,13 +60,23 @@ describe('AttendController', () => {
   it('PATCH /:id delega en el servicio con el chargeId (AC4)', async () => {
     mockService.update.mockResolvedValue({ id: 'att-1' });
 
-    const result = await controller.update('att-1', {
-      chargeId: 'ch-2',
-    } as any);
+    const result = await controller.update(
+      'att-1',
+      {
+        chargeId: 'ch-2',
+      } as any,
+      'user-1',
+      ROLES.ADMIN,
+    );
 
-    expect(mockService.update).toHaveBeenCalledWith('att-1', {
-      chargeId: 'ch-2',
-    });
+    expect(mockService.update).toHaveBeenCalledWith(
+      'att-1',
+      {
+        chargeId: 'ch-2',
+      },
+      'user-1',
+      ROLES.ADMIN,
+    );
     expect(result.data).toEqual({ id: 'att-1' });
   });
 });

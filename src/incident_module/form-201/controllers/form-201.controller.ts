@@ -34,11 +34,13 @@ export class Form201Controller {
     @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
     @Body() createForm201Dto: CreateForm201Dto,
     @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<Form201Entity>> {
     const form201 = await this.form201Service.create(
       emergencyId,
       createForm201Dto,
       userId,
+      userRole,
     );
     return {
       success: true,
@@ -66,8 +68,15 @@ export class Form201Controller {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateForm201Dto: UpdateForm201Dto,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<Form201Entity>> {
-    const form201 = await this.form201Service.update(id, updateForm201Dto);
+    const form201 = await this.form201Service.update(
+      id,
+      updateForm201Dto,
+      userId,
+      userRole,
+    );
     return {
       success: true,
       statusCode: 200,
@@ -81,8 +90,9 @@ export class Form201Controller {
   async finalize(
     @Param('id', ParseUUIDPipe) id: string,
     @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<Form201Entity>> {
-    const form201 = await this.form201Service.finalize(id, userId);
+    const form201 = await this.form201Service.finalize(id, userId, userRole);
     return {
       success: true,
       statusCode: 200,
@@ -91,13 +101,15 @@ export class Form201Controller {
     };
   }
 
-  @RolesAccess(ROLES.MANAGER)
+  @RolesAccess(ROLES.BASIC)
   @ApiParam({ name: 'id', type: 'string' })
   @Delete('form201/:id')
   async delete(
     @Param('id', ParseUUIDPipe) id: string,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<null>> {
-    await this.form201Service.delete(id);
+    await this.form201Service.delete(id, userId, userRole);
     return {
       success: true,
       statusCode: 200,

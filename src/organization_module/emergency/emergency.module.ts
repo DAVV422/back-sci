@@ -12,6 +12,8 @@ import { UserModule } from './../../user/user.module';
 import { DataFireEntity } from './entities/dataFires.entity';
 import { DataFireController } from './controllers/dataFire.controller';
 import { DataFireService } from './services/dataFire.service';
+import { AttendEntity } from '../attends/entities/attends.entity';
+import { ChargeEntity } from '../../sci_module/charges/entities/charges.entity';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { DataFireService } from './services/dataFire.service';
       DataFireEntity,
       InitialAssessmentEntity,
       ActionEntity,
+      AttendEntity,
+      ChargeEntity,
     ]),
     forwardRef(() => UserModule),
   ],

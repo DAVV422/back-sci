@@ -3,6 +3,7 @@ import { Form201Controller } from './form-201.controller';
 import { Form201Service } from '../services/form-201.service';
 import { Form201Entity } from '../entities/form-201.entity';
 import { AuthGuard, RolesGuard } from '../../../auth/guards';
+import { ROLES } from '../../../common/constants';
 
 describe('Form201Controller', () => {
   let controller: Form201Controller;
@@ -46,9 +47,9 @@ describe('Form201Controller', () => {
   describe('create', () => {
     it('should call service.create and return standard response', async () => {
       const dto = { nature: 'Incendio' } as any;
-      const res = await controller.create('emergency-1', dto, 'user-1');
+      const res = await controller.create('emergency-1', dto, 'user-1', ROLES.ADMIN);
 
-      expect(service.create).toHaveBeenCalledWith('emergency-1', dto, 'user-1');
+      expect(service.create).toHaveBeenCalledWith('emergency-1', dto, 'user-1', ROLES.ADMIN);
       expect(res).toEqual({
         success: true,
         statusCode: 201,
@@ -74,9 +75,9 @@ describe('Form201Controller', () => {
   describe('update', () => {
     it('should call service.update and return standard response', async () => {
       const dto = { nature: 'Incendio Modificado' } as any;
-      const res = await controller.update('form-1', dto);
+      const res = await controller.update('form-1', dto, 'user-1', ROLES.ADMIN);
 
-      expect(service.update).toHaveBeenCalledWith('form-1', dto);
+      expect(service.update).toHaveBeenCalledWith('form-1', dto, 'user-1', ROLES.ADMIN);
       expect(res).toEqual({
         success: true,
         statusCode: 200,
@@ -88,9 +89,9 @@ describe('Form201Controller', () => {
 
   describe('finalize', () => {
     it('should call service.finalize and return standard response', async () => {
-      const res = await controller.finalize('form-1', 'user-1');
+      const res = await controller.finalize('form-1', 'user-1', ROLES.ADMIN);
 
-      expect(service.finalize).toHaveBeenCalledWith('form-1', 'user-1');
+      expect(service.finalize).toHaveBeenCalledWith('form-1', 'user-1', ROLES.ADMIN);
       expect(res).toEqual({
         success: true,
         statusCode: 200,
@@ -102,9 +103,9 @@ describe('Form201Controller', () => {
 
   describe('delete', () => {
     it('should call service.delete and return standard response', async () => {
-      const res = await controller.delete('form-1');
+      const res = await controller.delete('form-1', 'user-1', ROLES.ADMIN);
 
-      expect(service.delete).toHaveBeenCalledWith('form-1');
+      expect(service.delete).toHaveBeenCalledWith('form-1', 'user-1', ROLES.ADMIN);
       expect(res).toEqual({
         success: true,
         statusCode: 200,
