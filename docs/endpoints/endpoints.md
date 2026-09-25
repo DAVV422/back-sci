@@ -218,12 +218,19 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
 
 #### `POST /api/user`
 - **Descripción**: Crea un nuevo usuario en la plataforma.
+  - **Carga de Imagen de Perfil (`urlImage` / `file`)**:
+    - **Formatos de envío soportados**: `application/json` (con URL externa o preexistente en `urlImage`) o `multipart/form-data` adjuntando el archivo en el campo **`file`**.
+    - **Formatos de archivo permitidos**: JPEG (`image/jpeg`), PNG (`image/png`), WebP (`image/webp`).
+    - **Almacenamiento**: La imagen se almacena en el servidor (`data/uploads/profiles/`) asignando un identificador único (UUID). La ruta pública resultante guardada en la base de datos es `/api/user/image/:filename`.
+    - **Tolerancia a Fallos (Fault Tolerance)**: Si por cualquier motivo la subida o guardado de la imagen falla (ej. error de disco, I/O o formato no procesable), **la creación del usuario NO se aborta ni se revierte**. El backend captura el error de forma segura, registra un log de advertencia, asigna `urlImage: null` y procede a crear el usuario retornando `201 Created`.
   - **Estado de activación (`isActive`)**: Controlado por la variable de entorno `REQUIRE_EMAIL_ACTIVATION`. Si es `false` (o no está definida), el usuario nace directamente activo (`isActive = true`). Si es `true`, nace inactivo (`isActive = false`) y se envía correo con token de activación. Puede sobreescribirse enviando `isActive` explícitamente en el body.
   - **Disponibilidad operativa (`isOperational`)**: Por defecto `true` (en servicio).
   - **Contraseña inicial (`password`)**: Es **opcional** (si no se provee, el backend genera una contraseña temporal aleatoria).
   - **Restricción de rol**: Un `admin` no puede crear usuarios con rol `suadmin` (`403 Forbidden`). Solo `suadmin` puede crear `suadmin`.
 - **Acceso**: Requiere autenticación (`admin` o `suadmin`).
-- **Body**:
+- **Headers**:
+  - `Content-Type: application/json` (envío estándar) o `multipart/form-data` (si se envía imagen adjunta en `file`).
+- **Body (`application/json`)**:
   ```json
   {
     "name": "Juan",
@@ -234,9 +241,18 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
     "grade": "Capitán",
     "birthdate": "1990-05-15",
     "role": "basic",
-    "isOperational": true
+    "isOperational": true,
+    "urlImage": "https://example.com/foto.jpg"
   }
   ```
+- **Body (`multipart/form-data`)**:
+  - `file`: *(archivo binario de imagen: .jpg, .png o .webp)*
+  - `name`: `Juan`
+  - `lastName`: `Pérez`
+  - `email`: `juan.perez@sci.local`
+  - `grade`: `Capitán`
+  - `role`: `basic`
+  - `isOperational`: `true`
 
 #### `GET /api/user`
 - **Descripción**: Lista usuarios del sistema con soporte para **filtros combinados múltiples en el servidor** (omite metadatos de auditoría `createdAt`/`updatedAt` y oculta al superusuario `suadmin` para roles no-suadmin). Retorna tanto `isActive` (estado de cuenta) como `isOperational` (en servicio / fuera de servicio).
@@ -261,19 +277,32 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
 
 #### `PATCH /api/user/me`
 - **Descripción**: Actualiza los datos de identidad y contacto del perfil propio del usuario autenticado.
-  - **Campos permitidos**: `name`, `lastName`, `cellphone`, `birthdate`, `urlImage`.
+  - **Subida de imagen de perfil**: Soporta `multipart/form-data` con el campo `file`. Si se sube una nueva imagen, se guarda en el servidor local, se actualiza `urlImage` y se elimina automáticamente el archivo anterior en disco. También admite `application/json` con una URL manual en `urlImage`.
+  - **Campos permitidos**: `name`, `lastName`, `cellphone`, `birthdate`, `urlImage` (o archivo en `file`).
   - **Campos protegidos (NO editables por el propio usuario)**: `email`, `grade`, `role`, `isActive`, `isOperational` (requieren gestión administrativa).
 - **Acceso**: Autenticado (`basic` o superior).
-- **Body**:
+- **Body (`application/json`)**:
   ```json
   {
     "name": "Juan",
     "lastName": "Pérez",
     "cellphone": "+56912345678",
     "birthdate": "1990-05-15",
-    "urlImage": "https://example.com/foto.jpg"
+    "urlImage": "/api/user/image/profile_abc.png"
   }
   ```
+- **Body (`multipart/form-data`)**:
+  - `file`: *(archivo de imagen binaria nuevo)*
+  - `name`: `Juan`
+  - `lastName`: `Pérez`
+  - `cellphone`: `+56912345678`
+
+#### `GET /api/user/image/:filename`
+- **Descripción**: Sirve el archivo físico de la imagen de perfil almacenada en el backend.
+  - **Acceso Público**: Este endpoint **NO requiere autenticación** (no necesita header `Authorization`), lo que permite usarlo directamente en etiquetas HTML `<img src="/api/user/image/..." />` o componentes de imagen de aplicaciones web y móviles.
+  - **Formatos servidos**: `image/jpeg`, `image/png`, `image/webp`.
+  - **Respuestas de error**: `404 Not Found` si el archivo solicitado no existe en el almacenamiento.
+- **Ejemplo de URL**: `/api/user/image/profile_d7f955d8-3bb8-4bc7-b892-72049d564fa7.png`
 
 #### `GET /api/user/:id`
 - **Descripción**: Obtiene el detalle de un usuario específico por su ID.
@@ -283,8 +312,8 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
 #### `PATCH /api/user/:id`
 - **Descripción**: Actualiza la configuración administrativa e institucional de una cuenta de usuario por parte de `admin` o `suadmin`.
   - **Regla de negocio sobre campos editables**:
-    - **Permitidos para admin/suadmin**: `email`, `role`, `grade` (grado o jerarquía institucional), `isActive` (habilitar/suspender cuenta), `isOperational` (disponibilidad operativa) y `password` (reset/cambio de contraseña).
-    - **Protegidos**: Los campos de identidad personal (`name`, `lastName`, `cellphone`, `birthdate`, `urlImage`) los mantiene el propio usuario en su perfil (`PATCH /api/user/me`).
+    - **Permitidos para admin/suadmin**: `email`, `role`, `grade` (grado o jerarquía institucional), `isActive` (habilitar/suspender cuenta), `isOperational` (disponibilidad operativa), `password` (reset/cambio de contraseña), y opcionalmente imagen de perfil (`urlImage` o subida en `file` mediante `multipart/form-data`).
+    - **Protegidos**: Los datos personales (`name`, `lastName`, `cellphone`, `birthdate`) los actualiza preferentemente el propio usuario en su perfil (`PATCH /api/user/me`).
   - **Restricciones de rol**:
     - Un `admin` no puede modificar a un usuario con rol `suadmin` (`403 Forbidden`).
     - Un `admin` no puede asignar o promover a ningún usuario al rol `suadmin` (`403 Forbidden`).

@@ -38,6 +38,7 @@ import { FRONTEND_ROUTES, ROLES } from '../../common/constants';
 import { EmailService } from '../../common/services/email.service';
 import { AuthTokenService } from '../../auth/services/auth-token.service';
 import { AuthTokenType } from '../../auth/entities/auth-token.entity';
+import { IStorageService } from '../../common/interfaces/storage.interface';
 
 @Injectable()
 export class UserService {
@@ -50,6 +51,8 @@ export class UserService {
     @Inject(forwardRef(() => AuthTokenService))
     private readonly authTokenService: AuthTokenService,
     private readonly configService: ConfigService,
+    @Inject('STORAGE_SERVICE')
+    private readonly storageService: IStorageService,
   ) { }
 
   private applyUserFilters(
@@ -189,6 +192,7 @@ export class UserService {
   public async createUser(
     createUserDto: CreateUserDto,
     currentUserRole?: string,
+    file?: Express.Multer.File,
   ): Promise<UserEntity> {
     if (createUserDto.role && typeof createUserDto.role === 'string') {
       createUserDto.role = (createUserDto.role as string).toLowerCase() as ROLES;
@@ -198,6 +202,17 @@ export class UserService {
     }
     this.logger.log(`[createUser] Creando nuevo usuario. email=${createUserDto.email}, role=${createUserDto.role}`);
     try {
+      if (file) {
+        try {
+          createUserDto.urlImage = await this.storageService.saveFile(file, 'profiles');
+        } catch (error: any) {
+          this.logger.warn(
+            `[createUser] Error al guardar imagen de perfil: ${error?.message}. Se continuará la creación con urlImage=null.`,
+          );
+          createUserDto.urlImage = null;
+        }
+      }
+
       const rawPassword = createUserDto.password || randomBytes(12).toString('hex') + '!1A';
       createUserDto.password = await this.encryptPassword(rawPassword);
       if (createUserDto.birthdate) {
@@ -293,6 +308,7 @@ export class UserService {
     id: string,
     updateUserDto: UpdateUserDto,
     currentUserRole?: string,
+    file?: Express.Multer.File,
   ): Promise<UserEntity> {
     if (updateUserDto.role && typeof updateUserDto.role === 'string') {
       updateUserDto.role = (updateUserDto.role as string).toLowerCase() as ROLES;
@@ -318,6 +334,20 @@ export class UserService {
         allowedUpdates.password = await this.encryptPassword(updateUserDto.password);
       }
 
+      if (file) {
+        try {
+          const oldUrl = user.urlImage;
+          allowedUpdates.urlImage = await this.storageService.saveFile(file, 'profiles');
+          if (oldUrl && oldUrl.startsWith('/api/user/image/')) {
+            await this.storageService.deleteFile(oldUrl);
+          }
+        } catch (error: any) {
+          this.logger.warn(
+            `[update] Error al guardar imagen de perfil: ${error?.message}.`,
+          );
+        }
+      }
+
       const userUpdated = await this.userRepository.update(
         user.id,
         allowedUpdates,
@@ -336,10 +366,11 @@ export class UserService {
   public async updateProfile(
     id: string,
     updateProfileDto: UpdateProfileDto,
+    file?: Express.Multer.File,
   ): Promise<UserEntity> {
     this.logger.log(`[updateProfile] Actualizando perfil propio. id=${id}`);
     try {
-      await this.findOne(id);
+      const user = await this.findOne(id);
       const editableFields: Partial<UserEntity> = {
         ...(updateProfileDto.name !== undefined && {
           name: updateProfileDto.name,
@@ -357,6 +388,21 @@ export class UserService {
           urlImage: updateProfileDto.urlImage,
         }),
       };
+
+      if (file) {
+        try {
+          const oldUrl = user?.urlImage;
+          editableFields.urlImage = await this.storageService.saveFile(file, 'profiles');
+          if (oldUrl && oldUrl.startsWith('/api/user/image/')) {
+            await this.storageService.deleteFile(oldUrl);
+          }
+        } catch (error: any) {
+          this.logger.warn(
+            `[updateProfile] Error al guardar imagen de perfil: ${error?.message}. Se mantiene la previa.`,
+          );
+        }
+      }
+
       const userUpdated = await this.userRepository.update(id, editableFields);
       if (userUpdated.affected === 0) {
         this.logger.warn(`[updateProfile] Perfil no actualizado. id=${id}`);
@@ -367,6 +413,10 @@ export class UserService {
     } catch (error) {
       handlerError(error, this.logger);
     }
+  }
+
+  public getProfileImagePath(filename: string): string {
+    return this.storageService.getFilePath(filename, 'profiles');
   }
 
   public async updateStatus(

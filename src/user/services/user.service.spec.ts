@@ -10,6 +10,12 @@ import { AuthTokenService } from '../../auth/services/auth-token.service';
 import { ConfigService } from '@nestjs/config';
 import { ROLES } from '../../common/constants';
 
+const mockStorageService = {
+  saveFile: jest.fn().mockResolvedValue('/api/user/image/profile_123.png'),
+  deleteFile: jest.fn().mockResolvedValue(undefined),
+  getFilePath: jest.fn().mockReturnValue('data/uploads/profiles/profile_123.png'),
+};
+
 describe('UserService - whitelist QueryDto.attr', () => {
   let service: UserService;
   let queryBuilder: any;
@@ -34,6 +40,7 @@ describe('UserService - whitelist QueryDto.attr', () => {
         { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
         { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token-123'), validateToken: jest.fn(), markAsUsed: jest.fn() } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
       ],
     }).compile();
 
@@ -113,6 +120,7 @@ describe('UserService - findOne/findByEmail (admin direct access)', () => {
         { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
         { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token-123'), validateToken: jest.fn(), markAsUsed: jest.fn() } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
       ],
     }).compile();
 
@@ -171,6 +179,7 @@ describe('UserService - updateStatus', () => {
         { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
         { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token-123'), validateToken: jest.fn(), markAsUsed: jest.fn() } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
       ],
     }).compile();
 
@@ -255,6 +264,7 @@ describe('UserService - updateProfile', () => {
         { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
         { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token-123'), validateToken: jest.fn(), markAsUsed: jest.fn() } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
       ],
     }).compile();
 
@@ -332,6 +342,7 @@ describe('UserService - update (Admin / Suadmin restrictions)', () => {
           provide: ConfigService,
           useValue: { get: jest.fn().mockReturnValue('10') },
         },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
       ],
     }).compile();
 
@@ -419,6 +430,7 @@ describe('UserService - createUser and REQUIRE_EMAIL_ACTIVATION', () => {
         { provide: EmailService, useValue: mockEmailService },
         { provide: AuthTokenService, useValue: mockAuthTokenService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
       ],
     }).compile();
 
@@ -519,6 +531,7 @@ describe('UserService - bulkUpdateGrades', () => {
         { provide: EmailService, useValue: {} },
         { provide: AuthTokenService, useValue: {} },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('10') } },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
       ],
     }).compile();
 
@@ -608,6 +621,7 @@ describe('UserService - combined filters (findAll & findAllAdmin)', () => {
         { provide: EmailService, useValue: {} },
         { provide: AuthTokenService, useValue: {} },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('10') } },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
       ],
     }).compile();
 
@@ -673,5 +687,122 @@ describe('UserService - combined filters (findAll & findAllAdmin)', () => {
     );
   });
 });
+
+describe('UserService - image upload and fault tolerance', () => {
+  let service: UserService;
+  let mockRepo: any;
+  let mockStorage: any;
+
+  beforeEach(async () => {
+    mockRepo = {
+      save: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+      findOne: jest.fn(),
+    };
+    mockStorage = {
+      saveFile: jest.fn().mockResolvedValue('/api/user/image/profile_123.png'),
+      deleteFile: jest.fn().mockResolvedValue(undefined),
+      getFilePath: jest.fn().mockReturnValue('data/uploads/profiles/profile_123.png'),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: EmailService, useValue: { sendActivationEmail: jest.fn() } },
+        { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token') } },
+        { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('false') } },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorage },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+  });
+
+  it('stores image and assigns urlImage when file is provided on createUser', async () => {
+    const mockFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: 'avatar.png',
+      mimetype: 'image/png',
+      size: 1024,
+      buffer: Buffer.from('test'),
+    } as any;
+
+    jest.spyOn(service, 'findOneBy').mockResolvedValue({
+      id: 'uuid-img-1',
+      email: 'img@sci.local',
+      urlImage: '/api/user/image/profile_123.png',
+    } as any);
+
+    await service.createUser(
+      { email: 'img@sci.local', name: 'Img', lastName: 'User', role: ROLES.BASIC } as any,
+      ROLES.ADMIN,
+      mockFile,
+    );
+
+    expect(mockStorage.saveFile).toHaveBeenCalledWith(mockFile, 'profiles');
+    expect(mockRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ urlImage: '/api/user/image/profile_123.png' }),
+    );
+  });
+
+  it('tolerates image upload failure on createUser by setting urlImage=null and continuing creation', async () => {
+    mockStorage.saveFile.mockRejectedValue(new Error('Disk full error'));
+
+    const mockFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: 'broken.png',
+      mimetype: 'image/png',
+    } as any;
+
+    jest.spyOn(service, 'findOneBy').mockResolvedValue({
+      id: 'uuid-img-2',
+      email: 'fault@sci.local',
+      urlImage: null,
+    } as any);
+
+    const user = await service.createUser(
+      { email: 'fault@sci.local', name: 'Fault', lastName: 'User', role: ROLES.BASIC } as any,
+      ROLES.ADMIN,
+      mockFile,
+    );
+
+    expect(mockStorage.saveFile).toHaveBeenCalledWith(mockFile, 'profiles');
+    expect(mockRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ urlImage: null }),
+    );
+    expect(user).toBeDefined();
+  });
+
+  it('updates profile image and cleans up old image file on updateProfile', async () => {
+    const existingUser = {
+      id: 'user-profile-id',
+      urlImage: '/api/user/image/old_profile.png',
+    } as UserEntity;
+    jest.spyOn(service, 'findOne').mockResolvedValue(existingUser);
+
+    const mockFile: Express.Multer.File = {
+      fieldname: 'file',
+      originalname: 'new_avatar.webp',
+      mimetype: 'image/webp',
+    } as any;
+
+    await service.updateProfile('user-profile-id', { name: 'Updated' }, mockFile);
+
+    expect(mockStorage.saveFile).toHaveBeenCalledWith(mockFile, 'profiles');
+    expect(mockStorage.deleteFile).toHaveBeenCalledWith('/api/user/image/old_profile.png');
+    expect(mockRepo.update).toHaveBeenCalledWith(
+      'user-profile-id',
+      expect.objectContaining({ urlImage: '/api/user/image/profile_123.png' }),
+    );
+  });
+
+  it('returns file path from storageService on getProfileImagePath', () => {
+    const pathResult = service.getProfileImagePath('profile_test.png');
+    expect(mockStorage.getFilePath).toHaveBeenCalledWith('profile_test.png', 'profiles');
+    expect(pathResult).toBe('data/uploads/profiles/profile_123.png');
+  });
+});
+
 
 

@@ -17,6 +17,7 @@ import { ActionModule } from '../incident_module/action/action.module';
 import { NotificationModule } from '../notification/notification.module';
 
 import { EmailService } from './services/email.service';
+import { LocalStorageService } from './services/storage/local-storage.service';
 
 @Module({
   imports: [
@@ -31,7 +32,23 @@ import { EmailService } from './services/email.service';
     forwardRef(() => NotificationModule),
   ],
   controllers: [SyncController],
-  providers: [AuditLogService, AuditLogSubscriber, SyncService, EmailService],
-  exports: [AuditLogService, SyncService, EmailService],
+  providers: [
+    AuditLogService,
+    AuditLogSubscriber,
+    SyncService,
+    EmailService,
+    LocalStorageService,
+    {
+      provide: 'STORAGE_SERVICE',
+      useClass: LocalStorageService,
+    },
+  ],
+  exports: [
+    AuditLogService,
+    SyncService,
+    EmailService,
+    LocalStorageService,
+    'STORAGE_SERVICE',
+  ],
 })
 export class CommonModule {}

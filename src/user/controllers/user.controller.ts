@@ -9,15 +9,22 @@ import {
   Query,
   Patch,
   Post,
+  UseInterceptors,
+  UploadedFile,
+  Res,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import {
   ApiBearerAuth,
+  ApiConsumes,
   ApiParam,
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger/dist';
 
 import { RolesAccess } from '../../auth/decorators/roles.decorator';
+import { PublicAccess } from '../../auth/decorators/public.decorator';
 import { AuthGuard, RolesGuard } from '../../auth/guards/';
 import { GetUser } from '../../auth/decorators';
 import {
@@ -43,14 +50,17 @@ export class UserController {
 
   @RolesAccess(ROLES.ADMIN)
   @Post()
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data', 'application/json')
   async createUser(
     @GetUser('role') currentUserRole: string,
     @Body() createUserDto: CreateUserDto,
+    @UploadedFile() file?: Express.Multer.File,
   ): Promise<ApiResponse<UserEntity>> {
     return {
       success: true,
       statusCode: 201,
-      data: await this.userService.createUser(createUserDto, currentUserRole),
+      data: await this.userService.createUser(createUserDto, currentUserRole, file),
     };
   }
 
@@ -130,16 +140,30 @@ export class UserController {
   }
 
   @Patch('me')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data', 'application/json')
   public async updateMyProfile(
     @GetUser('id') userId: string,
     @Body() updateProfileDto: UpdateProfileDto,
+    @UploadedFile() file?: Express.Multer.File,
   ): Promise<ApiResponse<UserEntity>> {
     return {
       success: true,
       statusCode: 200,
       message: 'Perfil actualizado.',
-      data: await this.userService.updateProfile(userId, updateProfileDto),
+      data: await this.userService.updateProfile(userId, updateProfileDto, file),
     };
+  }
+
+  @PublicAccess()
+  @ApiParam({ name: 'filename', type: 'string', description: 'Nombre del archivo de imagen' })
+  @Get('image/:filename')
+  public getImage(
+    @Param('filename') filename: string,
+    @Res() res: Response,
+  ): void {
+    const filePath = this.userService.getProfileImagePath(filename);
+    res.sendFile(filePath);
   }
 
   @ApiParam({ name: 'id', type: 'string' })
@@ -176,15 +200,18 @@ export class UserController {
   @RolesAccess(ROLES.ADMIN)
   @ApiParam({ name: 'id', type: 'string' })
   @Patch(':id')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data', 'application/json')
   public async update(
     @GetUser('role') currentUserRole: string,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
+    @UploadedFile() file?: Express.Multer.File,
   ): Promise<ApiResponse<UserEntity>> {
     return {
       success: true,
       statusCode: 200,
-      data: await this.userService.update(id, updateUserDto, currentUserRole),
+      data: await this.userService.update(id, updateUserDto, currentUserRole, file),
     };
   }
 

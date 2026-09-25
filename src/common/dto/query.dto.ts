@@ -27,10 +27,10 @@ export class QueryDto {
 
   @IsString()
   @IsOptional()
-  attr: string;
+  attr?: string;
 
   @IsOptional()
-  value: string;
+  value?: string;
 
   @IsString()
   @IsOptional()
