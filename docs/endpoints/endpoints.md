@@ -174,7 +174,10 @@ En caso de error:
 ### 3.2 Módulo de Usuarios (`/api/user`)
 
 #### `POST /api/user`
-- **Descripción**: Crea un nuevo usuario en la plataforma. El usuario nace inactivo (`isActive = false`) y se le envía automáticamente un correo electrónico con un enlace y token de activación para que establezca su contraseña. La propiedad `password` en el body es **opcional** (si no se provee, el backend genera una contraseña temporal aleatoria).
+- **Descripción**: Crea un nuevo usuario en la plataforma.
+  - **Estado de activación (`isActive`)**: Controlado por la variable de entorno `REQUIRE_EMAIL_ACTIVATION` (si no está definida o es `false`, el usuario nace directamente activo `isActive = true`; si es `true`, nace inactivo `isActive = false` y se le envía automáticamente un correo electrónico con enlace y token de activación). Puede sobreescribirse enviando `isActive` explícitamente en el body.
+  - **Contraseña inicial (`password`)**: Es **opcional** (si no se provee, el backend genera una contraseña temporal aleatoria).
+  - **Permisos de rol**: Un usuario con rol `ADMIN` no puede crear usuarios con rol `suadmin` (retorna `403 Forbidden`). Solo `suadmin` puede crear `suadmin`.
 - **Acceso**: Requiere autenticación (`ADMIN` o `suadmin`).
 - **Body**:
   ```json

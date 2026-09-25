@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
@@ -8,6 +8,7 @@ import { QueryDto } from '../../common/dto/query.dto';
 import { EmailService } from '../../common/services/email.service';
 import { AuthTokenService } from '../../auth/services/auth-token.service';
 import { ConfigService } from '@nestjs/config';
+import { ROLES } from '../../common/constants';
 
 describe('UserService - whitelist QueryDto.attr', () => {
   let service: UserService;
@@ -277,5 +278,121 @@ describe('UserService - updateProfile', () => {
     await expect(
       service.updateProfile('uuid', { name: 'Nuevo' } as any),
     ).rejects.toThrow(BadRequestException);
+  });
+});
+
+describe('UserService - createUser and REQUIRE_EMAIL_ACTIVATION', () => {
+  let service: UserService;
+  let mockRepo: any;
+  let mockEmailService: any;
+  let mockAuthTokenService: any;
+  let mockConfigService: any;
+
+  beforeEach(async () => {
+    mockRepo = {
+      save: jest.fn().mockResolvedValue({}),
+      findOne: jest.fn(),
+    };
+    mockEmailService = {
+      sendActivationEmail: jest.fn().mockResolvedValue(true),
+    };
+    mockAuthTokenService = {
+      createToken: jest.fn().mockResolvedValue('token-abc-123'),
+    };
+    mockConfigService = {
+      get: jest.fn((key: string) => {
+        if (key === 'ACTIVATION_TOKEN_EXPIRY_HOURS') return '72';
+        if (key === 'FRONTEND_URL') return 'http://localhost:4200';
+        return null;
+      }),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: EmailService, useValue: mockEmailService },
+        { provide: AuthTokenService, useValue: mockAuthTokenService },
+        { provide: ConfigService, useValue: mockConfigService },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+  });
+
+  it('creates active user without sending email when REQUIRE_EMAIL_ACTIVATION is false or absent', async () => {
+    mockConfigService.get.mockImplementation((key: string) => {
+      if (key === 'REQUIRE_EMAIL_ACTIVATION') return 'false';
+      return null;
+    });
+
+    const dto = {
+      name: 'Carlos',
+      lastName: 'Gomez',
+      email: 'carlos@sci.local',
+      role: ROLES.BASIC,
+    };
+
+    jest.spyOn(service, 'findOneBy').mockResolvedValue({
+      id: 'uuid-1',
+      ...dto,
+      isActive: true,
+    } as any);
+
+    const result = await service.createUser(dto as any, ROLES.ADMIN);
+
+    expect(mockRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ isActive: true }),
+    );
+    expect(mockEmailService.sendActivationEmail).not.toHaveBeenCalled();
+    expect(result.isActive).toBe(true);
+  });
+
+  it('creates inactive user and sends activation email when REQUIRE_EMAIL_ACTIVATION is true', async () => {
+    mockConfigService.get.mockImplementation((key: string) => {
+      if (key === 'REQUIRE_EMAIL_ACTIVATION') return 'true';
+      if (key === 'ACTIVATION_TOKEN_EXPIRY_HOURS') return '72';
+      if (key === 'FRONTEND_URL') return 'http://localhost:4200';
+      return null;
+    });
+
+    const dto = {
+      name: 'Ana',
+      lastName: 'Silva',
+      email: 'ana@sci.local',
+      role: ROLES.BASIC,
+    };
+
+    jest.spyOn(service, 'findOneBy').mockResolvedValue({
+      id: 'uuid-2',
+      ...dto,
+      isActive: false,
+    } as any);
+
+    const result = await service.createUser(dto as any, ROLES.ADMIN);
+
+    expect(mockRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ isActive: false }),
+    );
+    expect(mockAuthTokenService.createToken).toHaveBeenCalled();
+    expect(mockEmailService.sendActivationEmail).toHaveBeenCalledWith(
+      'ana@sci.local',
+      'Ana Silva',
+      expect.stringContaining('token=token-abc-123'),
+    );
+    expect(result.isActive).toBe(false);
+  });
+
+  it('prevents non-SUADMIN from creating a SUADMIN user', async () => {
+    const dto = {
+      name: 'Super',
+      lastName: 'User',
+      email: 'suadmin@sci.local',
+      role: ROLES.SUADMIN,
+    };
+
+    await expect(service.createUser(dto as any, ROLES.ADMIN)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 });

@@ -123,7 +123,9 @@ export class UserService {
         createUserDto.birthdate = new Date(createUserDto.birthdate);
       }
 
-      const isActive = createUserDto.isActive ?? false;
+      const requireEmailActivation =
+        this.configService.get<string>('REQUIRE_EMAIL_ACTIVATION') === 'true';
+      const isActive = createUserDto.isActive ?? !requireEmailActivation;
 
       await this.userRepository.save({
         ...createUserDto,
