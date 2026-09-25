@@ -396,9 +396,13 @@ export class EmergencyService {
         );
       }
 
-      const newCommanderUser = await this.userService.findOne(
-        assignCommanderDto.commanderUserId,
-      );
+      const targetUserId =
+        assignCommanderDto.commanderUserId || assignCommanderDto.userId;
+      if (!targetUserId) {
+        throw new BadRequestException('El ID del comandante es obligatorio.');
+      }
+
+      const newCommanderUser = await this.userService.findOne(targetUserId);
       if (!newCommanderUser || !newCommanderUser.isActive) {
         throw new BadRequestException(
           'El usuario a asignar como Comandante de Incidente no existe o se encuentra inactivo.',
@@ -550,9 +554,17 @@ export class EmergencyService {
       }
 
       // 3. Validar nuevo CI
-      const newCommanderUser = await this.userService.findOne(
-        transferCommandDto.newCommanderUserId,
-      );
+      const targetUserId =
+        transferCommandDto.newCommanderUserId ||
+        transferCommandDto.commanderUserId ||
+        transferCommandDto.userId;
+      if (!targetUserId) {
+        throw new BadRequestException(
+          'El ID del nuevo comandante es obligatorio.',
+        );
+      }
+
+      const newCommanderUser = await this.userService.findOne(targetUserId);
       if (!newCommanderUser || !newCommanderUser.isActive) {
         throw new BadRequestException(
           'El usuario a asumir como nuevo Comandante de Incidente no existe o está inactivo.',

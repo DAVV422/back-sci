@@ -590,35 +590,47 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
   - **No genera** registro formal de traspaso en la bitácora ni abre historial de mandatos sucesivos.
   - Si el usuario designado ya tiene una asignación en la emergencia, actualiza su cargo a `incident_commander`. Si no estaba asignado, crea el nuevo registro `attend`.
 - **Acceso**: Roles globales ≥ `manager` (`manager`, `admin`, `suadmin`) o el **creador** de la emergencia (`emergency.user.id === requesterId`).
-- **Body**:
+- **Body (`application/json`)**:
   ```json
   {
-    "userId": "uuid-usuario-comandante"
+    "commanderUserId": "d3b07384-d113-494e-9c8e-aa8939b4e12e"
   }
   ```
+  *(Nota de flexibilidad frontend: el backend acepta indistintamente `"commanderUserId"` o `"userId"`).*
 - **Response (200)**:
   ```json
   {
     "success": true,
     "statusCode": 200,
-    "message": "Comandante de Incidente asignado exitosamente.",
-    "data": { ... }
+    "message": "Comandante de Incidente inicial asignado exitosamente.",
+    "data": {
+      "id": "e4b10738-d113-494e-9c8e-aa8939b4e12a",
+      "code": "EMG-001",
+      "description": "Incendio estructural en sector industrial",
+      "state": "a",
+      "user": { ... },
+      "attends": [ ... ],
+      "form201": [ ... ],
+      "initialAssessment": { ... }
+    }
   }
   ```
+  *(Nota frontend: retorna la emergencia completa con sus relaciones actualizadas).*
 
 #### `POST /api/emergency/:id/attend/transfer-command`
 - **Descripción**: Ejecuta el **traspaso de mando formal** del Comandante de Incidente en una sola transacción atómica y segura:
   - **Regla de integridad F201**: Verifica que **no existan Formularios 201 activos sin finalizar**. Si existe un F201 con `isFinalized = false`, la operación se aborta con `400 Bad Request` indicando que debe finalizarse primero.
-  - **Validación de identidad**: Impide transferir el mando a la misma persona que ya ejerce como CI activo.
+  - **Validación de identidad**: Impide transferir el mando a la misma persona que ya ejerce como CI activo (`409 Conflict`).
   - **Historial cronológico de comandantes**: Desactiva el `attend` del CI saliente (`isActive = false`), cerrando su período de comandancia, y crea un nuevo registro `attend` activo (`isActive = true`) para el nuevo CI. Esto garantiza trazabilidad histórica en caso de que un bombero ejerza como CI en distintos períodos de la misma emergencia.
   - **Bitácora**: Registra de forma automática la acción formal de transferencia de mando en `ActionEntity`.
 - **Acceso**: Roles globales ≥ `manager` (`manager`, `admin`, `suadmin`) o el **Comandante de Incidente activo** de la emergencia.
-- **Body**:
+- **Body (`application/json`)**:
   ```json
   {
-    "newCommanderUserId": "uuid-usuario-nuevo-ci"
+    "newCommanderUserId": "d3b07384-d113-494e-9c8e-aa8939b4e12e"
   }
   ```
+  *(Nota de flexibilidad frontend: el backend acepta indistintamente `"newCommanderUserId"`, `"commanderUserId"` o `"userId"`).*
 - **Response (200)**:
   ```json
   {
@@ -626,12 +638,18 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
     "statusCode": 200,
     "message": "Mando transferido exitosamente.",
     "data": {
-      "attend": { ... },
-      "previousCommanderUserId": "uuid-ci-anterior",
-      "newCommanderUserId": "uuid-nuevo-ci"
+      "id": "e4b10738-d113-494e-9c8e-aa8939b4e12a",
+      "code": "EMG-001",
+      "description": "Incendio estructural en sector industrial",
+      "state": "a",
+      "user": { ... },
+      "attends": [ ... ],
+      "form201": [ ... ],
+      "initialAssessment": { ... }
     }
   }
   ```
+  *(Nota frontend: `data` entrega de inmediato la entidad completa de la emergencia con su nuevo organigrama y relaciones actualizadas, por lo que no es necesario realizar una petición `GET` adicional).*
 
 ---
 
