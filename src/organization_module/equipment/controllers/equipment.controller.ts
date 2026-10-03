@@ -28,6 +28,7 @@ import { EquipmentEntity } from '../entities/equipment.entity';
 export class EquipmentController {
   constructor(private readonly equipmentService: EquipmentService) {}
 
+  @RolesAccess(ROLES.MANAGER)
   @Post()
   async create(
     @Body() createEquipmentDto: CreateEquipmentDto,
@@ -76,6 +77,7 @@ export class EquipmentController {
     };
   }
 
+  @RolesAccess(ROLES.MANAGER)
   @ApiParam({ name: 'id', type: 'string' })
   @Patch(':id')
   async update(

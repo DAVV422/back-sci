@@ -73,4 +73,45 @@ describe('EquipmentService', () => {
       );
     });
   });
+
+  describe('create - integridad de stock', () => {
+    it('rechaza disponible mayor que el total', async () => {
+      await expect(
+        service.create({ name: 'Bomba', description: '', totalQuantity: 2, availableQuantity: 3 }),
+      ).rejects.toThrow('La cantidad disponible no puede superar la cantidad total.');
+      expect(mockRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('update - integridad de stock', () => {
+    beforeEach(() => {
+      mockRepo.findOne.mockResolvedValue({
+        id: 'eq-1',
+        name: 'Bomba',
+        totalQuantity: 10,
+        availableQuantity: 6, // 4 despachadas
+        isDeleted: false,
+      });
+    });
+
+    it('ignora availableQuantity enviado por el cliente', async () => {
+      await service.update('eq-1', { name: 'Bomba portátil', availableQuantity: 99 });
+      expect(mockRepo.update).toHaveBeenCalledWith('eq-1', { name: 'Bomba portátil' });
+    });
+
+    it('ajusta el disponible por la diferencia al cambiar el total', async () => {
+      await service.update('eq-1', { totalQuantity: 12 });
+      expect(mockRepo.update).toHaveBeenCalledWith('eq-1', {
+        totalQuantity: 12,
+        availableQuantity: 8,
+      });
+    });
+
+    it('rechaza un total menor a lo despachado', async () => {
+      await expect(service.update('eq-1', { totalQuantity: 3 })).rejects.toThrow(
+        'La cantidad total no puede ser menor a las 4 unidades actualmente despachadas.',
+      );
+      expect(mockRepo.update).not.toHaveBeenCalled();
+    });
+  });
 });

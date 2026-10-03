@@ -29,6 +29,10 @@ export class EquipmentService {
     createEquipmentDto: CreateEquipmentDto,
   ): Promise<EquipmentEntity> {
     try {
+      if (createEquipmentDto.availableQuantity > createEquipmentDto.totalQuantity)
+        throw new BadRequestException(
+          'La cantidad disponible no puede superar la cantidad total.',
+        );
       const equipment_created =
         this.equipmentRepository.create(createEquipmentDto);
       await this.equipmentRepository.save(equipment_created);
@@ -44,7 +48,22 @@ export class EquipmentService {
   ): Promise<EquipmentEntity> {
     try {
       const equipment = await this.findOne(id);
-      await this.equipmentRepository.update(id, updateEquipmentDto);
+      // El stock disponible lo administran el despacho y la devolución de recursos:
+      // no se acepta del cliente. Si cambia el total, el disponible se ajusta por la diferencia.
+      const { availableQuantity: _ignored, totalQuantity, ...data } =
+        updateEquipmentDto;
+      const changes: Partial<EquipmentEntity> = { ...data };
+      if (totalQuantity !== undefined && totalQuantity !== equipment.totalQuantity) {
+        const deployed = equipment.totalQuantity - equipment.availableQuantity;
+        if (totalQuantity < deployed)
+          throw new BadRequestException(
+            `La cantidad total no puede ser menor a las ${deployed} unidades actualmente despachadas.`,
+          );
+        changes.totalQuantity = totalQuantity;
+        changes.availableQuantity = totalQuantity - deployed;
+      }
+      if (Object.keys(changes).length > 0)
+        await this.equipmentRepository.update(id, changes);
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -58,6 +77,7 @@ export class EquipmentService {
       const { limit, offset, order = 'DESC', attr, value } = queryDto;
       const query = this.equipmentRepository.createQueryBuilder('equipment');
       query.andWhere('equipment.is_deleted = false');
+      query.orderBy('equipment.name', 'ASC');
       if (limit) query.take(limit);
       if (offset) query.skip(offset);
       const [items, total] = await query.getManyAndCount();
