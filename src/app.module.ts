@@ -2,6 +2,7 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { globalThrottleLimit } from './common/constants';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from 'nestjs-pino';
 import { DataSourceConfig } from './config/data.source';
@@ -35,7 +36,7 @@ import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
       {
         name: 'short',
         ttl: 60000, // 1 minuto
-        limit: 10, // 10 requests por defecto
+        limit: globalThrottleLimit, // THROTTLE_LIMIT; 300 requests por IP y minuto por defecto
       },
     ]),
     // MongooseModule.forRoot(process.env.URL_MONGO),

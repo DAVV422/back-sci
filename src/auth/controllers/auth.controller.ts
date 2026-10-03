@@ -1,6 +1,7 @@
 import { Body, Controller, Post, Query } from '@nestjs/common';
 import { ApiQuery, ApiTags } from '@nestjs/swagger/dist/decorators';
 import { Throttle } from '@nestjs/throttler';
+import { authThrottleLimit } from '../../common/constants';
 
 import { AuthDTO } from '../dto/auth.dto';
 import { RefreshTokenDTO } from '../dto/refresh-token.dto';
@@ -29,7 +30,7 @@ export class AuthController {
   //   };
   // }
 
-  @Throttle({ short: { ttl: 60000, limit: 5 } }) // 5 intentos/min
+  @Throttle({ short: { ttl: 60000, limit: authThrottleLimit(5) } }) // 5 intentos/min
   @Post('login')
   public async login(
     @Body() authDto: AuthDTO,
@@ -42,7 +43,7 @@ export class AuthController {
     };
   }
 
-  @Throttle({ short: { ttl: 60000, limit: 10 } })
+  @Throttle({ short: { ttl: 60000, limit: authThrottleLimit(10) } })
   @Post('activate')
   public async activateAccount(
     @Body() activateDto: ActivateAccountDto,
@@ -59,7 +60,7 @@ export class AuthController {
     };
   }
 
-  @Throttle({ short: { ttl: 60000, limit: 5 } })
+  @Throttle({ short: { ttl: 60000, limit: authThrottleLimit(5) } })
   @Post('resend-activation')
   public async resendActivation(
     @Body() resendDto: ResendActivationDto,
@@ -73,7 +74,7 @@ export class AuthController {
     };
   }
 
-  @Throttle({ short: { ttl: 60000, limit: 10 } }) // 10 intentos/min
+  @Throttle({ short: { ttl: 60000, limit: authThrottleLimit(10) } }) // 10 intentos/min
   @Post('refresh-token')
   public async refreshToken(
     @Body() refreshTokenDto: RefreshTokenDTO,

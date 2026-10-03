@@ -3,4 +3,4 @@ export { ROLES } from './roles';
 export { PUBLIC_KEY, ADMIN_KEY, ROLES_KEY } from './key-decorators';
 export { ORDER, ORDER_ENUM } from './order';
 export { FRONTEND_ROUTES } from './frontend-routes';
-
+export * from './throttle';
