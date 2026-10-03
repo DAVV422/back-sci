@@ -12,6 +12,8 @@ import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 
+import { emergencyRoom } from '../realtime/realtime-events';
+
 @WebSocketGateway({
   cors: {
     origin: true,
@@ -73,9 +75,21 @@ export class NotificationGateway
     @MessageBody() emergencyId: string,
   ) {
     if (emergencyId) {
-      client.join(`emergency_${emergencyId}`);
-      this.logger.log(`Cliente ${client.id} se unió a la sala emergency_${emergencyId}`);
+      client.join(emergencyRoom(emergencyId));
+      this.logger.log(`Cliente ${client.id} se unió a la sala ${emergencyRoom(emergencyId)}`);
       return { event: 'joined_emergency', data: emergencyId };
+    }
+  }
+
+  @SubscribeMessage('leave_emergency')
+  handleLeaveEmergency(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() emergencyId: string,
+  ) {
+    if (emergencyId) {
+      client.leave(emergencyRoom(emergencyId));
+      this.logger.log(`Cliente ${client.id} salió de la sala ${emergencyRoom(emergencyId)}`);
+      return { event: 'left_emergency', data: emergencyId };
     }
   }
 
@@ -84,6 +98,14 @@ export class NotificationGateway
   }
 
   sendToEmergency(emergencyId: string, notification: any) {
-    this.server.to(`emergency_${emergencyId}`).emit('emergency_notification', notification);
+    this.server.to(emergencyRoom(emergencyId)).emit('emergency_notification', notification);
+  }
+
+  emitToEmergency(emergencyId: string, event: string, payload: unknown) {
+    this.server?.to(emergencyRoom(emergencyId)).emit(event, payload);
+  }
+
+  broadcast(event: string, payload: unknown) {
+    this.server?.emit(event, payload);
   }
 }

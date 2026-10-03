@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,6 +18,7 @@ import { UserService } from '../../../user/services/user.service';
 import { AttendEntity } from '../../../organization_module/attends/entities/attends.entity';
 import { ActionEntity } from '../../action/entities/action.entity';
 import { ROLES } from '../../../common/constants';
+import { RealtimeService } from '../../../notification/services/realtime.service';
 
 @Injectable()
 export class Form201Service {
@@ -31,6 +33,7 @@ export class Form201Service {
     private readonly actionRepository: Repository<ActionEntity>,
     private readonly emergencyService: EmergencyService,
     private readonly userService: UserService,
+    @Optional() private readonly realtimeService?: RealtimeService,
   ) {}
 
   public async assertCanManageForm201(
@@ -281,6 +284,7 @@ export class Form201Service {
       const { clientGeneratedId, code, isFinalized, ...updateData } = updateForm201Dto as any;
       await this.form201Repository.update(id, updateData);
       this.logger.log(`[update] Form201 actualizado exitosamente. id=${id}`);
+      this.realtimeService?.notifyEmergency(form201.emergency.id, 'form201', 'update', id);
 
       return await this.findOne(id);
     } catch (error) {
@@ -358,6 +362,7 @@ export class Form201Service {
 
       await this.form201Repository.update(id, { isDeleted: true });
       this.logger.log(`[delete] Form201 eliminado exitosamente. id=${id}`);
+      this.realtimeService?.notifyEmergency(form201.emergency.id, 'form201', 'delete', id);
     } catch (error) {
       this.logger.error(`[delete] Error al eliminar Form201: ${error.message}`, error.stack);
       throw error;

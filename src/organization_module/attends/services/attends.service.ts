@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -18,6 +19,7 @@ import { UserService } from '../../../user/services/user.service';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { ChargeService } from '../../../sci_module/charges/services/charge.service';
 import { ROLES } from '../../../common/constants';
+import { RealtimeService } from '../../../notification/services/realtime.service';
 
 @Injectable()
 export class AttendService {
@@ -29,6 +31,7 @@ export class AttendService {
     private readonly userService: UserService,
     private readonly emergencyService: EmergencyService,
     private readonly chargeService: ChargeService,
+    @Optional() private readonly realtimeService?: RealtimeService,
   ) {}
 
   public async assertCanManageAttends(
@@ -221,6 +224,7 @@ export class AttendService {
       if (updated.affected === 0)
         throw new BadRequestException('Asistencia no actualizada.');
       this.logger.log(`[update] Asistencia actualizada exitosamente. id=${id}`);
+      this.realtimeService?.notifyEmergency(attend.emergency?.id, 'attend', 'update', attend.id);
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -257,6 +261,7 @@ export class AttendService {
       if (deletedAttend.affected === 0)
         throw new BadRequestException('Asistencia no eliminada.');
       this.logger.log(`[delete] Asistencia eliminada exitosamente. id=${id}`);
+      this.realtimeService?.notifyEmergency(attend.emergency?.id, 'attend', 'delete', attend.id);
       return {
         success: true,
         statusCode: 200,

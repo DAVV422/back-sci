@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ForbiddenException,
   ConflictException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -35,6 +36,7 @@ import {
 import { UserService } from '../../../user/services/user.service';
 import { ROLES } from '../../../common/constants';
 import { EmergencyStateMachine } from './emergency-state-machine';
+import { RealtimeService } from '../../../notification/services/realtime.service';
 
 @Injectable()
 export class EmergencyService {
@@ -48,6 +50,7 @@ export class EmergencyService {
     private readonly userService: UserService,
     private readonly dataSource: DataSource,
     private readonly stateMachine: EmergencyStateMachine,
+    @Optional() private readonly realtimeService?: RealtimeService,
   ) {}
 
   public async findAll(
@@ -238,6 +241,7 @@ export class EmergencyService {
         throw new NotFoundException('Emergencia no actualizada.');
       }
       this.logger.log(`[update] Emergencia actualizada exitosamente. id=${id}`);
+      this.realtimeService?.notifyEmergency(emergency.id, 'emergency', 'update', emergency.id);
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -359,6 +363,7 @@ export class EmergencyService {
       if (deletedEmergency.affected === 0)
         throw new BadRequestException('Emergencia no eliminada.');
       this.logger.log(`[delete] Emergencia eliminada exitosamente. id=${id}`);
+      this.realtimeService?.notifyEmergency(emergency.id, 'emergency', 'delete', emergency.id);
       return {
         success: true,
         statusCode: 200,
