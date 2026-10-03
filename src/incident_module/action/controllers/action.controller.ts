@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -22,6 +23,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { diskStorage } from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -41,6 +43,22 @@ import { ActionEntity } from './../entities/action.entity';
 @Controller('action')
 export class ActionController {
   constructor(private readonly actionService: ActionService) {}
+
+  @Get('audio/:audioId')
+  @ApiOperation({ summary: 'Descargar/reproducir el archivo de una nota de voz' })
+  @ApiParam({ name: 'audioId', type: 'string' })
+  public async streamAudio(
+    @Param('audioId', ParseUUIDPipe) audioId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const audio = await this.actionService.getAudioFile(audioId);
+    res.setHeader('Content-Type', audio.mimeType);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${encodeURIComponent(audio.fileName)}"`,
+    );
+    res.sendFile(audio.absolutePath);
+  }
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener detalle de una acción y su audio adjunto' })
@@ -62,11 +80,12 @@ export class ActionController {
   public async create(
     @Body() createActionDto: CreateActionDto,
     @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<ActionEntity>> {
     return {
       success: true,
       statusCode: 201,
-      data: await this.actionService.create(createActionDto, userId),
+      data: await this.actionService.create(createActionDto, userId, userRole),
     };
   }
 
@@ -133,6 +152,7 @@ export class ActionController {
     @Body('duration') duration: string,
     @Body('clientGeneratedId') clientGeneratedId: string,
     @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<ActionEntity>> {
     const now = new Date();
     const hour = `${String(now.getHours()).padStart(2, '0')}:${String(
@@ -160,7 +180,18 @@ export class ActionController {
       },
     };
 
-    const action = await this.actionService.create(createActionDto, userId);
+    let action: ActionEntity;
+    try {
+      action = await this.actionService.create(
+        createActionDto,
+        userId,
+        userRole,
+      );
+    } catch (error) {
+      // Multer ya escribió el archivo: si la acción se rechaza no debe quedar huérfano.
+      if (file?.path) fs.promises.unlink(file.path).catch(() => undefined);
+      throw error;
+    }
     return {
       success: true,
       statusCode: 201,
@@ -195,11 +226,18 @@ export class ActionController {
   public async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateActionDto: CreateActionDto,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<ActionEntity>> {
     return {
       success: true,
       statusCode: 200,
-      data: await this.actionService.update(id, updateActionDto),
+      data: await this.actionService.update(
+        id,
+        updateActionDto,
+        userId,
+        userRole,
+      ),
     };
   }
 
@@ -207,8 +245,10 @@ export class ActionController {
   @ApiParam({ name: 'id', type: 'string' })
   public async delete(
     @Param('id', ParseUUIDPipe) id: string,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<null>> {
-    await this.actionService.delete(id);
+    await this.actionService.delete(id, userId, userRole);
     return {
       success: true,
       statusCode: 200,

@@ -3,9 +3,12 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as fs from 'fs';
+import * as path from 'path';
 
 import { CreateActionDto } from './../dto/create-action.dto';
 import { CreateAudioDto } from './../dto/create-audio.dto';
@@ -14,6 +17,16 @@ import { AudioEntity } from './../entities/audio.entity';
 import { handlerError } from '../../../common/utils/handlerError.utils';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { UserService } from '../../../user/services/user.service';
+import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
+
+const AUDIO_ROOT = path.join(process.cwd(), 'data', 'audios');
+
+export interface AudioFile {
+  absolutePath: string;
+  mimeType: string;
+  fileName: string;
+}
+import { RealtimeService } from '../../../notification/services/realtime.service';
 
 @Injectable()
 export class ActionService {
@@ -26,6 +39,8 @@ export class ActionService {
     private readonly audioRepository: Repository<AudioEntity>,
     private readonly emergencyService: EmergencyService,
     private readonly userService: UserService,
+    private readonly emergencyAccessService: EmergencyAccessService,
+    @Optional() private readonly realtimeService?: RealtimeService,
   ) {}
 
   public async findOne(id: string): Promise<ActionEntity> {
@@ -49,6 +64,7 @@ export class ActionService {
   public async create(
     createActionDto: CreateActionDto,
     userId: string,
+    userRole?: string,
   ): Promise<ActionEntity> {
     this.logger.log(
       `[create] Registrando acción en bitácora. emergencyId=${createActionDto.emergency}, userId=${userId}, hasAudio=${!!createActionDto.audio}, clientGeneratedId=${createActionDto.clientGeneratedId ?? 'N/A'}`,
@@ -71,6 +87,13 @@ export class ActionService {
       const { emergency, audio, ...createAction } = createActionDto;
       const emergencyEntity = await this.emergencyService.findOne(emergency);
       this.emergencyService.assertEditable(emergencyEntity);
+      if (userRole) {
+        await this.emergencyAccessService.assertMember(
+          emergencyEntity.id,
+          userId,
+          userRole,
+        );
+      }
       const user = await this.userService.findOne(userId);
 
       let savedAudio: AudioEntity | undefined = undefined;
@@ -141,27 +164,50 @@ export class ActionService {
   public async update(
     id: string,
     updateActionDto: CreateActionDto,
+    userId?: string,
+    userRole?: string,
   ): Promise<ActionEntity> {
     this.logger.log(`[update] Actualizando acción. id=${id}`);
     try {
       const { emergency, audio, ...updateAction } = updateActionDto;
       const action = await this.findOne(id);
-      if (action.emergency)
+      if (action.emergency) {
         this.emergencyService.assertEditable(action.emergency);
+        if (userId && userRole) {
+          await this.emergencyAccessService.assertMember(
+            action.emergency.id,
+            userId,
+            userRole,
+          );
+        }
+      }
       await this.actionRepository.update(action.id, updateAction);
       this.logger.log(`[update] Acción actualizada con éxito. id=${id}`);
+      this.realtimeService?.notifyEmergency(action.emergency?.id, 'action', 'update', action.id);
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
     }
   }
 
-  public async delete(id: string): Promise<void> {
+  public async delete(
+    id: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<void> {
     this.logger.log(`[delete] Eliminando acción. id=${id}`);
     try {
       const action = await this.findOne(id);
-      if (action.emergency)
+      if (action.emergency) {
         this.emergencyService.assertEditable(action.emergency);
+        if (userId && userRole) {
+          await this.emergencyAccessService.assertMember(
+            action.emergency.id,
+            userId,
+            userRole,
+          );
+        }
+      }
       const deletedAction = await this.actionRepository.update(action.id, {
         isDeleted: true,
       });
@@ -170,6 +216,7 @@ export class ActionService {
         throw new BadRequestException('Acción no eliminada.');
       }
       this.logger.log(`[delete] Acción eliminada exitosamente. id=${id}`);
+      this.realtimeService?.notifyEmergency(action.emergency?.id, 'action', 'delete', action.id);
     } catch (error) {
       handlerError(error, this.logger);
     }
@@ -185,6 +232,34 @@ export class ActionService {
       });
       this.logger.log(`[findByEmergency] Encontradas ${items.length} acciones para emergencia ${emergencyId}`);
       return items;
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
+  /** Resuelve el archivo físico de un audio de bitácora, impidiendo salir de data/audios. */
+  public async getAudioFile(audioId: string): Promise<AudioFile> {
+    this.logger.log(`[getAudioFile] Buscando audio. id=${audioId}`);
+    try {
+      const audio = await this.audioRepository.findOne({
+        where: { id: audioId, isDeleted: false },
+      });
+      if (!audio) throw new NotFoundException('Audio no encontrado.');
+
+      const absolutePath = path.resolve(process.cwd(), audio.pathAudio);
+      if (!absolutePath.startsWith(AUDIO_ROOT + path.sep)) {
+        this.logger.warn(`[getAudioFile] Ruta fuera del directorio de audios. id=${audioId}`);
+        throw new NotFoundException('Audio no encontrado.');
+      }
+      if (!fs.existsSync(absolutePath)) {
+        this.logger.warn(`[getAudioFile] Archivo físico inexistente. id=${audioId}`);
+        throw new NotFoundException('El archivo de audio no está disponible.');
+      }
+      return {
+        absolutePath,
+        mimeType: audio.mimeType || 'audio/mp4',
+        fileName: audio.fileName || path.basename(absolutePath),
+      };
     } catch (error) {
       handlerError(error, this.logger);
     }

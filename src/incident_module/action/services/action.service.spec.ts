@@ -6,6 +6,7 @@ import { ActionService } from './action.service';
 import { ActionEntity } from '../entities/action.entity';
 import { AudioEntity } from '../entities/audio.entity';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
+import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
 import { UserService } from '../../../user/services/user.service';
 import { EmergencyStatus } from '../../../organization_module/emergency/enums/emergency-status.enum';
 
@@ -13,6 +14,11 @@ describe('ActionService', () => {
   let service: ActionService;
   let mockEmergencyService: any;
   let mockActionRepo: any;
+
+  const mockEmergencyAccessService = {
+    assertMember: jest.fn().mockResolvedValue(undefined),
+    assertHasCharge: jest.fn().mockResolvedValue(undefined),
+  };
 
   beforeEach(async () => {
     mockEmergencyService = {
@@ -34,6 +40,10 @@ describe('ActionService', () => {
         { provide: getRepositoryToken(ActionEntity), useValue: mockActionRepo },
         { provide: getRepositoryToken(AudioEntity), useValue: {} },
         { provide: EmergencyService, useValue: mockEmergencyService },
+        {
+          provide: EmergencyAccessService,
+          useValue: mockEmergencyAccessService,
+        },
         {
           provide: UserService,
           useValue: { findOne: jest.fn().mockResolvedValue({ id: 'user-1' }) },
