@@ -4,6 +4,7 @@ import { InitialAssessmentController } from './controllers/initial-assessment.co
 import { EmergencyService } from './services/emergency.service';
 import { EmergencyStateMachine } from './services/emergency-state-machine';
 import { InitialAssessmentService } from './services/initial-assessment.service';
+import { EmergencyAccessService } from './services/emergency-access.service';
 import { EmergencyEntity } from './entities/emergency.entity';
 import { InitialAssessmentEntity } from './entities/initial-assessment.entity';
 import { ActionEntity } from './../../incident_module/action/entities/action.entity';
@@ -37,7 +38,13 @@ import { ChargeEntity } from '../../sci_module/charges/entities/charges.entity';
     EmergencyStateMachine,
     DataFireService,
     InitialAssessmentService,
+    EmergencyAccessService,
   ],
-  exports: [TypeOrmModule, EmergencyService, DataFireService],
+  exports: [
+    TypeOrmModule,
+    EmergencyService,
+    DataFireService,
+    EmergencyAccessService,
+  ],
 })
 export class EmergencyModule {}
