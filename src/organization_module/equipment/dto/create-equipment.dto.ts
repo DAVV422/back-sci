@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsNumber } from 'class-validator';
 
 export class CreateEquipmentDto {
   @ApiProperty({
@@ -13,10 +13,11 @@ export class CreateEquipmentDto {
   @ApiProperty({
     example: 'Una excavadora usada para movimientos de tierra.',
     description: 'Descripción del equipo',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  description: string;
+  description?: string;
 
   @ApiProperty({
     example: 5,

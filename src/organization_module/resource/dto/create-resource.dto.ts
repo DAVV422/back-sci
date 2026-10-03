@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsPositive,
   IsString,
   IsUUID,
@@ -22,6 +23,7 @@ export class CreateResourceDto {
     description: 'Notes about the resource usage',
     required: false,
   })
+  @IsOptional()
   @IsString()
   note?: string;
 

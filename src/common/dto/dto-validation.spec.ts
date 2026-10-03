@@ -51,3 +51,20 @@ describe('fechas de formularios con la conversión implícita del ValidationPipe
   });
 });
 
+describe('CreateEquipmentDto', () => {
+  it('la descripción es opcional (la columna admite NULL y el formulario no la exige)', async () => {
+    const errors = await validateLikeMain(CreateEquipmentDto, { name: 'Escala', totalQuantity: 3, availableQuantity: 3 });
+    expect(errors).toEqual([]);
+  });
+});
+
+describe('CreateResourceDto', () => {
+  it('permite despachar sin nota', async () => {
+    const errors = await validateLikeMain(CreateResourceDto, {
+      amount: 1,
+      emergencyId: '01b9bbf4-41a6-4820-abd4-9df61a2d6356',
+      equipmentId: '02b9bbf4-41a6-4820-abd4-9df61a2d6357',
+    });
+    expect(errors).toEqual([]);
+  });
+});
