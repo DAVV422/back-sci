@@ -8,7 +8,7 @@ export class ResourceEntity extends BaseEntity {
   @Column({ name: 'amount', type: 'int', nullable: false })
   amount: number;
 
-  @Column({ name: 'note', type: 'varchar', length: 255, nullable: false })
+  @Column({ name: 'note', type: 'varchar', length: 255, nullable: true })
   note: string;
 
   @Column({ name: 'amount_returned', type: 'int', default: 0 })
