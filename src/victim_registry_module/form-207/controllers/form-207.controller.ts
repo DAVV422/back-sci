@@ -30,11 +30,13 @@ export class Form207Controller {
     @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
     @Body() createForm207Dto: CreateForm207Dto,
     @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<Form207Entity>> {
     const form207 = await this.form207Service.create(
       emergencyId,
       createForm207Dto,
       userId,
+      userRole,
     );
     return {
       success: true,
@@ -58,12 +60,26 @@ export class Form207Controller {
   }
 
   @ApiParam({ name: 'id', type: 'string' })
+  @Get('form207/:id')
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ApiResponse<Form207Entity>> {
+    const form207 = await this.form207Service.findOne(id);
+    return {
+      success: true,
+      statusCode: 200,
+      data: form207,
+    };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
   @Patch('form207/:id/finalize')
   async finalize(
     @Param('id', ParseUUIDPipe) id: string,
     @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<Form207Entity>> {
-    const form207 = await this.form207Service.finalize(id, userId);
+    const form207 = await this.form207Service.finalize(id, userId, userRole);
     return {
       success: true,
       statusCode: 200,

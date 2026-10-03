@@ -43,9 +43,9 @@ describe('RegistrationController', () => {
   describe('create', () => {
     it('should call service.create and return standard response', async () => {
       const dto = { victimId: 'victim-1', classification: 'rojo' } as any;
-      const res = await controller.create('form207-1', dto, 'user-1');
+      const res = await controller.create('form207-1', dto, 'user-1', 'basic');
 
-      expect(service.create).toHaveBeenCalledWith('form207-1', dto, 'user-1');
+      expect(service.create).toHaveBeenCalledWith('form207-1', dto, 'user-1', 'basic');
       expect(res).toEqual({
         success: true,
         statusCode: 201,

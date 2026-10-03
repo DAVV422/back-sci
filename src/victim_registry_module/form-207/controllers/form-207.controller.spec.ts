@@ -45,9 +45,9 @@ describe('Form207Controller', () => {
   describe('create', () => {
     it('should call service.create and return standard response', async () => {
       const dto = { placeOfRegistration: 'Zona A', attendant: 'Juan' } as any;
-      const res = await controller.create('emergency-1', dto, 'user-1');
+      const res = await controller.create('emergency-1', dto, 'user-1', 'basic');
 
-      expect(service.create).toHaveBeenCalledWith('emergency-1', dto, 'user-1');
+      expect(service.create).toHaveBeenCalledWith('emergency-1', dto, 'user-1', 'basic');
       expect(res).toEqual({
         success: true,
         statusCode: 201,
@@ -72,9 +72,9 @@ describe('Form207Controller', () => {
 
   describe('finalize', () => {
     it('should call service.finalize and return standard response', async () => {
-      const res = await controller.finalize('form-1', 'user-1');
+      const res = await controller.finalize('form-1', 'user-1', 'basic');
 
-      expect(service.finalize).toHaveBeenCalledWith('form-1', 'user-1');
+      expect(service.finalize).toHaveBeenCalledWith('form-1', 'user-1', 'basic');
       expect(res).toEqual({
         success: true,
         statusCode: 200,

@@ -1,12 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 
 import { Form207Service } from './form-207.service';
 import { Form207Entity } from '../entities/form-207.entity';
 import { ActionEntity } from '../../../incident_module/action/entities/action.entity';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
+import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
 import { UserService } from '../../../user/services/user.service';
 import { EmergencyStatus } from '../../../organization_module/emergency/enums/emergency-status.enum';
 
@@ -54,6 +55,11 @@ describe('Form207Service', () => {
     },
   };
 
+  const mockEmergencyAccessService = {
+    assertMember: jest.fn().mockResolvedValue(undefined),
+    assertHasCharge: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const mockRepo = () => ({
       find: jest.fn(),
@@ -81,6 +87,10 @@ describe('Form207Service', () => {
         { provide: getRepositoryToken(Form207Entity), useFactory: mockRepo },
         { provide: getRepositoryToken(ActionEntity), useFactory: mockRepo },
         { provide: EmergencyService, useValue: mockEmergencyService },
+        {
+          provide: EmergencyAccessService,
+          useValue: mockEmergencyAccessService,
+        },
         { provide: UserService, useValue: mockUserService },
         { provide: DataSource, useValue: mockDataSource },
       ],
@@ -129,6 +139,26 @@ describe('Form207Service', () => {
 
       expect(queryRunnerMock.rollbackTransaction).toHaveBeenCalled();
       expect(queryRunnerMock.release).toHaveBeenCalled();
+    });
+
+    it('exige CI, Líder de Unidad Médica o Manager+ cuando se informa el rol', async () => {
+      mockEmergencyAccessService.assertHasCharge.mockRejectedValueOnce(
+        new ForbiddenException('sin permiso'),
+      );
+      queryRunnerMock.connect.mockClear();
+
+      await expect(
+        service.create('emergency-1', createDto as any, 'user-1', 'basic'),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockEmergencyAccessService.assertHasCharge).toHaveBeenCalledWith(
+        'emergency-1',
+        'user-1',
+        'basic',
+        ['incident_commander', 'medical_unit_leader'],
+        expect.any(String),
+      );
+      expect(queryRunnerMock.connect).not.toHaveBeenCalled();
     });
   });
 

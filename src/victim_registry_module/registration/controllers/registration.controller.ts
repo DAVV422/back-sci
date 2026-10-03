@@ -8,7 +8,10 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
-import { RegistrationService } from '../services/registration.service';
+import {
+  RegistrationService,
+  TriageSummary,
+} from '../services/registration.service';
 import { CreateRegistrationDto } from '../dto/create-registration.dto';
 import { RegistrationEntity } from '../entities/registration.entity';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
@@ -29,11 +32,13 @@ export class RegistrationController {
     @Param('form207Id', ParseUUIDPipe) form207Id: string,
     @Body() createRegistrationDto: CreateRegistrationDto,
     @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<RegistrationEntity>> {
     const registration = await this.registrationService.create(
       form207Id,
       createRegistrationDto,
       userId,
+      userRole,
     );
     return {
       success: true,
@@ -68,6 +73,24 @@ export class RegistrationController {
       success: true,
       statusCode: 200,
       data: registrations,
+    };
+  }
+
+  @ApiParam({ name: 'emergencyId', type: 'string' })
+  @Get('emergency/:emergencyId/triage-summary')
+  @ApiOperation({
+    summary: 'Victim count by latest triage classification for an emergency',
+  })
+  async getTriageSummary(
+    @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
+  ): Promise<ApiResponse<TriageSummary>> {
+    const summary = await this.registrationService.getTriageSummaryByEmergency(
+      emergencyId,
+    );
+    return {
+      success: true,
+      statusCode: 200,
+      data: summary,
     };
   }
 }

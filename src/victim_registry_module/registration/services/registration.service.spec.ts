@@ -1,13 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 
 import { RegistrationService } from './registration.service';
 import { RegistrationEntity } from '../entities/registration.entity';
 import { Form207Service } from '../../form-207/services/form-207.service';
 import { VictimService } from '../../victim/services/victim.service';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
+import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
 import { UserService } from '../../../user/services/user.service';
 
 describe('RegistrationService', () => {
@@ -35,11 +36,17 @@ describe('RegistrationService', () => {
     name: 'Officer',
   };
 
+  const mockEmergencyAccessService = {
+    assertMember: jest.fn().mockResolvedValue(undefined),
+    assertHasCharge: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const mockRepo = () => ({
       create: jest.fn().mockImplementation((dto) => dto),
       save: jest.fn(),
       find: jest.fn(),
+      query: jest.fn(),
     });
 
     const mockForm207Service = {
@@ -52,6 +59,7 @@ describe('RegistrationService', () => {
 
     const mockEmergencyService = {
       assertEditable: jest.fn(),
+      findOne: jest.fn().mockResolvedValue({ id: 'emergency-1' }),
     };
 
     const mockUserService = {
@@ -65,6 +73,10 @@ describe('RegistrationService', () => {
         { provide: Form207Service, useValue: mockForm207Service },
         { provide: VictimService, useValue: mockVictimService },
         { provide: EmergencyService, useValue: mockEmergencyService },
+        {
+          provide: EmergencyAccessService,
+          useValue: mockEmergencyAccessService,
+        },
         { provide: UserService, useValue: mockUserService },
       ],
     }).compile();
@@ -107,6 +119,34 @@ describe('RegistrationService', () => {
       } as any);
 
       await expect(service.create('form207-1', dto, 'user-1')).rejects.toThrow(BadRequestException);
+    });
+
+    it('exige estar asignado a la emergencia cuando se informa el rol', async () => {
+      mockEmergencyAccessService.assertMember.mockRejectedValueOnce(
+        new ForbiddenException('sin permiso'),
+      );
+
+      await expect(
+        service.create('form207-1', dto, 'user-1', 'basic'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getTriageSummaryByEmergency', () => {
+    it('suma las víctimas por su clasificación más reciente', async () => {
+      repo.query.mockResolvedValue([
+        { classification: 'rojo', count: '2' },
+        { classification: 'verde', count: '5' },
+      ]);
+
+      const summary = await service.getTriageSummaryByEmergency('emergency-1');
+
+      expect(summary).toEqual({ total: 7, rojo: 2, amarillo: 0, verde: 5, negro: 0 });
+      expect(repo.query).toHaveBeenCalledWith(
+        expect.stringContaining('DISTINCT ON (r.victim_id)'),
+        ['emergency-1'],
+      );
     });
   });
 

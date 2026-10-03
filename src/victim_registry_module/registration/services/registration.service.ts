@@ -7,6 +7,17 @@ import { Form207Service } from '../../form-207/services/form-207.service';
 import { VictimService } from '../../victim/services/victim.service';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { UserService } from '../../../user/services/user.service';
+import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
+
+export type TriageClassification = 'rojo' | 'amarillo' | 'verde' | 'negro';
+
+export interface TriageSummary {
+  total: number;
+  rojo: number;
+  amarillo: number;
+  verde: number;
+  negro: number;
+}
 
 @Injectable()
 export class RegistrationService {
@@ -19,12 +30,14 @@ export class RegistrationService {
     private readonly victimService: VictimService,
     private readonly emergencyService: EmergencyService,
     private readonly userService: UserService,
+    private readonly emergencyAccessService: EmergencyAccessService,
   ) {}
 
   async create(
     form207Id: string,
     createRegistrationDto: CreateRegistrationDto,
     userId: string,
+    userRole?: string,
   ): Promise<RegistrationEntity> {
     this.logger.log(
       `[create] Iniciando registro de víctima en Form207. form207Id=${form207Id}, userId=${userId}, victimId=${createRegistrationDto.victimId}, clientGeneratedId=${createRegistrationDto.clientGeneratedId ?? 'N/A'}`,
@@ -46,6 +59,15 @@ export class RegistrationService {
 
     const form207 = await this.form207Service.findOne(form207Id);
     this.emergencyService.assertEditable(form207.emergency);
+
+    if (userRole) {
+      await this.emergencyAccessService.assertMember(
+        form207.emergency.id,
+        userId,
+        userRole,
+        'Solo el personal asignado a la emergencia o un usuario con rol Manager o superior puede registrar triage.',
+      );
+    }
 
     if (form207.isFinalized) {
       this.logger.warn(
@@ -112,5 +134,38 @@ export class RegistrationService {
     });
     this.logger.log(`[findHistoryByVictim] Historial encontrado. victimId=${victimId}, registros=${results.length}`);
     return results;
+  }
+
+  /**
+   * Conteo de víctimas de la emergencia según su clasificación de triage MÁS RECIENTE
+   * (una víctima re-evaluada de rojo a amarillo cuenta solo como amarillo).
+   */
+  async getTriageSummaryByEmergency(emergencyId: string): Promise<TriageSummary> {
+    this.logger.log(`[getTriageSummaryByEmergency] Calculando resumen. emergencyId=${emergencyId}`);
+    const emergency = await this.emergencyService.findOne(emergencyId);
+    const rows: { classification: TriageClassification; count: string }[] =
+      await this.registrationRepository.query(
+        `SELECT latest.classification, COUNT(*) AS count
+           FROM (
+             SELECT DISTINCT ON (r.victim_id) r.victim_id, r.classification
+               FROM registration r
+               JOIN form207 f ON f.id = r.form207_id
+               JOIN victim v ON v.id = r.victim_id
+              WHERE f.emergency_id = $1
+                AND f.is_deleted = false
+                AND v.is_deleted = false
+              ORDER BY r.victim_id, r.created_at DESC
+           ) latest
+          GROUP BY latest.classification`,
+        [emergency.id],
+      );
+
+    const summary: TriageSummary = { total: 0, rojo: 0, amarillo: 0, verde: 0, negro: 0 };
+    for (const row of rows) {
+      const count = Number(row.count);
+      summary[row.classification] = count;
+      summary.total += count;
+    }
+    return summary;
   }
 }

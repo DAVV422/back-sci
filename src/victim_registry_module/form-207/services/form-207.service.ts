@@ -8,6 +8,11 @@ import { UserService } from '../../../user/services/user.service';
 import { ActionEntity } from '../../../incident_module/action/entities/action.entity';
 import { EmergencyEntity } from '../../../organization_module/emergency/entities/emergency.entity';
 import { UserEntity } from '../../../user/entities/user.entity';
+import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
+
+const FORM207_MANAGER_CHARGES = ['incident_commander', 'medical_unit_leader'];
+const FORM207_FORBIDDEN_MESSAGE =
+  'Solo el Comandante del Incidente, el Líder de la Unidad Médica o un usuario con rol Manager o superior puede gestionar el Formulario 207.';
 
 @Injectable()
 export class Form207Service {
@@ -21,12 +26,14 @@ export class Form207Service {
     private readonly emergencyService: EmergencyService,
     private readonly userService: UserService,
     private readonly dataSource: DataSource,
+    private readonly emergencyAccessService: EmergencyAccessService,
   ) {}
 
   async create(
     emergencyId: string,
     createForm207Dto: CreateForm207Dto,
     userId: string,
+    userRole?: string,
   ): Promise<Form207Entity> {
     this.logger.log(
       `[create] Iniciando creación de Form207. emergencyId=${emergencyId}, userId=${userId}, clientGeneratedId=${createForm207Dto.clientGeneratedId ?? 'N/A'}`,
@@ -44,6 +51,16 @@ export class Form207Service {
         );
         return existing;
       }
+    }
+
+    if (userRole) {
+      await this.emergencyAccessService.assertHasCharge(
+        emergencyId,
+        userId,
+        userRole,
+        FORM207_MANAGER_CHARGES,
+        FORM207_FORBIDDEN_MESSAGE,
+      );
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -132,10 +149,24 @@ export class Form207Service {
     return form207;
   }
 
-  async finalize(id: string, userId: string): Promise<Form207Entity> {
+  async finalize(
+    id: string,
+    userId: string,
+    userRole?: string,
+  ): Promise<Form207Entity> {
     this.logger.log(`[finalize] Iniciando finalización de Form207. id=${id}, userId=${userId}`);
     const form207 = await this.findOne(id);
     this.emergencyService.assertEditable(form207.emergency);
+
+    if (userRole) {
+      await this.emergencyAccessService.assertHasCharge(
+        form207.emergency.id,
+        userId,
+        userRole,
+        FORM207_MANAGER_CHARGES,
+        FORM207_FORBIDDEN_MESSAGE,
+      );
+    }
 
     if (form207.isFinalized) {
       this.logger.warn(`[finalize] Form207 ya estaba finalizado. id=${id}, code=${form207.code}`);
