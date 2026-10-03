@@ -787,9 +787,15 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
 - **Descripción**: Lista los Formularios 207 asociados a la emergencia.
 - **Acceso**: Autenticado.
 
+#### `GET /api/form207/:id`
+- **Descripción**: Detalle de una planilla F207 (incluye `emergency` y `user` creador).
+- **Acceso**: Autenticado.
+
 #### `PATCH /api/form207/:id/finalize`
 - **Descripción**: Cierra y finaliza la planilla del F207 de forma inmutable.
 - **Acceso**: Comandante de Incidente, Líder de Unidad Médica o `admin`/`manager`.
+
+> **Validación de acceso (crear y finalizar)**: rol `manager`+ o asignación activa (`attend`) con cargo `incident_commander` o `medical_unit_leader` en esa emergencia. En otro caso → `403 Forbidden`.
 
 ---
 
@@ -815,8 +821,8 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
 - **Acceso**: Autenticado.
 
 #### `POST /api/form207/:form207Id/registration`
-- **Descripción**: Registra un evento de clasificación de triage (START/SALT) para una víctima dentro de un F207 activo. Log inmutable (`append-only`).
-- **Acceso**: Todo personal asignado a la emergencia.
+- **Descripción**: Registra un evento de clasificación de triage (START/SALT) para una víctima dentro de un F207 activo. Log inmutable (`append-only`). Una re-evaluación de una víctima existente es un nuevo registro con el mismo `victimId`.
+- **Acceso**: Todo personal asignado a la emergencia (`attend` activo) o rol `manager`+. En otro caso → `403 Forbidden`.
 - **Body**:
   ```json
   {
@@ -830,7 +836,15 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
   ```
 
 #### `GET /api/form207/:form207Id/registration`
-- **Descripción**: Lista todas las víctimas registradas en la planilla F207.
+- **Descripción**: Lista todos los registros de triage de la planilla F207 (con `victim` y `user`), en orden cronológico ascendente. Incluye re-evaluaciones: para obtener el estado actual de cada víctima, quedarse con el registro más reciente por `victim.id`.
+
+#### `GET /api/emergency/:emergencyId/triage-summary`
+- **Descripción**: Conteo de víctimas de la emergencia según su clasificación de triage **más reciente** (una víctima re-evaluada de rojo a amarillo cuenta solo como amarillo). Excluye F207 y víctimas eliminados.
+- **Acceso**: Autenticado.
+- **Response (200)**:
+  ```json
+  { "total": 7, "rojo": 2, "amarillo": 0, "verde": 5, "negro": 0 }
+  ```
 
 #### `GET /api/victim/:victimId/registration`
 - **Descripción**: Obtiene la trazabilidad y evolución histórica de triage de una víctima a lo largo del tiempo.
@@ -841,23 +855,29 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
 
 #### `POST /api/equipment`
 - **Descripción**: Da de alta un nuevo equipo o recurso en el inventario.
-- **Acceso**: `admin`, `manager`.
+- **Acceso**: `manager`, `admin`, `suadmin` (`403` para el resto).
 - **Body**:
   ```json
   {
     "name": "Motosierra Stihl MS 382",
     "description": "Equipo de corte para labores de rescate",
-    "totalStock": 5,
-    "status": "available"
+    "totalQuantity": 5,
+    "availableQuantity": 5
   }
   ```
+- `availableQuantity` no puede superar `totalQuantity` (`400`).
 
 #### `GET /api/equipment` | `GET /api/equipment/:id`
-- **Descripción**: Consulta de inventario y stock disponible.
+- **Descripción**: Consulta de inventario y stock disponible, ordenado por nombre. Sin `limit` devuelve el catálogo completo.
+- **Acceso**: Autenticado.
 
-#### `PATCH /api/equipment/:id` | `DELETE /api/equipment/:id`
-- **Descripción**: Actualización de stock/datos o eliminación de equipo.
-- **Acceso**: `admin`, `manager`.
+#### `PATCH /api/equipment/:id`
+- **Descripción**: Actualiza nombre, descripción o `totalQuantity`.
+- **Acceso**: `manager`, `admin`, `suadmin`.
+- **Integridad de stock**: `availableQuantity` se ignora si se envía (lo administran el despacho y la devolución). Si cambia `totalQuantity`, el disponible se ajusta por la diferencia; un total menor a las unidades despachadas → `400`.
+
+#### `DELETE /api/equipment/:id`
+- **Acceso**: `manager`, `admin`, `suadmin`. Soft delete.
 
 ---
 
@@ -865,21 +885,21 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
 
 #### `POST /api/resource`
 - **Descripción**: Asigna y despacha unidades de equipamiento a una emergencia, descontando automáticamente del stock disponible.
-- **Acceso**: Todo usuario asignado a la emergencia (`basic` o superior).
+- **Acceso**: Personal asignado a la emergencia (`attend` activo) o rol `manager`+. En otro caso → `403 Forbidden`.
 - **Body**:
   ```json
   {
-    "emergency": "uuid-emergencia",
-    "equipment": "uuid-equipo",
-    "amountAssigned": 2,
-    "status": "deployed",
-    "assignedTo": "Equipo de Ataque 1"
+    "emergencyId": "uuid-emergencia",
+    "equipmentId": "uuid-equipo",
+    "amount": 2,
+    "note": "Equipo de Ataque 1 - Sector Bravo"
   }
   ```
+- `note` es opcional. Si `amount` supera `availableQuantity` del equipo → `400`.
 
 #### `PATCH /api/resource/:id/return`
 - **Descripción**: Registra la devolución de equipamiento desmovilizado, reincorporando el stock al inventario global.
-- **Acceso**: `manager`, `admin` o Comandante de Incidente.
+- **Acceso**: Comandante del Incidente activo de esa emergencia o rol `manager`+ (`403` en otro caso). Se permite aunque la emergencia esté finalizada (desmovilización posterior al cierre).
 - **Body**: `{ "amountReturned": 2 }`
 
 #### `GET /api/resource/by-emergency/:emergencyId`
@@ -924,6 +944,12 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
 - **Descripción**: Asocia metadatos de audio a una acción ya existente.
 - **Acceso**: Autenticado.
 
+#### `GET /api/action/audio/:audioId`
+- **Descripción**: Devuelve el archivo binario de una nota de voz (`Content-Type` según `audio.mimeType`). El `audioId` es `action.audio.id`.
+- **Acceso**: Autenticado. Como requiere el header `Authorization`, el cliente web debe descargarlo con `HttpClient` (`responseType: 'blob'`) y reproducirlo vía `URL.createObjectURL`, no con un `<audio src>` directo.
+
+> **Validación de acceso en bitácora**: `POST /api/action`, `POST /api/action/upload-audio/:emergencyId`, `PATCH /api/action/:id` y `DELETE /api/action/:id` exigen asignación activa en la emergencia o rol `manager`+ (`403` en otro caso). Si la subida de audio se rechaza, el archivo se elimina del disco.
+
 #### `GET /api/action/emergency/:emergencyId`
 - **Descripción**: Obtiene la línea de tiempo completa de acciones y eventos registrados en el incidente (incluyendo sus notas de voz y estados de procesamiento NLP).
 - **Acceso**: Autenticado (`basic` o superior).
@@ -960,10 +986,22 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
 - **Autenticación**: Token JWT provisto en el handshake (`auth: { token: '...' }`).
 - **Salas Automáticas**:
   - `user_{userId}`: Notificaciones personales directas.
-  - `emergency_{emergencyId}`: Al emitir evento `join_emergency`.
+  - `emergency_{emergencyId}`: Al emitir `join_emergency` con el `emergencyId` como payload. Salir con `leave_emergency`.
 - **Eventos Emitidos por el Servidor**:
   - `'notification'`: Payload `{ id, type, title, message, isRead, createdAt }`.
   - `'emergency_notification'`: Novedades globales del incidente.
+- **Eventos operativos en tiempo real (invalidación)**: se emiten **después del commit** de la transacción. No traen la entidad, solo qué cambió; el cliente debe volver a consultar el recurso por HTTP.
+  - Payload común: `{ emergencyId, entity, entityId?, operation: 'insert' | 'update' | 'delete', at }`.
+
+  | Evento | `entity` | Destino | Cuándo | Refrescar |
+  |:---|:---|:---|:---|:---|
+  | `new_action` | `action` | sala de la emergencia | Toda entrada de bitácora (manual, audio, y las automáticas de cambios de estado, F201/F207, recursos, mando) | `GET /api/action/emergency/:id` |
+  | `triage_update` | `registration` | sala | Nuevo registro de triage | registros del F207 + `triage-summary` |
+  | `form207_update` | `form207` | sala | Creación o finalización de planilla | `GET /api/emergency/:id/form207` |
+  | `form201_update` | `form201` | sala | Crear, editar, finalizar, eliminar | `GET /api/emergency/:id/form201` |
+  | `resource_update` | `resource` | sala | Despacho, devolución, edición, baja | `GET /api/resource/by-emergency/:id` |
+  | `personnel_update` | `attend` | sala | Asignación, cambio de cargo, baja, mando de CI | `GET /api/attend/emergency/:id` |
+  | `emergency_update` | `emergency` | **todos los clientes** | Creación, edición, cambio de estado, baja | detalle y listados de emergencias |
 
 ---
 
