@@ -16,6 +16,7 @@ describe('AuthGuard - error handling específico (F1-022)', () => {
     headers: Record<string, string> = {},
   ): ExecutionContext =>
     ({
+      getHandler: () => () => undefined,
       switchToHttp: () => ({
         getRequest: () => ({ headers }),
       }),
@@ -93,6 +94,7 @@ describe('AuthGuard - error handling específico (F1-022)', () => {
     mockUserService.findOneAuth.mockResolvedValue(user);
     const request: any = { headers: { authorization: `Bearer ${validToken}` } };
     const context = {
+      getHandler: () => () => undefined,
       switchToHttp: () => ({ getRequest: () => request }),
     } as unknown as ExecutionContext;
 
