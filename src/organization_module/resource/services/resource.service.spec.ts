@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { ResourceService } from './resource.service';
 import { ResourceEntity } from '../entities/resource.entity';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
+import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
 import { EquipmentService } from '../../../organization_module/equipment/services/equipment.service';
 import { EmergencyStatus } from '../../../organization_module/emergency/enums/emergency-status.enum';
 
@@ -17,6 +18,11 @@ describe('ResourceService', () => {
   let mockManager: any;
   let mockQueryRunner: any;
   let mockDataSource: any;
+
+  const mockEmergencyAccessService = {
+    assertMember: jest.fn().mockResolvedValue(undefined),
+    assertHasCharge: jest.fn().mockResolvedValue(undefined),
+  };
 
   beforeEach(async () => {
     mockEmergencyService = {
@@ -65,6 +71,10 @@ describe('ResourceService', () => {
         },
         { provide: DataSource, useValue: mockDataSource },
         { provide: EmergencyService, useValue: mockEmergencyService },
+        {
+          provide: EmergencyAccessService,
+          useValue: mockEmergencyAccessService,
+        },
         { provide: EquipmentService, useValue: mockEquipmentService },
       ],
     }).compile();
@@ -239,6 +249,27 @@ describe('ResourceService', () => {
     beforeEach(() => {
       mockResourceRepo.findOne.mockResolvedValue({ ...baseResource });
       mockManager.findOne.mockResolvedValue({ ...lockedEquipment });
+    });
+
+    it('con rol informado exige CI activo o Manager+ en la emergencia del recurso', async () => {
+      await service.returnResource('res-1', 3, 'user-1', 'basic');
+      expect(mockEmergencyAccessService.assertHasCharge).toHaveBeenCalledWith(
+        'emg-1',
+        'user-1',
+        'basic',
+        ['incident_commander'],
+        expect.any(String),
+      );
+    });
+
+    it('rechaza la devolución si el usuario no es CI ni Manager+', async () => {
+      mockEmergencyAccessService.assertHasCharge.mockRejectedValueOnce(
+        new ForbiddenException('sin permiso'),
+      );
+      await expect(
+        service.returnResource('res-1', 3, 'user-1', 'basic'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockManager.save).not.toHaveBeenCalled();
     });
 
     it('suma amountReturned a availableQuantity y a amount_returned (AC1/AC2)', async () => {

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   Logger,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -16,6 +17,8 @@ import { handlerError } from '../../../common/utils/handlerError.utils';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { EquipmentService } from '../../../organization_module/equipment/services/equipment.service';
+import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
+import { RealtimeService } from '../../../notification/services/realtime.service';
 
 @Injectable()
 export class ResourceService {
@@ -27,6 +30,8 @@ export class ResourceService {
     private readonly dataSource: DataSource,
     private readonly emergencyService: EmergencyService,
     private readonly equipmentService: EquipmentService,
+    private readonly emergencyAccessService: EmergencyAccessService,
+    @Optional() private readonly realtimeService?: RealtimeService,
   ) {}
 
   public async findOne(id: string): Promise<ResourceEntity> {
@@ -45,6 +50,7 @@ export class ResourceService {
   public async create(
     createResourceDto: CreateResourceDto,
     userId: string,
+    userRole?: string,
   ): Promise<ResourceEntity> {
     const queryRunner = this.dataSource.createQueryRunner();
     try {
@@ -53,6 +59,14 @@ export class ResourceService {
       const emergency = await this.emergencyService.findOne(emergencyId);
       if (!emergency) throw new NotFoundException('Emergency not found.');
       this.emergencyService.assertEditable(emergency);
+      if (userRole) {
+        await this.emergencyAccessService.assertMember(
+          emergency.id,
+          userId,
+          userRole,
+          'Solo el personal asignado a la emergencia o un usuario con rol Manager o superior puede despachar recursos.',
+        );
+      }
       const equipment = await this.equipmentService.findOne(equipmentId);
       if (!equipment) throw new NotFoundException('Equipment not found.');
       if (amount > equipment.availableQuantity)
@@ -113,10 +127,21 @@ export class ResourceService {
     id: string,
     amountReturned: number,
     userId: string,
+    userRole?: string,
   ): Promise<ResourceEntity> {
     const queryRunner = this.dataSource.createQueryRunner();
     try {
       const resource = await this.findOne(id);
+      // Sin assertEditable: la desmovilización puede registrarse con la emergencia ya finalizada.
+      if (userRole) {
+        await this.emergencyAccessService.assertHasCharge(
+          resource.emergency.id,
+          userId,
+          userRole,
+          ['incident_commander'],
+          'Solo el Comandante del Incidente o un usuario con rol Manager o superior puede registrar devoluciones.',
+        );
+      }
       const pending = resource.amount - resource.amount_returned;
       if (amountReturned > pending)
         throw new BadRequestException('Cantidad a devolver excede lo asignado');
@@ -187,6 +212,7 @@ export class ResourceService {
       );
       if (resourceUpdated.affected === 0)
         throw new NotFoundException('Recurso no actualizado.');
+      this.realtimeService?.notifyEmergency(resource.emergency?.id, 'resource', 'update', resource.id);
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -197,6 +223,7 @@ export class ResourceService {
     try {
       const resource = await this.findOne(id);
       await this.resourceRepository.update(resource.id, { isDeleted: true });
+      this.realtimeService?.notifyEmergency(resource.emergency?.id, 'resource', 'delete', resource.id);
       return {
         success: true,
         statusCode: 200,

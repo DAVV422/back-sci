@@ -17,8 +17,7 @@ import { CreateResourceDto } from '../dto/create-resource.dto';
 import { UpdateResourceDto } from '../dto/update-resource.dto';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { AuthGuard, RolesGuard } from '../../../auth/guards';
-import { GetUser, RolesAccess } from '../../../auth/decorators';
-import { ROLES } from '../../../common/constants';
+import { GetUser } from '../../../auth/decorators';
 import { ResourceEntity } from '../entities/resource.entity';
 import { ReturnResourceDto } from '../dto/return-resource.dto';
 
@@ -45,21 +44,26 @@ export class ResourceController {
   public async create(
     @Body() createResourceDto: CreateResourceDto,
     @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<ResourceEntity>> {
     return {
       success: true,
       statusCode: 201,
-      data: await this.resourceService.create(createResourceDto, userId),
+      data: await this.resourceService.create(
+        createResourceDto,
+        userId,
+        userRole,
+      ),
     };
   }
 
   @ApiParam({ name: 'id', type: 'string' })
   @Patch(':id/return')
-  @RolesAccess(ROLES.MANAGER)
   public async returnResource(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() returnResourceDto: ReturnResourceDto,
     @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<ResourceEntity>> {
     return {
       success: true,
@@ -68,6 +72,7 @@ export class ResourceController {
         id,
         returnResourceDto.amountReturned,
         userId,
+        userRole,
       ),
     };
   }
