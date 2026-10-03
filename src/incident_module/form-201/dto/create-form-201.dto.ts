@@ -15,7 +15,9 @@ export class CreateForm201Dto {
   })
   @IsNotEmpty()
   @IsDateString()
-  date: Date;
+  // string ISO: con enableImplicitConversion un tipo Date convertiría el valor
+  // antes de validar y @IsDateString() lo rechazaría siempre.
+  date: string;
 
   @ApiProperty({
     example: 'Accidente de tránsito múltiple',
