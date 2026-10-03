@@ -69,6 +69,8 @@ describe('SeedService', () => {
           lastName: 'Sistema',
           role: ROLES.SUADMIN,
         }),
+        // En una base vacía no hay ningún suadmin: el seeder crea el primero como el sistema.
+        ROLES.SUADMIN,
       );
     });
 

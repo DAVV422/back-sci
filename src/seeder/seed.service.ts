@@ -54,7 +54,9 @@ export class SeedService {
           isActive: true,
         };
 
-        await this.userService.createUser(user);
+        // El seeder actúa como el propio sistema: createUser solo permite crear un
+        // suadmin a otro suadmin, y en una base vacía todavía no existe ninguno.
+        await this.userService.createUser(user, ROLES.SUADMIN);
         this.logger.log(`Usuario Super Admin (suadmin) creado exitosamente y activo: ${adminEmail}`);
       } else {
         const updates: any = {
