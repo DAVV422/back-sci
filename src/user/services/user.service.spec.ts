@@ -47,6 +47,34 @@ describe('UserService - whitelist QueryDto.attr', () => {
     service = module.get<UserService>(UserService);
   });
 
+  describe('searchDirectory (asignar personal / traspasar mando)', () => {
+    beforeEach(() => {
+      queryBuilder.select = jest.fn().mockReturnThis();
+      queryBuilder.getMany = jest.fn().mockResolvedValue([
+        { id: 'u1', name: 'Marta', lastName: 'Rojas', grade: 'Sgto.', isOperational: true, email: 'm@x.bo', role: 'manager' },
+      ]);
+    });
+
+    it('devuelve solo datos de identificación (sin correo ni rol)', async () => {
+      await expect(service.searchDirectory('Mar')).resolves.toEqual([
+        { id: 'u1', name: 'Marta', lastName: 'Rojas', grade: 'Sgto.', isOperational: true },
+      ]);
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('user.is_active = true');
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('user.role != :suadminRole', { suadminRole: ROLES.SUADMIN });
+    });
+
+    it('menos de 2 caracteres no consulta', async () => {
+      await expect(service.searchDirectory(' a ')).resolves.toEqual([]);
+      expect(queryBuilder.getMany).not.toHaveBeenCalled();
+    });
+
+    it('escapa comodines y limita a 20 resultados', async () => {
+      await service.searchDirectory('50%_', 500);
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(expect.stringContaining('ILIKE :term'), { term: '%50\\%\\_%' });
+      expect(queryBuilder.take).toHaveBeenCalledWith(20);
+    });
+  });
+
   it('rejects attr not in the user whitelist with BadRequestException', async () => {
     const queryDto: QueryDto = { attr: 'password', value: 'x' } as any;
     await expect(service.findAll(queryDto)).rejects.toThrow(

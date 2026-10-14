@@ -36,7 +36,7 @@ import {
   BulkUpdateGradeDto,
   UserQueryDto,
 } from '../dto/';
-import { UserService } from '../services/user.service';
+import { UserDirectoryEntry, UserService } from '../services/user.service';
 import { ApiResponse } from './../../common/interfaces/responseMessage.interface';
 import { ROLES } from './../../common/constants';
 import { UserEntity } from '../entities/user.entity';
@@ -93,6 +93,20 @@ export class UserController {
         limit: queryDto.limit ?? items.length,
         offset: queryDto.offset ?? 0,
       },
+    };
+  }
+
+  @ApiQuery({ name: 'search', type: 'string', required: true, description: 'Nombre o apellido (mínimo 2 caracteres)' })
+  @ApiQuery({ name: 'limit', type: 'number', required: false, description: 'Máximo 20' })
+  @Get('directory')
+  public async searchDirectory(
+    @Query('search') search: string,
+    @Query('limit') limit?: string,
+  ): Promise<ApiResponse<UserDirectoryEntry[]>> {
+    return {
+      success: true,
+      statusCode: 200,
+      data: await this.userService.searchDirectory(search, limit ? Number(limit) || 8 : 8),
     };
   }
 
