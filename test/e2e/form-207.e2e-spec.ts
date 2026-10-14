@@ -13,6 +13,7 @@ import { EmergencyForm207CounterEntity } from '../../src/victim_registry_module/
 import { EmergencyEntity } from '../../src/organization_module/emergency/entities/emergency.entity';
 import { ActionEntity } from '../../src/incident_module/action/entities/action.entity';
 import { EmergencyService } from '../../src/organization_module/emergency/services/emergency.service';
+import { EmergencyAccessService } from '../../src/organization_module/emergency/services/emergency-access.service';
 import { UserService } from '../../src/user/services/user.service';
 import { EmergencyStatus } from '../../src/organization_module/emergency/enums/emergency-status.enum';
 import { DataSource } from 'typeorm';
@@ -97,6 +98,8 @@ describe('Form207 (e2e)', () => {
         { provide: Reflector, useValue: reflector },
         { provide: UserService, useValue: mockUserService },
         { provide: EmergencyService, useValue: mockEmergencyService },
+        // Permisos tácticos: este spec prueba el flujo HTTP, no la autorización por cargo.
+        { provide: EmergencyAccessService, useValue: { assertMember: jest.fn(), assertHasCharge: jest.fn() } },
         { provide: DataSource, useValue: mockDataSource },
         { provide: getRepositoryToken(Form207Entity), useValue: mockForm207Repo },
         { provide: getRepositoryToken(EmergencyForm207CounterEntity), useValue: {} },

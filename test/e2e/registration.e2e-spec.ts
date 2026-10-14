@@ -12,6 +12,7 @@ import { RegistrationEntity } from '../../src/victim_registry_module/registratio
 import { Form207Service } from '../../src/victim_registry_module/form-207/services/form-207.service';
 import { VictimService } from '../../src/victim_registry_module/victim/services/victim.service';
 import { EmergencyService } from '../../src/organization_module/emergency/services/emergency.service';
+import { EmergencyAccessService } from '../../src/organization_module/emergency/services/emergency-access.service';
 import { UserService } from '../../src/user/services/user.service';
 import { ROLES } from '../../src/common/constants';
 
@@ -88,6 +89,8 @@ describe('Registration (e2e)', () => {
         { provide: Form207Service, useValue: mockForm207Service },
         { provide: VictimService, useValue: mockVictimService },
         { provide: EmergencyService, useValue: mockEmergencyService },
+        // Permisos tácticos: este spec prueba el flujo HTTP, no la autorización por cargo.
+        { provide: EmergencyAccessService, useValue: { assertMember: jest.fn(), assertHasCharge: jest.fn() } },
         { provide: getRepositoryToken(RegistrationEntity), useValue: mockRegistrationRepo },
         AuthGuard,
         RolesGuard,
