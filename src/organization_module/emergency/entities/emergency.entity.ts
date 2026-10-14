@@ -15,6 +15,7 @@ import { ActionEntity } from '../../../incident_module/action/entities/action.en
 import { Form207Entity } from '../../../victim_registry_module/form-207/entities/form-207.entity';
 import { EmergencyStatus } from '../enums/emergency-status.enum';
 import { InitialAssessmentEntity } from './initial-assessment.entity';
+import { DEFAULT_APP_TIMEZONE } from '../../../config/timezone';
 
 @Entity({ name: 'emergency' })
 export class EmergencyEntity extends BaseEntity {
@@ -76,6 +77,14 @@ export class EmergencyEntity extends BaseEntity {
 
   @Column({ name: 'duration', type: 'varchar', length: 50, default: '' })
   duration: string;
+
+  /**
+   * Zona horaria IANA con la que se registró la emergencia (la de la institución en ese momento).
+   * `date`/`hour` y todos los timestamps se guardan en UTC; esta zona se usa para mostrarlos y
+   * agruparlos en reportes, aunque la configuración de la institución cambie después.
+   */
+  @Column({ name: 'timezone', type: 'varchar', length: 64, default: DEFAULT_APP_TIMEZONE })
+  timezone: string;
 
   @OneToOne(() => InitialAssessmentEntity, {
     nullable: true,

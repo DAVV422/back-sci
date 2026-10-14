@@ -38,6 +38,7 @@ import { ROLES } from '../../../common/constants';
 import { EmergencyStateMachine } from './emergency-state-machine';
 import { RealtimeService } from '../../../notification/services/realtime.service';
 import { EmergencyAccessService } from './emergency-access.service';
+import { getAppTimezone } from '../../../config/timezone';
 
 @Injectable()
 export class EmergencyService {
@@ -108,6 +109,8 @@ export class EmergencyService {
             ...createEmergency,
             code: nextCode,
             state: EmergencyStatus.Pending,
+            // La zona no la decide el cliente: es la de la institución al momento del registro.
+            timezone: getAppTimezone(),
             user: { id: userEntity.id },
           },
         );
@@ -243,7 +246,8 @@ export class EmergencyService {
           'Solo el Comandante del Incidente o un usuario con rol Manager o superior puede editar la emergencia.',
         );
       }
-      const { ...updateEmergency } = updateEmergencyDto;
+      // La zona horaria queda fija desde la creación: no se acepta del cliente.
+      const { timezone: _ignoredTimezone, ...updateEmergency } = updateEmergencyDto as UpdateEmergencyDto & { timezone?: string };
       const emergencyUpdated = await this.emergencyRepository.update(
         emergency.id,
         updateEmergency,

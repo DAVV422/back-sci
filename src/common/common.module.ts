@@ -6,6 +6,7 @@ import { AuditLogService } from './services/audit-log.service';
 import { AuditLogSubscriber } from './subscribers/audit-log.subscriber';
 import { SyncService } from './services/sync.service';
 import { SyncController } from './controllers/sync.controller';
+import { AppConfigController } from './controllers/app-config.controller';
 
 import { UserModule } from '../user/user.module';
 import { EmergencyModule } from '../organization_module/emergency/emergency.module';
@@ -31,7 +32,7 @@ import { LocalStorageService } from './services/storage/local-storage.service';
     forwardRef(() => ActionModule),
     forwardRef(() => NotificationModule),
   ],
-  controllers: [SyncController],
+  controllers: [SyncController, AppConfigController],
   providers: [
     AuditLogService,
     AuditLogSubscriber,
