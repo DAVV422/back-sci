@@ -21,8 +21,13 @@ export class SyncController {
   async processBatch(
     @Body() syncBatchDto: SyncBatchDto,
     @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<{ results: SyncOperationResult[] }>> {
-    const results = await this.syncService.processBatch(syncBatchDto, userId);
+    const results = await this.syncService.processBatch(
+      syncBatchDto,
+      userId,
+      userRole,
+    );
     return {
       success: true,
       statusCode: 200,

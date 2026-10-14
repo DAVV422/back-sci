@@ -23,9 +23,14 @@ export class SyncService {
     private readonly notificationService: NotificationService,
   ) {}
 
+  /**
+   * `userRole` es obligatorio: los servicios solo aplican las validaciones tácticas cuando
+   * reciben el rol, y una operación offline debe pasar por las mismas reglas que la web.
+   */
   async processBatch(
     syncBatchDto: SyncBatchDto,
     userId: string,
+    userRole: string,
   ): Promise<SyncOperationResult[]> {
     const totalOps = syncBatchDto.operations?.length || 0;
     this.logger.log(
@@ -91,11 +96,14 @@ export class SyncService {
               emergencyId,
               op.payload,
               userId,
+              userRole,
             );
           } else if (op.action === 'update' && op.payload.id) {
             createdOrUpdated = await this.form201Service.update(
               op.payload.id,
               op.payload,
+              userId,
+              userRole,
             );
           }
         } else if (op.entity === 'form207') {
@@ -104,6 +112,7 @@ export class SyncService {
               emergencyId,
               op.payload,
               userId,
+              userRole,
             );
           }
         } else if (op.entity === 'victim') {
@@ -113,6 +122,8 @@ export class SyncService {
             createdOrUpdated = await this.victimService.update(
               op.payload.id,
               op.payload,
+              userId,
+              userRole,
             );
           }
         } else if (op.entity === 'registration') {
@@ -122,6 +133,7 @@ export class SyncService {
               form207Id,
               op.payload,
               userId,
+              userRole,
             );
           }
         } else if (op.entity === 'action') {
@@ -133,11 +145,14 @@ export class SyncService {
                 clientGeneratedId: op.clientGeneratedId,
               },
               userId,
+              userRole,
             );
           } else if (op.action === 'update' && op.payload.id) {
             createdOrUpdated = await this.actionService.update(
               op.payload.id,
               op.payload,
+              userId,
+              userRole,
             );
           }
         }
