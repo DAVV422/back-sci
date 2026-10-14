@@ -67,8 +67,11 @@ export class EmergencyService {
       validateAllowedAttrs(attr, EMERGENCY_ALLOWED_ATTRS);
       const query = this.emergencyRepository.createQueryBuilder('emergency');
       query.leftJoinAndSelect('emergency.user', 'user');
-      query.leftJoinAndSelect('emergency.attends', 'attend');
+      // Solo asignaciones vigentes (no borradas), con su usuario: el listado muestra el CI y el
+      // conteo de personal. Sin el usuario, el front no puede armar el nombre del comandante.
+      query.leftJoinAndSelect('emergency.attends', 'attend', 'attend.is_deleted = false');
       query.leftJoinAndSelect('attend.charge', 'charge');
+      query.leftJoinAndSelect('attend.user', 'attendUser');
       query.leftJoinAndSelect('emergency.form201', 'form201');
       query.andWhere('emergency.is_deleted = false');
       if (limit) query.take(limit);
