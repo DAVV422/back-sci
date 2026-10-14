@@ -22,7 +22,7 @@ import {
   AssignCommanderDto,
   TransferCommandDto,
 } from '../dto/';
-import { EmergencyService } from './../services/emergency.service';
+import { EmergencyService, PendingForms } from './../services/emergency.service';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { ROLES } from '../../../common/constants';
 import { EmergencyEntity } from '../entities/emergency.entity';
@@ -134,6 +134,33 @@ export class EmergencyController {
       statusCode: 200,
       message: 'Comandante de Incidente inicial asignado exitosamente.',
       data,
+    };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
+  @Get(':id/forms/pending')
+  public async findPendingForms(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ApiResponse<PendingForms>> {
+    return {
+      success: true,
+      statusCode: 200,
+      data: await this.emergencyService.findPendingForms(id),
+    };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
+  @Post(':id/forms/finalize-all')
+  public async finalizeAllForms(
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
+  ): Promise<ApiResponse<PendingForms>> {
+    return {
+      success: true,
+      statusCode: 200,
+      message: 'Formularios finalizados. Ya no se pueden cargar datos en ellos.',
+      data: await this.emergencyService.finalizeAllForms(id, userId, userRole),
     };
   }
 

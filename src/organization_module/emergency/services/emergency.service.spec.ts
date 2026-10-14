@@ -633,5 +633,72 @@ describe('EmergencyService', () => {
       expect(mockRepo.update).not.toHaveBeenCalled();
     });
   });
-});
+  describe('traspaso de mando (P1 #6)', () => {
+    const open201 = { id: 'f201-1', code: 'F201-1', isFinalized: false, emergency: { id: 'emg-1' } };
+    const open207 = { id: 'f207-1', code: 'F207-1', isFinalized: false, emergency: { id: 'emg-1' } };
 
+    it('findPendingForms devuelve solo id y código de los abiertos', async () => {
+      mockRepo.manager = {
+        find: jest.fn()
+          .mockResolvedValueOnce([{ ...open201, notes: 'x' }])
+          .mockResolvedValueOnce([open207]),
+      };
+      await expect(service.findPendingForms('emg-1')).resolves.toEqual({
+        form201: [{ id: 'f201-1', code: 'F201-1' }],
+        form207: [{ id: 'f207-1', code: 'F207-1' }],
+      });
+      expect(mockRepo.manager.find).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ where: { emergency: { id: 'emg-1' }, isFinalized: false, isDeleted: false } }),
+      );
+    });
+
+    it('transferCommand rechaza el traspaso si queda un F207 abierto y lista los códigos', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue({ id: 'emg-1', state: EmergencyStatus.Active } as any);
+      jest.spyOn(service, 'findPendingForms').mockResolvedValue({
+        form201: [],
+        form207: [{ id: 'f207-1', code: 'F207-1' }],
+      });
+      await expect(
+        service.transferCommand('emg-1', { newCommanderUserId: 'u-2' } as any, 'u-1', ROLES.MANAGER),
+      ).rejects.toThrow(/F207-1/);
+      expect(queryRunner.startTransaction).not.toHaveBeenCalled();
+    });
+
+    it('finalizeAllForms cierra F201 y F207 en una transacción y deja constancia en la bitácora', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue({ id: 'emg-1', state: EmergencyStatus.Active } as any);
+      mockManager.find = jest.fn()
+        .mockResolvedValueOnce([{ ...open201 }])
+        .mockResolvedValueOnce([{ ...open207 }]);
+      mockManager.create.mockImplementation((_e: any, data: any) => data);
+
+      const result = await service.finalizeAllForms('emg-1', 'u-1', ROLES.MANAGER);
+
+      expect(result).toEqual({
+        form201: [{ id: 'f201-1', code: 'F201-1' }],
+        form207: [{ id: 'f207-1', code: 'F207-1' }],
+      });
+      const saved = mockManager.save.mock.calls.slice(0, 2).flatMap(([forms]: any[]) => forms);
+      expect(saved.every((f: any) => f.isFinalized)).toBe(true);
+      expect(mockManager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ description: expect.stringContaining('F201-1, F207-1') }),
+      );
+      expect(queryRunner.commitTransaction).toHaveBeenCalled();
+    });
+
+    it('finalizeAllForms exige CI activo o manager+', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue({ id: 'emg-1', state: EmergencyStatus.Active } as any);
+      mockEmergencyAccessService.assertCommanderOrManager.mockRejectedValueOnce(
+        new ForbiddenException('sin permiso'),
+      );
+      await expect(service.finalizeAllForms('emg-1', 'u-x', ROLES.BASIC)).rejects.toThrow(ForbiddenException);
+      expect(queryRunner.startTransaction).not.toHaveBeenCalled();
+    });
+
+    it('finalizeAllForms no opera sobre una emergencia cerrada', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue({ id: 'emg-1', state: EmergencyStatus.Finished } as any);
+      await expect(service.finalizeAllForms('emg-1', 'u-1', ROLES.MANAGER)).rejects.toThrow();
+      expect(queryRunner.startTransaction).not.toHaveBeenCalled();
+    });
+  });
+});

@@ -4,9 +4,12 @@ import { EmergencyEntity } from '../../../organization_module/emergency/entities
 import { UserEntity } from '../../../user/entities/user.entity';
 
 @Entity({ name: 'form201' })
-@Index('uq_form201_active_per_emergency', ['emergency'], {
+// Un solo F201 abierto por emergencia. Al traspasar el mando se finaliza y el nuevo CI abre el
+// suyo (decisión 24: el traspaso cierra el periodo). Nombre nuevo para que `synchronize`
+// elimine el índice anterior, que impedía más de un F201 en toda la vida de la emergencia.
+@Index('uq_form201_open_per_emergency', ['emergency'], {
   unique: true,
-  where: 'is_deleted = false',
+  where: 'is_deleted = false AND is_finalized = false',
 })
 export class Form201Entity extends BaseEntity {
   @Column({ name: 'code', type: 'varchar', length: 15, nullable: false })

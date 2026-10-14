@@ -23,6 +23,7 @@ import { ActionEntity } from '../../../incident_module/action/entities/action.en
 import { AttendEntity } from '../../attends/entities/attends.entity';
 import { ChargeEntity } from '../../../sci_module/charges/entities/charges.entity';
 import { Form201Entity } from '../../../incident_module/form-201/entities/form-201.entity';
+import { Form207Entity } from '../../../victim_registry_module/form-207/entities/form-207.entity';
 import { handlerError } from '../../../common/utils/handlerError.utils';
 import { QueryDto } from '../../../common/dto/query.dto';
 import {
@@ -39,6 +40,12 @@ import { EmergencyStateMachine } from './emergency-state-machine';
 import { RealtimeService } from '../../../notification/services/realtime.service';
 import { EmergencyAccessService } from './emergency-access.service';
 import { getAppTimezone } from '../../../config/timezone';
+
+/** Formularios abiertos de una emergencia, por código (sin datos de pacientes). */
+export interface PendingForms {
+  form201: { id: string; code: string }[];
+  form207: { id: string; code: string }[];
+}
 
 @Injectable()
 export class EmergencyService {
@@ -537,23 +544,16 @@ export class EmergencyService {
       const emergency = await this.findOne(emergencyId);
       this.assertEditable(emergency);
 
-      // 1. Validar que no haya Formulario 201 activo sin finalizar
-      const activeF201 = await this.emergencyRepository.manager.findOne(
-        Form201Entity,
-        {
-          where: {
-            emergency: { id: emergencyId },
-            isFinalized: false,
-            isDeleted: false,
-          },
-        },
-      );
-      if (activeF201) {
+      // 1. El traspaso cierra el periodo del CI saliente: F201 y F207 deben estar finalizados
+      //    (decisión 6). POST /emergency/:id/forms/finalize-all los cierra en un paso.
+      const pending = await this.findPendingForms(emergencyId);
+      if (pending.form201.length || pending.form207.length) {
+        const codes = [...pending.form201, ...pending.form207].map((f) => f.code);
         this.logger.warn(
-          `[transferCommand] Traspaso rechazado: Formulario 201 (${activeF201.id}) aún no finalizado.`,
+          `[transferCommand] Traspaso rechazado: formularios sin finalizar ${codes.join(', ')}.`,
         );
         throw new BadRequestException(
-          'Finaliza el Formulario 201 activo antes de traspasar el mando.',
+          `Finaliza los formularios abiertos antes de traspasar el mando: ${codes.join(', ')}.`,
         );
       }
 
@@ -696,15 +696,78 @@ export class EmergencyService {
     }
   }
 
+  /** Códigos de formularios abiertos. Ignora los borrados: no deben bloquear el cierre. */
   private getPendingForms(emergency: EmergencyEntity): string[] {
-    const pending: string[] = [];
-    emergency.form201?.forEach((form) => {
-      if (!form.isFinalized) pending.push(`F201 (${form.id})`);
-    });
-    emergency.form207?.forEach((form) => {
-      if (!form.isFinalized) pending.push(`F207 (${form.id})`);
-    });
-    return pending;
+    return [...(emergency.form201 ?? []), ...(emergency.form207 ?? [])]
+      .filter((form) => !form.isFinalized && !form.isDeleted)
+      .map((form) => form.code);
+  }
+
+  /** Formularios abiertos de la emergencia (para el traspaso de mando y el cierre). */
+  public async findPendingForms(emergencyId: string): Promise<PendingForms> {
+    const where = { emergency: { id: emergencyId }, isFinalized: false, isDeleted: false };
+    const [form201, form207] = await Promise.all([
+      this.emergencyRepository.manager.find(Form201Entity, { where, order: { createdAt: 'ASC' } }),
+      this.emergencyRepository.manager.find(Form207Entity, { where, order: { createdAt: 'ASC' } }),
+    ]);
+    const brief = (f: { id: string; code: string }) => ({ id: f.id, code: f.code });
+    return { form201: form201.map(brief), form207: form207.map(brief) };
+  }
+
+  /**
+   * Finaliza en una sola transacción el F201 abierto y todos los F207 abiertos: acceso rápido
+   * previo al traspaso de mando (decisión 6). Tras esto nadie puede cargar más datos en ellos.
+   * CI activo o manager+.
+   */
+  public async finalizeAllForms(
+    emergencyId: string,
+    userId: string,
+    userRole: string,
+  ): Promise<PendingForms> {
+    const emergency = await this.findOne(emergencyId);
+    this.assertEditable(emergency);
+    await this.emergencyAccessService.assertCommanderOrManager(
+      emergencyId,
+      userId,
+      userRole,
+      'Solo el Comandante del Incidente o un usuario con rol Manager o superior puede finalizar los formularios.',
+    );
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const where = { emergency: { id: emergencyId }, isFinalized: false, isDeleted: false };
+      // `relations: ['emergency']` para que el aviso en tiempo real sepa a qué sala emitir.
+      const forms201 = await queryRunner.manager.find(Form201Entity, { where, relations: ['emergency'] });
+      const forms207 = await queryRunner.manager.find(Form207Entity, { where, relations: ['emergency'] });
+      for (const form of [...forms201, ...forms207]) form.isFinalized = true;
+      await queryRunner.manager.save(forms201);
+      await queryRunner.manager.save(forms207);
+
+      const codes = [...forms201, ...forms207].map((f) => f.code);
+      if (codes.length) {
+        const now = new Date();
+        await queryRunner.manager.save(
+          queryRunner.manager.create(ActionEntity, {
+            description: `Formularios finalizados en bloque para el traspaso de mando: ${codes.join(', ')}`,
+            date: now,
+            hour: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+            user: { id: userId },
+            emergency: { id: emergencyId },
+          }),
+        );
+      }
+      await queryRunner.commitTransaction();
+      this.logger.log(`[finalizeAllForms] Finalizados ${codes.length} formularios. emergencyId=${emergencyId}`);
+      const brief = (f: { id: string; code: string }) => ({ id: f.id, code: f.code });
+      return { form201: forms201.map(brief), form207: forms207.map(brief) };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      handlerError(error, this.logger);
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   private buildTransitionActionDescription(

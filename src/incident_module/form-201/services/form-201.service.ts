@@ -129,9 +129,9 @@ export class Form201Service {
       const emergencyEntity = await this.emergencyService.findOne(emergencyId);
       this.emergencyService.assertEditable(emergencyEntity);
 
-      // Validar exclusividad del Formulario 201 activo
+      // Solo un F201 abierto a la vez; los finalizados de mandos anteriores no bloquean.
       const activeForm = await this.form201Repository.findOne({
-        where: { emergency: { id: emergencyId }, isDeleted: false },
+        where: { emergency: { id: emergencyId }, isDeleted: false, isFinalized: false },
       });
       if (activeForm) {
         this.logger.warn(`[create] Ya existe un Form201 activo para la emergencia ${emergencyId}`);
@@ -222,9 +222,11 @@ export class Form201Service {
   async findActiveByEmergency(emergencyId: string): Promise<Form201Entity> {
     this.logger.log(`[findActiveByEmergency] Buscando Form201 activo. emergencyId=${emergencyId}`);
     try {
+      // El abierto si existe; si no, el más reciente (el último mando ya cerrado).
       const form201 = await this.form201Repository.findOne({
         where: { emergency: { id: emergencyId }, isDeleted: false },
         relations: ['emergency', 'user'],
+        order: { isFinalized: 'ASC', createdAt: 'DESC' },
       });
       if (!form201) {
         this.logger.warn(`[findActiveByEmergency] No se encontró Form201 activo. emergencyId=${emergencyId}`);
