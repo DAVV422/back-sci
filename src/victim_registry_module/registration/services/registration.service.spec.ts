@@ -8,7 +8,10 @@ import { RegistrationEntity } from '../entities/registration.entity';
 import { Form207Service } from '../../form-207/services/form-207.service';
 import { VictimService } from '../../victim/services/victim.service';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
-import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
+import {
+  EmergencyAccessService,
+  TRIAGE_REGISTRAR_CHARGES,
+} from '../../../organization_module/emergency/services/emergency-access.service';
 import { UserService } from '../../../user/services/user.service';
 
 describe('RegistrationService', () => {
@@ -39,6 +42,9 @@ describe('RegistrationService', () => {
   const mockEmergencyAccessService = {
     assertMember: jest.fn().mockResolvedValue(undefined),
     assertHasCharge: jest.fn().mockResolvedValue(undefined),
+    assertCommanderOrManager: jest.fn().mockResolvedValue(undefined),
+    assertCanViewPatients: jest.fn().mockResolvedValue(undefined),
+    isManagerOrAbove: jest.fn((role: string) => ['manager', 'admin', 'suadmin'].includes(role)),
   };
 
   beforeEach(async () => {
@@ -121,14 +127,21 @@ describe('RegistrationService', () => {
       await expect(service.create('form207-1', dto, 'user-1')).rejects.toThrow(BadRequestException);
     });
 
-    it('exige estar asignado a la emergencia cuando se informa el rol', async () => {
-      mockEmergencyAccessService.assertMember.mockRejectedValueOnce(
+    it('solo registran pacientes el EACV, el LUMED, el CI o manager+ (decisión 26)', async () => {
+      mockEmergencyAccessService.assertHasCharge.mockRejectedValueOnce(
         new ForbiddenException('sin permiso'),
       );
 
       await expect(
         service.create('form207-1', dto, 'user-1', 'basic'),
       ).rejects.toThrow(ForbiddenException);
+      expect(mockEmergencyAccessService.assertHasCharge).toHaveBeenCalledWith(
+        mockForm207.emergency.id,
+        'user-1',
+        'basic',
+        TRIAGE_REGISTRAR_CHARGES,
+        expect.any(String),
+      );
       expect(repo.save).not.toHaveBeenCalled();
     });
   });
@@ -158,9 +171,36 @@ describe('RegistrationService', () => {
 
       expect(repo.find).toHaveBeenCalledWith({
         where: { victim: { id: 'victim-1' } },
-        relations: ['form207', 'user'],
+        relations: ['form207', 'form207.emergency', 'user'],
         order: { createdAt: 'DESC' },
       });
+    });
+
+    it('con rol informado exige acceso a cada emergencia del historial', async () => {
+      repo.find.mockResolvedValue([
+        { id: 'r1', form207: { emergency: { id: 'em-1' } } },
+        { id: 'r2', form207: { emergency: { id: 'em-1' } } },
+        { id: 'r3', form207: { emergency: { id: 'em-2' } } },
+      ] as any);
+
+      await service.findHistoryByVictim('victim-1', 'user-1', 'basic');
+
+      expect(mockEmergencyAccessService.assertCanViewPatients.mock.calls.slice(-2)).toEqual([
+        ['em-1', 'user-1', 'basic'],
+        ['em-2', 'user-1', 'basic'],
+      ]);
+    });
+  });
+
+  describe('findByForm207 - privacidad', () => {
+    it('con rol informado exige poder ver pacientes de la emergencia', async () => {
+      repo.find.mockResolvedValue([]);
+      await service.findByForm207('form207-1', 'user-1', 'basic');
+      expect(mockEmergencyAccessService.assertCanViewPatients).toHaveBeenCalledWith(
+        mockForm207.emergency.id,
+        'user-1',
+        'basic',
+      );
     });
   });
 });

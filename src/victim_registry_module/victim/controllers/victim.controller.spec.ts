@@ -18,6 +18,7 @@ describe('VictimController', () => {
     const mockVictimService = {
       create: jest.fn().mockResolvedValue(mockVictim),
       findOne: jest.fn().mockResolvedValue(mockVictim),
+      findOneForUser: jest.fn().mockResolvedValue(mockVictim),
       update: jest.fn().mockResolvedValue(mockVictim),
     };
 
@@ -58,9 +59,9 @@ describe('VictimController', () => {
 
   describe('findOne', () => {
     it('should call service.findOne and return standard response', async () => {
-      const res = await controller.findOne('victim-1');
+      const res = await controller.findOne('victim-1', 'user-1', 'basic');
 
-      expect(service.findOne).toHaveBeenCalledWith('victim-1');
+      expect(service.findOneForUser).toHaveBeenCalledWith('victim-1', 'user-1', 'basic');
       expect(res).toEqual({
         success: true,
         statusCode: 200,
@@ -72,9 +73,9 @@ describe('VictimController', () => {
   describe('update', () => {
     it('should call service.update and return standard response', async () => {
       const dto = { ageEstimated: 26 } as any;
-      const res = await controller.update('victim-1', dto);
+      const res = await controller.update('victim-1', dto, 'user-1', 'basic');
 
-      expect(service.update).toHaveBeenCalledWith('victim-1', dto);
+      expect(service.update).toHaveBeenCalledWith('victim-1', dto, 'user-1', 'basic');
       expect(res).toEqual({
         success: true,
         statusCode: 200,

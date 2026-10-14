@@ -53,8 +53,10 @@ export class RegistrationController {
   @ApiOperation({ summary: 'List victims registered in a Form 207' })
   async findByForm207(
     @Param('form207Id', ParseUUIDPipe) form207Id: string,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<RegistrationEntity[]>> {
-    const registrations = await this.registrationService.findByForm207(form207Id);
+    const registrations = await this.registrationService.findByForm207(form207Id, userId, userRole);
     return {
       success: true,
       statusCode: 200,
@@ -67,8 +69,10 @@ export class RegistrationController {
   @ApiOperation({ summary: 'Get triage history of a victim' })
   async findHistoryByVictim(
     @Param('victimId', ParseUUIDPipe) victimId: string,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<RegistrationEntity[]>> {
-    const registrations = await this.registrationService.findHistoryByVictim(victimId);
+    const registrations = await this.registrationService.findHistoryByVictim(victimId, userId, userRole);
     return {
       success: true,
       statusCode: 200,

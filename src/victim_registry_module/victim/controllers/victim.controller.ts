@@ -15,6 +15,7 @@ import { UpdateVictimDto } from '../dto/update-victim.dto';
 import { VictimEntity } from '../entities/victim.entity';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { AuthGuard, RolesGuard } from '../../../auth/guards';
+import { GetUser } from '../../../auth/decorators';
 
 @ApiTags('Victim')
 @ApiBearerAuth()
@@ -42,8 +43,10 @@ export class VictimController {
   @ApiOperation({ summary: 'Get a victim by ID' })
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<VictimEntity>> {
-    const victim = await this.victimService.findOne(id);
+    const victim = await this.victimService.findOneForUser(id, userId, userRole);
     return {
       success: true,
       statusCode: 200,
@@ -57,8 +60,10 @@ export class VictimController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateVictimDto: UpdateVictimDto,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<VictimEntity>> {
-    const victim = await this.victimService.update(id, updateVictimDto);
+    const victim = await this.victimService.update(id, updateVictimDto, userId, userRole);
     return {
       success: true,
       statusCode: 200,

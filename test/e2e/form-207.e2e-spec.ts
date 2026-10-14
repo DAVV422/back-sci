@@ -99,7 +99,7 @@ describe('Form207 (e2e)', () => {
         { provide: UserService, useValue: mockUserService },
         { provide: EmergencyService, useValue: mockEmergencyService },
         // Permisos tácticos: este spec prueba el flujo HTTP, no la autorización por cargo.
-        { provide: EmergencyAccessService, useValue: { assertMember: jest.fn(), assertHasCharge: jest.fn() } },
+        { provide: EmergencyAccessService, useValue: { assertMember: jest.fn(), assertHasCharge: jest.fn(), assertCommanderOrManager: jest.fn(), assertCanViewPatients: jest.fn(), isManagerOrAbove: jest.fn(() => true) } },
         { provide: DataSource, useValue: mockDataSource },
         { provide: getRepositoryToken(Form207Entity), useValue: mockForm207Repo },
         { provide: getRepositoryToken(EmergencyForm207CounterEntity), useValue: {} },

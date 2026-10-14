@@ -90,7 +90,7 @@ describe('Registration (e2e)', () => {
         { provide: VictimService, useValue: mockVictimService },
         { provide: EmergencyService, useValue: mockEmergencyService },
         // Permisos tácticos: este spec prueba el flujo HTTP, no la autorización por cargo.
-        { provide: EmergencyAccessService, useValue: { assertMember: jest.fn(), assertHasCharge: jest.fn() } },
+        { provide: EmergencyAccessService, useValue: { assertMember: jest.fn(), assertHasCharge: jest.fn(), assertCommanderOrManager: jest.fn(), assertCanViewPatients: jest.fn(), isManagerOrAbove: jest.fn(() => true) } },
         { provide: getRepositoryToken(RegistrationEntity), useValue: mockRegistrationRepo },
         AuthGuard,
         RolesGuard,

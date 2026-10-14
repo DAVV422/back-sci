@@ -50,8 +50,10 @@ export class Form207Controller {
   @Get('emergency/:emergencyId/form207')
   async findByEmergency(
     @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<Form207Entity[]>> {
-    const forms = await this.form207Service.findByEmergency(emergencyId);
+    const forms = await this.form207Service.findByEmergency(emergencyId, userId, userRole);
     return {
       success: true,
       statusCode: 200,
@@ -63,8 +65,10 @@ export class Form207Controller {
   @Get('form207/:id')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<Form207Entity>> {
-    const form207 = await this.form207Service.findOne(id);
+    const form207 = await this.form207Service.findOneForUser(id, userId, userRole);
     return {
       success: true,
       statusCode: 200,

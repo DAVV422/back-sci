@@ -9,6 +9,8 @@ import { AuthGuard, RolesGuard } from '../../src/auth/guards';
 import { VictimController } from '../../src/victim_registry_module/victim/controllers/victim.controller';
 import { VictimService } from '../../src/victim_registry_module/victim/services/victim.service';
 import { VictimEntity } from '../../src/victim_registry_module/victim/entities/victim.entity';
+import { EmergencyAccessService } from '../../src/organization_module/emergency/services/emergency-access.service';
+import { EmergencyService } from '../../src/organization_module/emergency/services/emergency.service';
 import { UserService } from '../../src/user/services/user.service';
 import { ROLES } from '../../src/common/constants';
 
@@ -55,6 +57,9 @@ describe('Victim (e2e)', () => {
         { provide: Reflector, useValue: reflector },
         { provide: UserService, useValue: mockUserService },
         { provide: getRepositoryToken(VictimEntity), useValue: mockVictimRepo },
+        // Este spec prueba el flujo HTTP; la autorización por cargo se prueba en victim.service.spec.
+        { provide: EmergencyService, useValue: { assertEditable: jest.fn() } },
+        { provide: EmergencyAccessService, useValue: { assertMember: jest.fn(), assertHasCharge: jest.fn(), assertCommanderOrManager: jest.fn(), assertCanViewPatients: jest.fn(), isManagerOrAbove: jest.fn(() => true) } },
         AuthGuard,
         RolesGuard,
       ],
@@ -102,14 +107,13 @@ describe('Victim (e2e)', () => {
     expect(res.body.data.identifier).toBe('NN-002');
   });
 
-  it('GET /api/victim/:id returns the victim', async () => {
+  it('GET /api/victim/:id con un basic que no participó en la emergencia responde 403 (decisión 18)', async () => {
+    // El usuario simulado es basic y la víctima no tiene registros en ninguna emergencia suya.
     const res = await request(app.getHttpServer())
       .get(`/api/victim/${victimId}`)
       .set('Authorization', `Bearer ${getAuthToken(ROLES.BASIC)}`);
 
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data.id).toBe(victimId);
+    expect(res.status).toBe(403);
   });
 
   it('PATCH /api/victim/:id updates successfully', async () => {

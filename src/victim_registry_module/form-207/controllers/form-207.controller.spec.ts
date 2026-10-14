@@ -59,9 +59,9 @@ describe('Form207Controller', () => {
 
   describe('findByEmergency', () => {
     it('should call service.findByEmergency and return standard response', async () => {
-      const res = await controller.findByEmergency('emergency-1');
+      const res = await controller.findByEmergency('emergency-1', 'user-1', 'basic');
 
-      expect(service.findByEmergency).toHaveBeenCalledWith('emergency-1');
+      expect(service.findByEmergency).toHaveBeenCalledWith('emergency-1', 'user-1', 'basic');
       expect(res).toEqual({
         success: true,
         statusCode: 200,

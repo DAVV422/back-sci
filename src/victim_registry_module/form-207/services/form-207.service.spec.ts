@@ -58,6 +58,9 @@ describe('Form207Service', () => {
   const mockEmergencyAccessService = {
     assertMember: jest.fn().mockResolvedValue(undefined),
     assertHasCharge: jest.fn().mockResolvedValue(undefined),
+    assertCommanderOrManager: jest.fn().mockResolvedValue(undefined),
+    assertCanViewPatients: jest.fn().mockResolvedValue(undefined),
+    isManagerOrAbove: jest.fn((role: string) => ['manager', 'admin', 'suadmin'].includes(role)),
   };
 
   beforeEach(async () => {
@@ -188,4 +191,20 @@ describe('Form207Service', () => {
       await expect(service.finalize('form-1', 'user-1')).rejects.toThrow(BadRequestException);
     });
   });
+
+  describe('privacidad de pacientes (P0)', () => {
+    it('findOneForUser valida el acceso a la emergencia de la planilla', async () => {
+      form207Repo.findOne.mockResolvedValue({ id: 'form-1', emergency: { id: 'emergency-1' } } as any);
+      mockEmergencyAccessService.assertCanViewPatients.mockRejectedValueOnce(new ForbiddenException('no'));
+      await expect(service.findOneForUser('form-1', 'user-1', 'basic')).rejects.toThrow(ForbiddenException);
+    });
+
+    it('findByEmergency con rol informado valida el acceso', async () => {
+      emergencyService.findOne.mockResolvedValue({ id: 'emergency-1' } as any);
+      form207Repo.find.mockResolvedValue([]);
+      await service.findByEmergency('emergency-1', 'user-1', 'basic');
+      expect(mockEmergencyAccessService.assertCanViewPatients).toHaveBeenCalledWith('emergency-1', 'user-1', 'basic');
+    });
+  });
 });
+

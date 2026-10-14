@@ -7,7 +7,10 @@ import { Form207Service } from '../../form-207/services/form-207.service';
 import { VictimService } from '../../victim/services/victim.service';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { UserService } from '../../../user/services/user.service';
-import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
+import {
+  EmergencyAccessService,
+  TRIAGE_REGISTRAR_CHARGES,
+} from '../../../organization_module/emergency/services/emergency-access.service';
 
 export type TriageClassification = 'rojo' | 'amarillo' | 'verde' | 'negro';
 
@@ -61,11 +64,12 @@ export class RegistrationService {
     this.emergencyService.assertEditable(form207.emergency);
 
     if (userRole) {
-      await this.emergencyAccessService.assertMember(
+      await this.emergencyAccessService.assertHasCharge(
         form207.emergency.id,
         userId,
         userRole,
-        'Solo el personal asignado a la emergencia o un usuario con rol Manager o superior puede registrar triage.',
+        TRIAGE_REGISTRAR_CHARGES,
+        'Solo el Encargado del ACV, el Líder de la Unidad Médica, el Comandante del Incidente o un usuario con rol Manager o superior puede registrar pacientes.',
       );
     }
 
@@ -112,9 +116,16 @@ export class RegistrationService {
     }
   }
 
-  async findByForm207(form207Id: string): Promise<RegistrationEntity[]> {
+  async findByForm207(
+    form207Id: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<RegistrationEntity[]> {
     this.logger.log(`[findByForm207] Buscando registros. form207Id=${form207Id}`);
     const form207 = await this.form207Service.findOne(form207Id);
+    if (userRole) {
+      await this.emergencyAccessService.assertCanViewPatients(form207.emergency.id, userId, userRole);
+    }
     const results = await this.registrationRepository.find({
       where: { form207: { id: form207.id } },
       relations: ['victim', 'user'],
@@ -124,14 +135,25 @@ export class RegistrationService {
     return results;
   }
 
-  async findHistoryByVictim(victimId: string): Promise<RegistrationEntity[]> {
+  async findHistoryByVictim(
+    victimId: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<RegistrationEntity[]> {
     this.logger.log(`[findHistoryByVictim] Buscando historial. victimId=${victimId}`);
     const victim = await this.victimService.findOne(victimId);
     const results = await this.registrationRepository.find({
       where: { victim: { id: victim.id } },
-      relations: ['form207', 'user'],
+      relations: ['form207', 'form207.emergency', 'user'],
       order: { createdAt: 'DESC' },
     });
+    if (userRole) {
+      // El historial puede cruzar emergencias: se exige acceso a todas las involucradas.
+      const emergencyIds = [...new Set(results.map((r) => r.form207?.emergency?.id).filter(Boolean))];
+      for (const emergencyId of emergencyIds) {
+        await this.emergencyAccessService.assertCanViewPatients(emergencyId, userId, userRole);
+      }
+    }
     this.logger.log(`[findHistoryByVictim] Historial encontrado. victimId=${victimId}, registros=${results.length}`);
     return results;
   }

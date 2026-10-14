@@ -57,9 +57,9 @@ describe('RegistrationController', () => {
 
   describe('findByForm207', () => {
     it('should call service.findByForm207 and return standard response', async () => {
-      const res = await controller.findByForm207('form207-1');
+      const res = await controller.findByForm207('form207-1', 'user-1', 'basic');
 
-      expect(service.findByForm207).toHaveBeenCalledWith('form207-1');
+      expect(service.findByForm207).toHaveBeenCalledWith('form207-1', 'user-1', 'basic');
       expect(res).toEqual({
         success: true,
         statusCode: 200,
@@ -70,9 +70,9 @@ describe('RegistrationController', () => {
 
   describe('findHistoryByVictim', () => {
     it('should call service.findHistoryByVictim and return standard response', async () => {
-      const res = await controller.findHistoryByVictim('victim-1');
+      const res = await controller.findHistoryByVictim('victim-1', 'user-1', 'basic');
 
-      expect(service.findHistoryByVictim).toHaveBeenCalledWith('victim-1');
+      expect(service.findHistoryByVictim).toHaveBeenCalledWith('victim-1', 'user-1', 'basic');
       expect(res).toEqual({
         success: true,
         statusCode: 200,

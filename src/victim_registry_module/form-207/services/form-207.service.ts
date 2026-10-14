@@ -8,9 +8,11 @@ import { UserService } from '../../../user/services/user.service';
 import { ActionEntity } from '../../../incident_module/action/entities/action.entity';
 import { EmergencyEntity } from '../../../organization_module/emergency/entities/emergency.entity';
 import { UserEntity } from '../../../user/entities/user.entity';
-import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
+import {
+  EmergencyAccessService,
+  FORM207_MANAGER_CHARGES,
+} from '../../../organization_module/emergency/services/emergency-access.service';
 
-const FORM207_MANAGER_CHARGES = ['incident_commander', 'medical_unit_leader'];
 const FORM207_FORBIDDEN_MESSAGE =
   'Solo el Comandante del Incidente, el Líder de la Unidad Médica o un usuario con rol Manager o superior puede gestionar el Formulario 207.';
 
@@ -123,9 +125,16 @@ export class Form207Service {
     }
   }
 
-  async findByEmergency(emergencyId: string): Promise<Form207Entity[]> {
+  async findByEmergency(
+    emergencyId: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<Form207Entity[]> {
     this.logger.log(`[findByEmergency] Buscando Form207s. emergencyId=${emergencyId}`);
     const emergency = await this.emergencyService.findOne(emergencyId);
+    if (userRole) {
+      await this.emergencyAccessService.assertCanViewPatients(emergency.id, userId, userRole);
+    }
     const results = await this.form207Repository.find({
       where: { emergency: { id: emergency.id }, isDeleted: false },
       relations: ['user', 'emergency'],
@@ -146,6 +155,17 @@ export class Form207Service {
       throw new NotFoundException(`Formulario 207 con ID ${id} no encontrado.`);
     }
     this.logger.log(`[findOne] Form207 encontrado. id=${form207.id}, code=${form207.code}`);
+    return form207;
+  }
+
+  /** Detalle de una planilla aplicando la privacidad de datos de pacientes (decisión 18). */
+  async findOneForUser(
+    id: string,
+    userId: string,
+    userRole: string,
+  ): Promise<Form207Entity> {
+    const form207 = await this.findOne(id);
+    await this.emergencyAccessService.assertCanViewPatients(form207.emergency.id, userId, userRole);
     return form207;
   }
 
