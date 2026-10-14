@@ -49,7 +49,8 @@ export class ChargeService {
 
   public async create(createChargeDto: CreateChargeDto): Promise<ChargeEntity> {
     try {
-      createChargeDto.name = createChargeDto.name.toLowerCase();
+      // Se guarda tal cual (sin pasar a minúsculas): las búsquedas por nombre ya no distinguen mayúsculas.
+      createChargeDto.name = createChargeDto.name.trim();
       const charge_created: ChargeEntity = await this.chargeRepository.save(
         createChargeDto,
       );
@@ -95,7 +96,7 @@ export class ChargeService {
     try {
       const charge: ChargeEntity = await this.findOne(id);
       if (updateChargeDto.name) {
-        updateChargeDto.name = updateChargeDto.name.toLowerCase();
+        updateChargeDto.name = updateChargeDto.name.trim();
       }
       await this.chargeRepository.update(charge.id, updateChargeDto);
       return await this.findOne(id);

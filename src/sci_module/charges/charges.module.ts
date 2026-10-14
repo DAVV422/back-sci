@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ChargeEntity } from './entities/charges.entity';
 import { ChargeController } from './controllers/charge.controller';
 import { ChargeService } from './services/charge.service';
+import { ChargeCatalogService } from './services/charge-catalog.service';
 import { UserModule } from '../../user/user.module';
 
 @Module({
@@ -11,7 +12,7 @@ import { UserModule } from '../../user/user.module';
     forwardRef(() => UserModule),
   ],
   controllers: [ChargeController],
-  providers: [ChargeService],
-  exports: [TypeOrmModule, ChargeService],
+  providers: [ChargeService, ChargeCatalogService],
+  exports: [TypeOrmModule, ChargeService, ChargeCatalogService],
 })
 export class ChargesModule {}

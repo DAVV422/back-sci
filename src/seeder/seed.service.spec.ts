@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 
 import { SeedService } from './seed.service';
 import { UserService } from '../user/services/user.service';
-import { ChargeService } from '../sci_module/charges/services/charge.service';
+import { ChargeCatalogService } from '../sci_module/charges/services/charge-catalog.service';
 import { ROLES } from '../common/constants';
 
 describe('SeedService', () => {
@@ -28,10 +28,7 @@ describe('SeedService', () => {
 
   beforeEach(async () => {
     mockChargeService = {
-      countCharges: jest.fn().mockResolvedValue(0),
-      findByName: jest.fn().mockRejectedValue(new Error('not found')),
-      create: jest.fn().mockResolvedValue({ id: 'charge-1' }),
-      update: jest.fn().mockResolvedValue({ id: 'charge-1' }),
+      sync: jest.fn().mockResolvedValue({ created: [], updated: [], merged: [], retired: [] }),
     };
     mockUserService = {
       countUsers: jest.fn().mockResolvedValue(0),
@@ -45,7 +42,7 @@ describe('SeedService', () => {
       providers: [
         SeedService,
         { provide: UserService, useValue: mockUserService },
-        { provide: ChargeService, useValue: mockChargeService },
+        { provide: ChargeCatalogService, useValue: mockChargeService },
         { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
@@ -107,71 +104,14 @@ describe('SeedService', () => {
 
       await service.runAllSeeders();
 
-      expect(mockChargeService.create).toHaveBeenCalled();
+      expect(mockChargeService.sync).toHaveBeenCalled();
     });
   });
 
-  describe('cargarChargeSCI - systemName (F1-013)', () => {
-    it('asigna systemName = incident_commander al cargo CI', async () => {
+  describe('cargarChargeSCI', () => {
+    it('delega en el catálogo del manual (ChargeCatalogService.sync)', async () => {
       await service.cargarChargeSCI();
-
-      const createCalls = mockChargeService.create.mock.calls.map(
-        (call: any[]) => call[0],
-      );
-      const ci = createCalls.find(
-        (c: any) => c.name === 'Comandante del Incidente',
-      );
-      expect(ci).toBeDefined();
-      expect(ci.systemName).toBe('incident_commander');
-    });
-
-    it('asigna systemName a los jefes de sección', async () => {
-      await service.cargarChargeSCI();
-
-      const createCalls = mockChargeService.create.mock.calls.map(
-        (call: any[]) => call[0],
-      );
-      const systemNames = createCalls
-        .map((c: any) => c.systemName)
-        .filter((s: any) => s);
-      expect(systemNames).toEqual(
-        expect.arrayContaining([
-          'incident_commander',
-          'operations_chief',
-          'planning_chief',
-          'logistics_chief',
-          'admin_finance_chief',
-        ]),
-      );
-    });
-
-    it('los systemName no-null son únicos entre los cargos', async () => {
-      await service.cargarChargeSCI();
-
-      const createCalls = mockChargeService.create.mock.calls.map(
-        (call: any[]) => call[0],
-      );
-      const systemNames = createCalls
-        .map((c: any) => c.systemName)
-        .filter((s: any) => s);
-      const unique = new Set(systemNames);
-      expect(unique.size).toBe(systemNames.length);
-    });
-
-    it('actualiza cargos existentes con systemName (upsert)', async () => {
-      mockChargeService.findByName.mockImplementation(async (name: string) => {
-        if (name === 'Comandante del Incidente') return { id: 'ci-1' };
-        throw new Error('not found');
-      });
-
-      await service.cargarChargeSCI();
-
-      expect(mockChargeService.update).toHaveBeenCalledWith('ci-1', {
-        abbreviation: 'CI',
-        level: 1,
-        weight: 1,
-        systemName: 'incident_commander',
-      });
+      expect(mockChargeService.sync).toHaveBeenCalledTimes(1);
     });
   });
 });
