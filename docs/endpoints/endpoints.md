@@ -573,11 +573,11 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
 
 #### `PATCH /api/emergency/:id`
 - **Descripción**: Actualiza datos descriptivos o geográficos de la emergencia (solo si no se encuentra en estado `Finalizada`).
-- **Acceso**: `admin`, `manager` o el Comandante de Incidente activo.
+- **Acceso**: Comandante del Incidente activo o rol `manager`+ (`403` en otro caso). **Validado en el servidor** (antes solo lo ocultaba la web).
 
 #### `PATCH /api/emergency/:id/state`
 - **Descripción**: Transición del estado de la emergencia mediante máquina de estados (`p` Pendiente -> `a` Activa -> `f` Finalizada o `c` Cancelada).
-- **Acceso**: `admin`, `manager` o el Comandante de Incidente activo.
+- **Acceso**: Comandante del Incidente activo o rol `manager`+ (`403` en otro caso). **Validado en el servidor** (antes solo lo ocultaba la web). Reabrir una emergencia finalizada sigue exigiendo `manager`+.
 - **Body**: `{ "state": "a" }`
 
 #### `DELETE /api/emergency/:id`
@@ -785,11 +785,11 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
 
 #### `GET /api/emergency/:emergencyId/form207`
 - **Descripción**: Lista los Formularios 207 asociados a la emergencia.
-- **Acceso**: Autenticado.
+- **Acceso**: Autenticado. Un `basic` que **no participó** en la emergencia recibe `403` (privacidad de pacientes).
 
 #### `GET /api/form207/:id`
 - **Descripción**: Detalle de una planilla F207 (incluye `emergency` y `user` creador).
-- **Acceso**: Autenticado.
+- **Acceso**: Autenticado. Un `basic` que no participó en la emergencia recibe `403`.
 
 #### `PATCH /api/form207/:id/finalize`
 - **Descripción**: Cierra y finaliza la planilla del F207 de forma inmutable.
@@ -816,13 +816,17 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
   }
   ```
 
-#### `GET /api/victim/:id` | `PATCH /api/victim/:id`
-- **Descripción**: Consulta o actualización de datos básicos de la víctima.
-- **Acceso**: Autenticado.
+#### `GET /api/victim/:id`
+- **Descripción**: Consulta de los datos básicos de la víctima.
+- **Acceso**: Autenticado. Un `basic` solo la ve si participó en la emergencia de su último registro de triage (`403` en otro caso).
+
+#### `PATCH /api/victim/:id`
+- **Descripción**: Corrección de los datos básicos de la víctima.
+- **Acceso**: Encargado del ACV (`casualty_area_manager`), Líder de la Unidad Médica, Comandante del Incidente o rol `manager`+, en la emergencia del último registro de la víctima y con la emergencia abierta. Una víctima sin registros todavía solo la corrige un `manager`+.
 
 #### `POST /api/form207/:form207Id/registration`
 - **Descripción**: Registra un evento de clasificación de triage (START/SALT) para una víctima dentro de un F207 activo. Log inmutable (`append-only`). Una re-evaluación de una víctima existente es un nuevo registro con el mismo `victimId`.
-- **Acceso**: Todo personal asignado a la emergencia (`attend` activo) o rol `manager`+. En otro caso → `403 Forbidden`.
+- **Acceso**: Encargado del ACV (`casualty_area_manager`), Líder de la Unidad Médica (`medical_unit_leader`), Comandante del Incidente o rol `manager`+. Estar asignado con otro cargo **no alcanza** (`403`).
 - **Body**:
   ```json
   {
@@ -836,6 +840,7 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
   ```
 
 #### `GET /api/form207/:form207Id/registration`
+- **Acceso**: Autenticado. Un `basic` que no participó en la emergencia recibe `403`. Lo mismo aplica a `GET /api/victim/:victimId/registration`, que exige acceso a todas las emergencias del historial.
 - **Descripción**: Lista todos los registros de triage de la planilla F207 (con `victim` y `user`), en orden cronológico ascendente. Incluye re-evaluaciones: para obtener el estado actual de cada víctima, quedarse con el registro más reciente por `victim.id`.
 
 #### `GET /api/emergency/:emergencyId/triage-summary`
@@ -902,6 +907,10 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
 - **Acceso**: Comandante del Incidente activo de esa emergencia o rol `manager`+ (`403` en otro caso). Se permite aunque la emergencia esté finalizada (desmovilización posterior al cierre).
 - **Body**: `{ "amountReturned": 2 }`
 
+#### `PATCH /api/resource/:id` | `DELETE /api/resource/:id`
+- **Descripción**: Corregir la nota de un despacho, o **anularlo** si se registró por error. La anulación reincorpora al inventario las unidades pendientes de devolver, hace soft delete y deja constancia en la bitácora.
+- **Acceso**: Comandante del Incidente activo o rol `manager`+, con la emergencia abierta (`403` / `400` en otro caso).
+
 #### `GET /api/resource/by-emergency/:emergencyId`
 - **Descripción**: Lista los recursos materiales asignados a una emergencia.
 
@@ -933,6 +942,7 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
 #### `POST /api/action/upload-audio/:emergencyId`
 - **Descripción**: Sube un archivo de audio grabado desde el móvil y lo almacena localmente en `data/audios/{userId}/{emergencyId}/{filename}`. Registra automáticamente la entrada correspondiente en la bitácora (`ActionEntity`) con su `AudioEntity` vinculado.
 - **Acceso**: Todo usuario asignado a la emergencia.
+- **Límites**: 25 MB y un archivo por petición. Formatos: `.m4a`, `.aac`, `.mp3`, `.wav`, `.ogg`, `.oga`, `.opus`, `.webm`, `.3gp`, `.amr`, con MIME `audio/*` (o `application/octet-stream`, decide la extensión). Otro formato → `400`; mayor tamaño → `413`; sin archivo → `400`.
 - **Form-Data (multipart/form-data)**:
   - `file`: Archivo de audio (m4a, mp3, aac, wav, ogg).
   - `description` (opcional): Descripción o transcripción preliminar (ej. `"Nota de voz de evaluación de sector"`).
@@ -1009,7 +1019,7 @@ El organigrama SCI se estructura dinámicamente mediante dos atributos en `Charg
 
 #### `POST /api/sync/batch`
 - **Descripción**: Procesa la cola de operaciones acumuladas durante la pérdida de conectividad móvil. Las procesa en orden cronológico, ejecuta comprobación de idempotencia vía `client_generated_id` y emite alertas de conflicto si la emergencia fue cerrada mientras el cliente estaba offline.
-- **Acceso**: Autenticado (`basic` o superior).
+- **Acceso**: Autenticado. **Cada operación pasa por las mismas validaciones tácticas que su endpoint HTTP** (rol y cargo del usuario): una operación no permitida vuelve con un estado distinto de `success` en `results`, sin cortar el resto del lote.
 - **Body**:
   ```json
   {
