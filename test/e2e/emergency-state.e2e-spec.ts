@@ -14,6 +14,7 @@ import { EmergencyStatus } from '../../src/organization_module/emergency/enums/e
 import { ActionEntity } from '../../src/incident_module/action/entities/action.entity';
 import { UserService } from '../../src/user/services/user.service';
 import { DataSource } from 'typeorm';
+import { EmergencyAccessService } from '../../src/organization_module/emergency/services/emergency-access.service';
 import { ROLES } from '../../src/common/constants';
 
 const userId = '3f2b5f1a-9e8d-4c7b-a6e5-1d2c3b4a5f6e';
@@ -105,6 +106,8 @@ describe('Emergency state transitions (e2e)', () => {
           useValue: mockActionRepo,
         },
         { provide: DataSource, useValue: mockDataSource },
+        // Permisos tácticos: este spec prueba la máquina de estados, no la autorización por cargo.
+        { provide: EmergencyAccessService, useValue: { assertMember: jest.fn(), assertHasCharge: jest.fn(), assertCommanderOrManager: jest.fn(), assertCanViewPatients: jest.fn(), isManagerOrAbove: jest.fn(() => true) } },
         EmergencyStateMachine,
         EmergencyService,
         AuthGuard,

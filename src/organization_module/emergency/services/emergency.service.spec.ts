@@ -9,6 +9,7 @@ import { DataSource } from 'typeorm';
 
 import { EmergencyService } from './emergency.service';
 import { EmergencyStateMachine } from './emergency-state-machine';
+import { EmergencyAccessService } from './emergency-access.service';
 import { EmergencyEntity } from '../entities/emergency.entity';
 import { ActionEntity } from '../../../incident_module/action/entities/action.entity';
 import { CreateEmergencyDto } from '../dto/create-emergency.dto';
@@ -18,6 +19,13 @@ import { ROLES } from '../../../common/constants';
 import { QueryDto } from '../../../common/dto/query.dto';
 
 describe('EmergencyService', () => {
+  const mockEmergencyAccessService = {
+    assertMember: jest.fn().mockResolvedValue(undefined),
+    assertHasCharge: jest.fn().mockResolvedValue(undefined),
+    assertCommanderOrManager: jest.fn().mockResolvedValue(undefined),
+    assertCanViewPatients: jest.fn().mockResolvedValue(undefined),
+    isManagerOrAbove: jest.fn((role: string) => ['manager', 'admin', 'suadmin'].includes(role)),
+  };
   let service: EmergencyService;
   let queryBuilder: any;
   let mockRepo: any;
@@ -74,6 +82,7 @@ describe('EmergencyService', () => {
         { provide: getRepositoryToken(ActionEntity), useValue: mockActionRepo },
         { provide: UserService, useValue: mockUserService },
         { provide: DataSource, useValue: mockDataSource },
+        { provide: EmergencyAccessService, useValue: mockEmergencyAccessService },
         EmergencyStateMachine,
       ],
     }).compile();
@@ -593,4 +602,36 @@ describe('EmergencyService', () => {
       );
     });
   });
+
+  describe('autorización (P0)', () => {
+    it('changeState exige CI activo o manager+ antes de validar la transición', async () => {
+      mockRepo.findOne.mockResolvedValue({
+        id: 'emg-1',
+        state: EmergencyStatus.Pending,
+        form201: [],
+        form207: [],
+      });
+      mockEmergencyAccessService.assertCommanderOrManager.mockRejectedValueOnce(
+        new ForbiddenException('sin permiso'),
+      );
+
+      await expect(
+        service.changeState('emg-1', { state: EmergencyStatus.Active } as any, 'user-x', ROLES.BASIC),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('update con rol informado exige CI activo o manager+', async () => {
+      jest.spyOn(service, 'findOne').mockResolvedValue({ id: 'emg-1', state: EmergencyStatus.Active } as any);
+      mockEmergencyAccessService.assertCommanderOrManager.mockRejectedValueOnce(
+        new ForbiddenException('sin permiso'),
+      );
+
+      await expect(
+        service.update('emg-1', { name: 'Otro' } as any, 'user-x', ROLES.BASIC),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockRepo.update).not.toHaveBeenCalled();
+    });
+  });
 });
+

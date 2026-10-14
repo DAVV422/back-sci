@@ -37,6 +37,7 @@ import { UserService } from '../../../user/services/user.service';
 import { ROLES } from '../../../common/constants';
 import { EmergencyStateMachine } from './emergency-state-machine';
 import { RealtimeService } from '../../../notification/services/realtime.service';
+import { EmergencyAccessService } from './emergency-access.service';
 
 @Injectable()
 export class EmergencyService {
@@ -50,6 +51,7 @@ export class EmergencyService {
     private readonly userService: UserService,
     private readonly dataSource: DataSource,
     private readonly stateMachine: EmergencyStateMachine,
+    private readonly emergencyAccessService: EmergencyAccessService,
     @Optional() private readonly realtimeService?: RealtimeService,
   ) {}
 
@@ -226,11 +228,21 @@ export class EmergencyService {
   public async update(
     id: string,
     updateEmergencyDto: UpdateEmergencyDto,
+    userId?: string,
+    userRole?: string,
   ): Promise<EmergencyEntity> {
     this.logger.log(`[update] Actualizando emergencia. id=${id}`);
     try {
       const emergency: EmergencyEntity = await this.findOne(id);
       this.assertEditable(emergency);
+      if (userRole) {
+        await this.emergencyAccessService.assertCommanderOrManager(
+          emergency.id,
+          userId,
+          userRole,
+          'Solo el Comandante del Incidente o un usuario con rol Manager o superior puede editar la emergencia.',
+        );
+      }
       const { ...updateEmergency } = updateEmergencyDto;
       const emergencyUpdated = await this.emergencyRepository.update(
         emergency.id,
@@ -281,6 +293,13 @@ export class EmergencyService {
         this.logger.warn(`[changeState] Emergencia no encontrada. id=${id}`);
         throw new NotFoundException('Emergencia no encontrada.');
       }
+
+      await this.emergencyAccessService.assertCommanderOrManager(
+        emergency.id,
+        userId,
+        userRole,
+        'Solo el Comandante del Incidente o un usuario con rol Manager o superior puede cambiar el estado de la emergencia.',
+      );
 
       const from = emergency.state;
       const to = changeStateDto.state;

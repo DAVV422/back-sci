@@ -80,11 +80,18 @@ export class EmergencyController {
   public async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateEmergencyDto: UpdateEmergencyDto,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<EmergencyEntity>> {
     return {
       success: true,
       statusCode: 200,
-      data: await this.emergencyService.update(id, updateEmergencyDto),
+      data: await this.emergencyService.update(
+        id,
+        updateEmergencyDto,
+        userId,
+        userRole,
+      ),
     };
   }
 
