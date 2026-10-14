@@ -134,12 +134,20 @@ export class ActionService {
     actionId: string,
     createAudioDto: CreateAudioDto,
     userId: string,
+    userRole?: string,
   ): Promise<ActionEntity> {
     this.logger.log(`[attachAudioToAction] Adjuntando audio a acción. actionId=${actionId}, userId=${userId}`);
     try {
       const action = await this.findOne(actionId);
       if (action.emergency) {
         this.emergencyService.assertEditable(action.emergency);
+        if (userRole) {
+          await this.emergencyAccessService.assertMember(
+            action.emergency.id,
+            userId,
+            userRole,
+          );
+        }
       }
       const user = await this.userService.findOne(userId);
 

@@ -18,6 +18,9 @@ describe('ActionService', () => {
   const mockEmergencyAccessService = {
     assertMember: jest.fn().mockResolvedValue(undefined),
     assertHasCharge: jest.fn().mockResolvedValue(undefined),
+    assertCommanderOrManager: jest.fn().mockResolvedValue(undefined),
+    assertCanViewPatients: jest.fn().mockResolvedValue(undefined),
+    isManagerOrAbove: jest.fn((role: string) => ['manager', 'admin', 'suadmin'].includes(role)),
   };
 
   beforeEach(async () => {

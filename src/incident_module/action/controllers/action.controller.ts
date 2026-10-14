@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -24,7 +25,6 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import { diskStorage } from 'multer';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -36,6 +36,7 @@ import { ApiResponse } from '../../../common/interfaces/responseMessage.interfac
 import { GetUser } from '../../../auth/decorators';
 import { AuthGuard, RolesGuard } from '../../../auth/guards';
 import { ActionEntity } from './../entities/action.entity';
+import { audioUploadOptions } from './audio-upload.options';
 
 @ApiTags('Action')
 @ApiBearerAuth()
@@ -119,32 +120,7 @@ export class ActionController {
       },
     },
   })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (req: any, file, cb) => {
-          const userId = req.user?.id || 'anonymous';
-          const emergencyId = req.params.emergencyId || 'general';
-          const uploadPath = path.join(
-            process.cwd(),
-            'data',
-            'audios',
-            userId,
-            emergencyId,
-          );
-          if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-          }
-          cb(null, uploadPath);
-        },
-        filename: (req, file, cb) => {
-          const uniqueSuffix = `${Date.now()}_${Math.round(Math.random() * 1e9)}`;
-          const ext = path.extname(file.originalname) || '.m4a';
-          cb(null, `audio_${uniqueSuffix}${ext}`);
-        },
-      }),
-    }),
-  )
+  @UseInterceptors(FileInterceptor('file', audioUploadOptions))
   public async uploadAudio(
     @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
     @UploadedFile() file: Express.Multer.File,
@@ -154,6 +130,7 @@ export class ActionController {
     @GetUser('id') userId: string,
     @GetUser('role') userRole: string,
   ): Promise<ApiResponse<ActionEntity>> {
+    if (!file) throw new BadRequestException('Debe adjuntar el archivo de audio en el campo "file".');
     const now = new Date();
     const hour = `${String(now.getHours()).padStart(2, '0')}:${String(
       now.getMinutes(),
@@ -207,11 +184,13 @@ export class ActionController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() createAudioDto: CreateAudioDto,
     @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<ActionEntity>> {
     const action = await this.actionService.attachAudioToAction(
       id,
       createAudioDto,
       userId,
+      userRole,
     );
     return {
       success: true,
