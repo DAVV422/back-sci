@@ -5,6 +5,7 @@ import { DataSource } from 'typeorm';
 
 import { ResourceService } from './resource.service';
 import { ResourceEntity } from '../entities/resource.entity';
+import { ActionEntity } from '../../../incident_module/action/entities/action.entity';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
 import { EquipmentService } from '../../../organization_module/equipment/services/equipment.service';
@@ -22,6 +23,9 @@ describe('ResourceService', () => {
   const mockEmergencyAccessService = {
     assertMember: jest.fn().mockResolvedValue(undefined),
     assertHasCharge: jest.fn().mockResolvedValue(undefined),
+    assertCommanderOrManager: jest.fn().mockResolvedValue(undefined),
+    assertCanViewPatients: jest.fn().mockResolvedValue(undefined),
+    isManagerOrAbove: jest.fn((role: string) => ['manager', 'admin', 'suadmin'].includes(role)),
   };
 
   beforeEach(async () => {
@@ -380,20 +384,52 @@ describe('ResourceService', () => {
     });
   });
 
-  describe('delete - soft delete (F1-012)', () => {
-    it('marca is_deleted = true en vez de borrar físicamente', async () => {
-      mockResourceRepo.findOne.mockResolvedValue({
-        id: 'res-1',
-        emergency: { id: 'emg-1', state: EmergencyStatus.Active },
-      });
+  describe('delete - anulación de despacho', () => {
+    const dispatched = () => ({
+      id: 'res-1',
+      amount: 5,
+      amount_returned: 2,
+      isDeleted: false,
+      emergency: { id: 'emg-1', state: EmergencyStatus.Active },
+      equipment: { id: 'eq-1', name: 'Casco' },
+    });
 
-      const result = await service.delete('res-1');
+    beforeEach(() => {
+      mockResourceRepo.findOne.mockResolvedValue(dispatched());
+      mockManager.findOne.mockResolvedValue({ id: 'eq-1', availableQuantity: 10, totalQuantity: 20 });
+    });
 
-      expect(mockResourceRepo.update).toHaveBeenCalledWith('res-1', {
-        isDeleted: true,
-      });
+    it('reincorpora al stock solo las unidades no devueltas y hace soft delete', async () => {
+      const result = await service.delete('res-1', 'user-1', 'basic');
+
+      expect(mockManager.save).toHaveBeenCalledWith(expect.objectContaining({ availableQuantity: 13 }));
+      expect(mockManager.save).toHaveBeenCalledWith(expect.objectContaining({ id: 'res-1', isDeleted: true }));
       expect(mockResourceRepo.delete).not.toHaveBeenCalled();
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
       expect(result.success).toBe(true);
+    });
+
+    it('deja constancia de la anulación en la bitácora', async () => {
+      await service.delete('res-1', 'user-1', 'basic');
+      expect(mockManager.create).toHaveBeenCalledWith(
+        ActionEntity,
+        expect.objectContaining({ description: expect.stringContaining('Despacho anulado') }),
+      );
+    });
+
+    it('exige CI o manager+', async () => {
+      mockEmergencyAccessService.assertCommanderOrManager.mockRejectedValueOnce(
+        new ForbiddenException('sin permiso'),
+      );
+      await expect(service.delete('res-1', 'user-1', 'basic')).rejects.toThrow(ForbiddenException);
+      expect(mockManager.save).not.toHaveBeenCalled();
+    });
+
+    it('no permite anular con la emergencia cerrada', async () => {
+      mockEmergencyService.assertEditable.mockImplementationOnce(() => {
+        throw new BadRequestException('cerrada');
+      });
+      await expect(service.delete('res-1', 'user-1', 'basic')).rejects.toThrow(BadRequestException);
     });
   });
 

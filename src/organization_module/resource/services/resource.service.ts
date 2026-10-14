@@ -17,7 +17,10 @@ import { handlerError } from '../../../common/utils/handlerError.utils';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { EquipmentService } from '../../../organization_module/equipment/services/equipment.service';
-import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
+import {
+  EmergencyAccessService,
+  SCI_CHARGE,
+} from '../../../organization_module/emergency/services/emergency-access.service';
 import { RealtimeService } from '../../../notification/services/realtime.service';
 
 @Injectable()
@@ -138,7 +141,7 @@ export class ResourceService {
           resource.emergency.id,
           userId,
           userRole,
-          ['incident_commander'],
+          [SCI_CHARGE.INCIDENT_COMMANDER],
           'Solo el Comandante del Incidente o un usuario con rol Manager o superior puede registrar devoluciones.',
         );
       }
@@ -200,11 +203,22 @@ export class ResourceService {
   public async update(
     id: string,
     updateResourceDto: UpdateResourceDto,
+    userId?: string,
+    userRole?: string,
   ): Promise<ResourceEntity> {
     try {
       const resource = await this.findOne(id);
-      if (resource.emergency)
+      if (resource.emergency) {
         this.emergencyService.assertEditable(resource.emergency);
+        if (userRole) {
+          await this.emergencyAccessService.assertCommanderOrManager(
+            resource.emergency.id,
+            userId,
+            userRole,
+            'Solo el Comandante del Incidente o un usuario con rol Manager o superior puede editar un despacho.',
+          );
+        }
+      }
       const { emergencyId, equipmentId, amount: _ignored, ...resourceData } = updateResourceDto;
       const resourceUpdated = await this.resourceRepository.update(
         resource.id,
@@ -219,19 +233,81 @@ export class ResourceService {
     }
   }
 
-  public async delete(id: string): Promise<ApiResponse<null>> {
+  /**
+   * Anula un despacho registrado por error: reincorpora al inventario las unidades que aún no
+   * se devolvieron y deja constancia en la bitácora. Antes solo marcaba el registro como borrado,
+   * con lo que esas unidades quedaban descontadas del stock para siempre.
+   */
+  public async delete(
+    id: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<ApiResponse<null>> {
+    const queryRunner = this.dataSource.createQueryRunner();
     try {
       const resource = await this.findOne(id);
-      await this.resourceRepository.update(resource.id, { isDeleted: true });
-      this.realtimeService?.notifyEmergency(resource.emergency?.id, 'resource', 'delete', resource.id);
+      this.emergencyService.assertEditable(resource.emergency);
+      if (userRole) {
+        await this.emergencyAccessService.assertCommanderOrManager(
+          resource.emergency.id,
+          userId,
+          userRole,
+          'Solo el Comandante del Incidente o un usuario con rol Manager o superior puede anular un despacho.',
+        );
+      }
+      const pending = resource.amount - (resource.amount_returned ?? 0);
+
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const lockedEquipment = await queryRunner.manager.findOne(
+          EquipmentEntity,
+          {
+            where: { id: resource.equipment.id, isDeleted: false },
+            lock: { mode: 'pessimistic_write' },
+          },
+        );
+        if (!lockedEquipment)
+          throw new NotFoundException('Equipment not found.');
+        if (lockedEquipment.availableQuantity + pending > lockedEquipment.totalQuantity)
+          throw new BadRequestException(
+            'La anulación supera la cantidad total del equipo.',
+          );
+
+        lockedEquipment.availableQuantity += pending;
+        await queryRunner.manager.save(lockedEquipment);
+
+        resource.isDeleted = true;
+        await queryRunner.manager.save(resource);
+
+        const now = new Date();
+        await queryRunner.manager.save(
+          queryRunner.manager.create(ActionEntity, {
+            description: `Despacho anulado: ${resource.equipment.name} x${resource.amount} (${pending} unidades reincorporadas al inventario)`,
+            date: now,
+            hour: `${String(now.getHours()).padStart(2, '0')}:${String(
+              now.getMinutes(),
+            ).padStart(2, '0')}`,
+            user: { id: userId },
+            emergency: { id: resource.emergency.id },
+          }),
+        );
+
+        await queryRunner.commitTransaction();
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      }
       return {
         success: true,
         statusCode: 200,
-        message: 'Resource deleted.',
+        message: 'Despacho anulado y unidades reincorporadas al inventario.',
         data: null,
       };
     } catch (error) {
       handlerError(error, this.logger);
+    } finally {
+      if (queryRunner.isReleased === false) await queryRunner.release();
     }
   }
 

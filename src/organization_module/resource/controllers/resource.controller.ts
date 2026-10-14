@@ -82,11 +82,18 @@ export class ResourceController {
   public async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateResourceDto: UpdateResourceDto,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<ResourceEntity>> {
     return {
       success: true,
       statusCode: 200,
-      data: await this.resourceService.update(id, updateResourceDto),
+      data: await this.resourceService.update(
+        id,
+        updateResourceDto,
+        userId,
+        userRole,
+      ),
     };
   }
 
@@ -94,8 +101,10 @@ export class ResourceController {
   @Delete(':id')
   public async delete(
     @Param('id', ParseUUIDPipe) id: string,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
   ): Promise<ApiResponse<null>> {
-    return await this.resourceService.delete(id);
+    return await this.resourceService.delete(id, userId, userRole);
   }
 
   @ApiParam({ name: 'emergencyId', type: 'string' })
