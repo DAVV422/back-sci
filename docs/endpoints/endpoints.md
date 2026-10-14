@@ -79,6 +79,21 @@ Todo usuario asignado a una emergencia (sin importar si su rol de sistema es `ba
 
 ---
 
+## 1.4 Fechas, horas y zona horaria
+
+- **Todo instante se guarda y viaja en UTC**: `createdAt`/`updatedAt`, y los pares `date` + `hour` de emergencias, acciones de bitácora, asignaciones (`attend`) y registros de triage. El backend corre con el proceso fijado en UTC (`src/config/timezone.ts`), así que lo que genera también es UTC.
+- **Los clientes convierten**: al mostrar, de UTC a la zona de la institución; al enviar lo que escribe el usuario, de la zona local a UTC.
+- **Fechas de calendario** sin hora (`date` del F201 y del F207) son un día de calendario de la institución y **no se convierten**.
+- **Zona horaria de la institución**: variable `APP_TIMEZONE` (IANA, por defecto `America/La_Paz`, UTC-4).
+- Cada **emergencia** guarda la zona con la que se registró (`timezone`, no editable). Sirve para mostrar y para agrupar reportes aunque la configuración cambie después.
+
+#### `GET /api/config/public`
+- **Descripción**: Configuración no sensible para los clientes web y móvil.
+- **Acceso**: Público (sin token).
+- **Response (200)**: `{ "timezone": "America/La_Paz", "utcOffset": "-04:00" }`
+
+---
+
 ## 2. Formato Estándar de Respuesta API
 
 Todas las respuestas del backend siguen la estructura JSON con propiedades en **`camelCase`**:
