@@ -16,6 +16,9 @@ import {
 const FORM207_FORBIDDEN_MESSAGE =
   'Solo el Comandante del Incidente, el Líder de la Unidad Médica o un usuario con rol Manager o superior puede gestionar el Formulario 207.';
 
+/** Lugar de registro por defecto del SCI-207 (manual SCI: el ACV); el usuario puede cambiarlo. */
+export const DEFAULT_FORM207_PLACE = 'Área de Concentración de Víctimas (ACV)';
+
 @Injectable()
 export class Form207Service {
   private readonly logger = new Logger('Form207Service');
@@ -102,6 +105,8 @@ export class Form207Service {
 
       const form207 = queryRunner.manager.create(Form207Entity, {
         ...createForm207Dto,
+        // El DTO lo admite vacío (móvil/offline) pero la columna es NOT NULL: antes daba 500.
+        placeOfRegistration: createForm207Dto.placeOfRegistration?.trim() || DEFAULT_FORM207_PLACE,
         code,
         emergency,
         user,

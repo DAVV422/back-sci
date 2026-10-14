@@ -3,7 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 
-import { Form207Service } from './form-207.service';
+import { DEFAULT_FORM207_PLACE, Form207Service } from './form-207.service';
 import { Form207Entity } from '../entities/form-207.entity';
 import { ActionEntity } from '../../../incident_module/action/entities/action.entity';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
@@ -131,6 +131,16 @@ describe('Form207Service', () => {
       );
       expect(queryRunnerMock.commitTransaction).toHaveBeenCalled();
       expect(queryRunnerMock.release).toHaveBeenCalled();
+    });
+
+    it('sin lugar de registro usa el ACV por defecto (antes: 500 por NOT NULL)', async () => {
+      const { placeOfRegistration, ...withoutPlace } = createDto;
+      await service.create('emergency-1', withoutPlace as any, 'user-1');
+
+      expect(queryRunnerMock.manager.create).toHaveBeenCalledWith(
+        Form207Entity,
+        expect.objectContaining({ placeOfRegistration: DEFAULT_FORM207_PLACE }),
+      );
     });
 
     it('should rollback transaction on error', async () => {
