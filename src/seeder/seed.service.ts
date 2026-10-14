@@ -169,6 +169,14 @@ export class SeedService {
       // ================= NIVEL 3: RAMAS, DIVISIONES, GRUPOS Y UNIDADES =================
       // Operaciones
       {
+        // Manual SCI (USAID/OFDA/LAC): reporta al JSO y lleva el registro SCI-207 en el ACV.
+        name: 'Encargado del Área de Concentración de Víctimas',
+        abbreviation: 'EACV',
+        level: 3,
+        weight: 5.05,
+        systemName: 'casualty_area_manager',
+      },
+      {
         name: 'Director de Rama',
         abbreviation: 'DIR-RAMA',
         level: 3,
