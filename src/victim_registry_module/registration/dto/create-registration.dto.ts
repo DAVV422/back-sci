@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsUUID, IsEnum } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsUUID, IsEnum, MaxLength } from 'class-validator';
+import { TRANSPORT_MEANS, TransportMeans } from '../entities/registration.entity';
 
 export class CreateRegistrationDto {
   @ApiProperty({
@@ -18,6 +19,25 @@ export class CreateRegistrationDto {
   @IsNotEmpty()
   @IsEnum(['rojo', 'amarillo', 'verde', 'negro'])
   classification: 'rojo' | 'amarillo' | 'verde' | 'negro';
+
+  @ApiProperty({
+    description: 'Lugar de traslado (nombre del centro de salud). Si no existe se crea. Va junto con transportMeans.',
+    example: 'Hospital de Clínicas',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  @MaxLength(150)
+  transferDestination?: string;
+
+  @ApiProperty({
+    description: 'Medio de traslado. Va junto con transferDestination.',
+    enum: TRANSPORT_MEANS,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(TRANSPORT_MEANS)
+  transportMeans?: TransportMeans;
 
   @ApiProperty({
     description: 'Vehículo o unidad de traslado (opcional)',

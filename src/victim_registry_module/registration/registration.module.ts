@@ -7,6 +7,7 @@ import { UserModule } from '../../user/user.module';
 import { Form207Module } from '../form-207/form-207.module';
 import { VictimModule } from '../victim/victim.module';
 import { EmergencyModule } from '../../organization_module/emergency/emergency.module';
+import { HealthFacilityModule } from '../health-facility/health-facility.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { EmergencyModule } from '../../organization_module/emergency/emergency.m
     forwardRef(() => Form207Module),
     forwardRef(() => VictimModule),
     forwardRef(() => EmergencyModule),
+    HealthFacilityModule,
   ],
   controllers: [RegistrationController],
   providers: [RegistrationService],

@@ -7,6 +7,7 @@ import { Form207Service } from '../../form-207/services/form-207.service';
 import { VictimService } from '../../victim/services/victim.service';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { UserService } from '../../../user/services/user.service';
+import { HealthFacilityService } from '../../health-facility/services/health-facility.service';
 import {
   EmergencyAccessService,
   TRIAGE_REGISTRAR_CHARGES,
@@ -34,6 +35,7 @@ export class RegistrationService {
     private readonly emergencyService: EmergencyService,
     private readonly userService: UserService,
     private readonly emergencyAccessService: EmergencyAccessService,
+    private readonly healthFacilityService: HealthFacilityService,
   ) {}
 
   async create(
@@ -80,8 +82,19 @@ export class RegistrationService {
       throw new BadRequestException('El Formulario 207 ya está finalizado.');
     }
 
+    // Manual SCI: lugar de traslado (casilla 7) y medio (casilla 8) van juntos o no van.
+    const destinationName = createRegistrationDto.transferDestination?.trim();
+    if (!!destinationName !== !!createRegistrationDto.transportMeans) {
+      throw new BadRequestException(
+        'Indica el lugar y el medio de traslado juntos, o ninguno de los dos.',
+      );
+    }
+
     const victim = await this.victimService.findOne(createRegistrationDto.victimId);
     const user = await this.userService.findOne(userId);
+    const transferDestination = destinationName
+      ? await this.healthFacilityService.findOrCreate(destinationName)
+      : null;
 
     const now = new Date();
     const hour = `${String(now.getHours()).padStart(2, '0')}:${String(
@@ -91,6 +104,8 @@ export class RegistrationService {
     const registration = this.registrationRepository.create({
       classification: createRegistrationDto.classification,
       transferredBy: createRegistrationDto.transferredBy,
+      transportMeans: createRegistrationDto.transportMeans ?? null,
+      transferDestination,
       cellphoneTransferManager: createRegistrationDto.cellphoneTransferManager,
       notes: createRegistrationDto.notes,
       clientGeneratedId: createRegistrationDto.clientGeneratedId,
@@ -128,7 +143,7 @@ export class RegistrationService {
     }
     const results = await this.registrationRepository.find({
       where: { form207: { id: form207.id } },
-      relations: ['victim', 'user'],
+      relations: ['victim', 'user', 'transferDestination'],
       order: { createdAt: 'ASC' },
     });
     this.logger.log(`[findByForm207] Encontrados ${results.length} registros. form207Id=${form207Id}`);
@@ -144,7 +159,7 @@ export class RegistrationService {
     const victim = await this.victimService.findOne(victimId);
     const results = await this.registrationRepository.find({
       where: { victim: { id: victim.id } },
-      relations: ['form207', 'form207.emergency', 'user'],
+      relations: ['form207', 'form207.emergency', 'user', 'transferDestination'],
       order: { createdAt: 'DESC' },
     });
     if (userRole) {

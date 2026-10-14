@@ -13,8 +13,12 @@ import {
   TRIAGE_REGISTRAR_CHARGES,
 } from '../../../organization_module/emergency/services/emergency-access.service';
 import { UserService } from '../../../user/services/user.service';
+import { HealthFacilityService } from '../../health-facility/services/health-facility.service';
 
 describe('RegistrationService', () => {
+  const mockHealthFacilityService = {
+    findOrCreate: jest.fn(async (name: string) => ({ id: 'hf-1', name })),
+  };
   let service: RegistrationService;
   let repo: jest.Mocked<Repository<RegistrationEntity>>;
   let form207Service: jest.Mocked<Form207Service>;
@@ -84,6 +88,7 @@ describe('RegistrationService', () => {
           useValue: mockEmergencyAccessService,
         },
         { provide: UserService, useValue: mockUserService },
+        { provide: HealthFacilityService, useValue: mockHealthFacilityService },
       ],
     }).compile();
 
@@ -116,6 +121,35 @@ describe('RegistrationService', () => {
       expect(emergencyService.assertEditable).toHaveBeenCalled();
       expect(victimService.findOne).toHaveBeenCalledWith('victim-1');
       expect(repo.save).toHaveBeenCalled();
+    });
+
+    it('con lugar y medio de traslado, reutiliza o crea el centro de salud', async () => {
+      repo.save.mockImplementation(async (r: any) => ({ id: 'reg-1', ...r }));
+
+      await service.create(
+        'form207-1',
+        { ...dto, transferDestination: ' Hospital de Clínicas ', transportMeans: 'ambulancia' },
+        'user-1',
+      );
+
+      expect(mockHealthFacilityService.findOrCreate).toHaveBeenCalledWith('Hospital de Clínicas');
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transportMeans: 'ambulancia',
+          transferDestination: { id: 'hf-1', name: 'Hospital de Clínicas' },
+        }),
+      );
+    });
+
+    it.each([
+      [{ transferDestination: 'Hospital de Clínicas' }],
+      [{ transportMeans: 'aereo' }],
+      [{ transferDestination: '   ', transportMeans: 'aereo' }],
+    ])('rechaza lugar sin medio o medio sin lugar (%o)', async (transfer) => {
+      await expect(service.create('form207-1', { ...dto, ...transfer }, 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(repo.save).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if Form207 is already finalized', async () => {
@@ -171,7 +205,7 @@ describe('RegistrationService', () => {
 
       expect(repo.find).toHaveBeenCalledWith({
         where: { victim: { id: 'victim-1' } },
-        relations: ['form207', 'form207.emergency', 'user'],
+        relations: ['form207', 'form207.emergency', 'user', 'transferDestination'],
         order: { createdAt: 'DESC' },
       });
     });
