@@ -41,7 +41,8 @@ export class LocalStorageService implements IStorageService {
     }
 
     const ext = path.extname(file.originalname).toLowerCase() || '.png';
-    const filename = `profile_${randomUUID()}${ext}`;
+    const prefix = subfolder === 'profiles' ? 'profile' : subfolder;
+    const filename = `${prefix}_${randomUUID()}${ext}`;
     const destinationPath = path.join(targetDir, filename);
 
     if (file.buffer) {
@@ -56,16 +57,17 @@ export class LocalStorageService implements IStorageService {
       `[saveFile] Archivo almacenado exitosamente en: ${destinationPath}`,
     );
 
-    // Retorna la ruta relativa que se sirve mediante el endpoint GET /api/user/image/:filename
-    return `/api/user/image/${filename}`;
+    // Las fotos de perfil se sirven públicamente en GET /api/user/image/:filename. El resto
+    // (p. ej. el croquis del F201) devuelve solo el nombre: lo sirve su propio endpoint con sesión.
+    return subfolder === 'profiles' ? `/api/user/image/${filename}` : filename;
   }
 
-  public async deleteFile(fileUrl: string): Promise<void> {
+  public async deleteFile(fileUrl: string, subfolder = 'profiles'): Promise<void> {
     if (!fileUrl) return;
 
     try {
       const filename = path.basename(fileUrl);
-      const filePath = path.join(this.baseUploadDir, 'profiles', filename);
+      const filePath = path.join(this.baseUploadDir, path.basename(subfolder), filename);
 
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);

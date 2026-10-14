@@ -77,6 +77,14 @@ export class CreateForm201Dto {
   affectedAreasMapUrl?: string;
 
   @ApiProperty({
+    description: 'Mapa de situación (casilla 12): { perimeter: [{lat,lng}], elements: [{id, symbol, lat, lng, label?}] }. null lo borra.',
+    required: false,
+    nullable: true,
+  })
+  @IsOptional()
+  situationMap?: unknown;
+
+  @ApiProperty({
     example: '1. Rescatar atrapados. 2. Controlar derrame.',
     description: 'Objetivos',
   })

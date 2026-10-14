@@ -6,6 +6,7 @@ import {
   ConflictException,
   ForbiddenException,
   Optional,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -19,6 +20,12 @@ import { AttendEntity } from '../../../organization_module/attends/entities/atte
 import { ActionEntity } from '../../action/entities/action.entity';
 import { ROLES } from '../../../common/constants';
 import { RealtimeService } from '../../../notification/services/realtime.service';
+import { IStorageService } from '../../../common/interfaces/storage.interface';
+import { normalizeSituationMap } from '../situation-map';
+import { isImageBuffer } from '../controllers/croquis-upload.options';
+
+/** Carpeta del almacenamiento para las imágenes de croquis del 201. */
+export const CROQUIS_FOLDER = 'croquis';
 
 @Injectable()
 export class Form201Service {
@@ -33,6 +40,8 @@ export class Form201Service {
     private readonly actionRepository: Repository<ActionEntity>,
     private readonly emergencyService: EmergencyService,
     private readonly userService: UserService,
+    @Inject('STORAGE_SERVICE')
+    private readonly storageService: IStorageService,
     @Optional() private readonly realtimeService?: RealtimeService,
   ) {}
 
@@ -173,6 +182,7 @@ export class Form201Service {
 
       const form201 = this.form201Repository.create({
         ...createForm201Dto,
+        situationMap: normalizeSituationMap(createForm201Dto.situationMap ?? null),
         code,
         organizationChart: createForm201Dto.organizationChart || { members: organizationChart },
         emergency: emergencyEntity,
@@ -283,7 +293,8 @@ export class Form201Service {
         );
       }
 
-      const { clientGeneratedId, code, isFinalized, ...updateData } = updateForm201Dto as any;
+      const { clientGeneratedId, code, isFinalized, croquisImage, ...updateData } = updateForm201Dto as any;
+      if ('situationMap' in updateData) updateData.situationMap = normalizeSituationMap(updateData.situationMap);
       await this.form201Repository.update(id, updateData);
       this.logger.log(`[update] Form201 actualizado exitosamente. id=${id}`);
       this.realtimeService?.notifyEmergency(form201.emergency.id, 'form201', 'update', id);
@@ -293,6 +304,47 @@ export class Form201Service {
       this.logger.error(`[update] Error al actualizar Form201: ${error.message}`, error.stack);
       throw error;
     }
+  }
+
+  /** Mismas reglas que editar: emergencia editable, CI o manager+ y formulario abierto. */
+  private async loadEditable(id: string, userId: string, userRole: string): Promise<Form201Entity> {
+    const form201 = await this.findOne(id);
+    this.emergencyService.assertEditable(form201.emergency);
+    await this.assertCanManageForm201(form201.emergency.id, userId, userRole);
+    if (form201.isFinalized) {
+      throw new BadRequestException('El formulario ya está finalizado y no se puede editar.');
+    }
+    return form201;
+  }
+
+  /** Casilla 12: sube o reemplaza la imagen del croquis. */
+  async setCroquis(id: string, file: Express.Multer.File, userId: string, userRole: string): Promise<Form201Entity> {
+    if (!file) throw new BadRequestException('Adjunta la imagen del croquis en el campo "file".');
+    if (!isImageBuffer(file.buffer)) throw new BadRequestException('El archivo no es una imagen JPG, PNG o WebP válida.');
+    const form201 = await this.loadEditable(id, userId, userRole);
+    const filename = await this.storageService.saveFile(file, CROQUIS_FOLDER);
+    await this.form201Repository.update(id, { croquisImage: filename });
+    if (form201.croquisImage) await this.storageService.deleteFile(form201.croquisImage, CROQUIS_FOLDER);
+    this.logger.log(`[setCroquis] Croquis actualizado. id=${id}`);
+    this.realtimeService?.notifyEmergency(form201.emergency.id, 'form201', 'update', id);
+    return this.findOne(id);
+  }
+
+  async removeCroquis(id: string, userId: string, userRole: string): Promise<Form201Entity> {
+    const form201 = await this.loadEditable(id, userId, userRole);
+    if (form201.croquisImage) {
+      await this.form201Repository.update(id, { croquisImage: null });
+      await this.storageService.deleteFile(form201.croquisImage, CROQUIS_FOLDER);
+      this.realtimeService?.notifyEmergency(form201.emergency.id, 'form201', 'update', id);
+    }
+    return this.findOne(id);
+  }
+
+  /** Ruta en disco del croquis (404 si el formulario no tiene). */
+  async getCroquisPath(id: string): Promise<string> {
+    const form201 = await this.findOne(id);
+    if (!form201.croquisImage) throw new NotFoundException('Este Formulario 201 no tiene croquis.');
+    return this.storageService.getFilePath(form201.croquisImage, CROQUIS_FOLDER);
   }
 
   async finalize(

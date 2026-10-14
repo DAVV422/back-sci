@@ -3,7 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 
-import { Form201Service } from './form-201.service';
+import { CROQUIS_FOLDER, Form201Service } from './form-201.service';
 import { Form201Entity } from '../entities/form-201.entity';
 import { AttendEntity } from '../../../organization_module/attends/entities/attends.entity';
 import { ActionEntity } from '../../action/entities/action.entity';
@@ -12,6 +12,12 @@ import { UserService } from '../../../user/services/user.service';
 import { EmergencyStatus } from '../../../organization_module/emergency/enums/emergency-status.enum';
 
 describe('Form201Service', () => {
+  const mockStorage = {
+    saveFile: jest.fn(),
+    deleteFile: jest.fn(),
+    getFilePath: jest.fn(),
+  };
+  beforeEach(() => jest.clearAllMocks());
   let service: Form201Service;
   let form201Repo: jest.Mocked<Repository<Form201Entity>>;
   let attendRepo: jest.Mocked<Repository<AttendEntity>>;
@@ -59,6 +65,7 @@ describe('Form201Service', () => {
         { provide: getRepositoryToken(ActionEntity), useFactory: mockRepo },
         { provide: EmergencyService, useValue: mockEmergencyService },
         { provide: UserService, useValue: mockUserService },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorage },
       ],
     }).compile();
 
@@ -163,6 +170,73 @@ describe('Form201Service', () => {
       } as any);
 
       await expect(service.update('form-1', updateDto as any)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('croquis y mapa de situación (casilla 12)', () => {
+    const openForm = { id: 'form-1', code: 'F201-001', isFinalized: false, emergency: mockEmergency, croquisImage: 'croquis_old.png' };
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+
+    it('sube el croquis, guarda el nombre y borra la imagen anterior', async () => {
+      form201Repo.findOne.mockResolvedValue(openForm as any);
+      mockStorage.saveFile.mockResolvedValueOnce('croquis_new.png');
+
+      await service.setCroquis('form-1', { buffer: png, originalname: 'c.png', mimetype: 'image/png' } as any, 'u-1', 'manager');
+
+      expect(mockStorage.saveFile).toHaveBeenCalledWith(expect.anything(), CROQUIS_FOLDER);
+      expect(form201Repo.update).toHaveBeenCalledWith('form-1', { croquisImage: 'croquis_new.png' });
+      expect(mockStorage.deleteFile).toHaveBeenCalledWith('croquis_old.png', CROQUIS_FOLDER);
+    });
+
+    it('rechaza un archivo que no es imagen aunque declare image/png', async () => {
+      form201Repo.findOne.mockResolvedValue(openForm as any);
+      const html = Buffer.from('<html><script>alert(1)</script></html>');
+      await expect(
+        service.setCroquis('form-1', { buffer: html, originalname: 'c.png', mimetype: 'image/png' } as any, 'u-1', 'manager'),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockStorage.saveFile).not.toHaveBeenCalled();
+    });
+
+    it('no permite cambiar el croquis de un 201 finalizado', async () => {
+      form201Repo.findOne.mockResolvedValue({ ...openForm, isFinalized: true } as any);
+      await expect(
+        service.setCroquis('form-1', { buffer: png, originalname: 'c.png', mimetype: 'image/png' } as any, 'u-1', 'manager'),
+      ).rejects.toThrow(BadRequestException);
+      await expect(service.removeCroquis('form-1', 'u-1', 'manager')).rejects.toThrow(BadRequestException);
+    });
+
+    it('el croquis no se puede pisar desde el PATCH general', async () => {
+      form201Repo.findOne.mockResolvedValue(openForm as any);
+      await service.update('form-1', { croquisImage: '../../etc/passwd', nature: 'x' } as any);
+      expect(form201Repo.update).toHaveBeenCalledWith('form-1', { nature: 'x' });
+    });
+
+    it('el PATCH normaliza el mapa de situación y rechaza símbolos desconocidos', async () => {
+      form201Repo.findOne.mockResolvedValue(openForm as any);
+      await service.update('form-1', {
+        situationMap: {
+          perimeter: [{ lat: -16.5, lng: -68.1 }, { lat: -16.51, lng: -68.1 }, { lat: -16.51, lng: -68.11 }],
+          elements: [{ id: 'e1', symbol: 'staging_area', lat: -16.5, lng: -68.1, label: ' Espera Norte ', extra: 'x' }],
+        },
+      } as any);
+      expect(form201Repo.update).toHaveBeenCalledWith('form-1', {
+        situationMap: {
+          perimeter: [{ lat: -16.5, lng: -68.1 }, { lat: -16.51, lng: -68.1 }, { lat: -16.51, lng: -68.11 }],
+          elements: [{ id: 'e1', symbol: 'staging_area', lat: -16.5, lng: -68.1, label: 'Espera Norte' }],
+        },
+      });
+
+      await expect(
+        service.update('form-1', { situationMap: { elements: [{ id: 'e1', symbol: 'tank', lat: 0, lng: 0 }] } } as any),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.update('form-1', { situationMap: { perimeter: [{ lat: 0, lng: 0 }, { lat: 1, lng: 1 }] } } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('sin croquis, pedir la imagen da 404', async () => {
+      form201Repo.findOne.mockResolvedValue({ ...openForm, croquisImage: null } as any);
+      await expect(service.getCroquisPath('form-1')).rejects.toThrow(NotFoundException);
     });
   });
 

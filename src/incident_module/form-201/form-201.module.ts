@@ -8,6 +8,7 @@ import { UserModule } from '../../user/user.module';
 import { EmergencyModule } from '../../organization_module/emergency/emergency.module';
 import { ActionModule } from '../action/action.module';
 import { AttendsModule } from '../../organization_module/attends/attends.module';
+import { CommonModule } from '../../common/common.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AttendsModule } from '../../organization_module/attends/attends.module'
     forwardRef(() => EmergencyModule),
     forwardRef(() => ActionModule),
     forwardRef(() => AttendsModule),
+    forwardRef(() => CommonModule),
   ],
   controllers: [Form201Controller],
   providers: [Form201Service],

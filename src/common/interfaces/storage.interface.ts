@@ -3,15 +3,17 @@ export interface IStorageService {
    * Guarda un archivo en el almacenamiento configurado.
    * @param file Archivo subido mediante Multer.
    * @param subfolder Subdirectorio lógico opcional (ej: 'profiles').
-   * @returns URL de acceso al archivo guardado (ej: '/api/user/image/profile_xxx.png').
+   * @returns En 'profiles', la URL pública ('/api/user/image/profile_xxx.png'); en otras
+   *   carpetas, solo el nombre del archivo, que sirve un endpoint propio con sesión.
    */
   saveFile(file: Express.Multer.File, subfolder?: string): Promise<string>;
 
   /**
    * Elimina un archivo del medio de almacenamiento.
-   * @param fileUrl URL o ruta del archivo a eliminar.
+   * @param fileUrl URL, ruta o nombre del archivo a eliminar.
+   * @param subfolder Subdirectorio lógico (por defecto 'profiles').
    */
-  deleteFile(fileUrl: string): Promise<void>;
+  deleteFile(fileUrl: string, subfolder?: string): Promise<void>;
 
   /**
    * Obtiene la ruta física del archivo en disco local para ser servido.

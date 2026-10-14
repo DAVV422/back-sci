@@ -8,8 +8,15 @@ import {
   Post,
   UseGuards,
   ParseUUIDPipe,
+  Put,
+  Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiParam, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
+import { croquisUploadOptions } from './croquis-upload.options';
 
 import { AuthGuard, RolesGuard } from '../../../auth/guards';
 import { RolesAccess } from '../../../auth/decorators';
@@ -83,6 +90,50 @@ export class Form201Controller {
       message: 'Formulario 201 actualizado exitosamente.',
       data: form201,
     };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
+  @Put('form201/:id/croquis')
+  @UseInterceptors(FileInterceptor('file', croquisUploadOptions))
+  async setCroquis(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
+  ): Promise<ApiResponse<Form201Entity>> {
+    return {
+      success: true,
+      statusCode: 200,
+      message: 'Croquis guardado.',
+      data: await this.form201Service.setCroquis(id, file, userId, userRole),
+    };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
+  @Delete('form201/:id/croquis')
+  async removeCroquis(
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
+  ): Promise<ApiResponse<Form201Entity>> {
+    return {
+      success: true,
+      statusCode: 200,
+      message: 'Croquis eliminado.',
+      data: await this.form201Service.removeCroquis(id, userId, userRole),
+    };
+  }
+
+  /** Requiere sesión (no es público como las fotos de perfil): el front lo pide como blob. */
+  @ApiParam({ name: 'id', type: 'string' })
+  @Get('form201/:id/croquis')
+  async getCroquis(@Param('id', ParseUUIDPipe) id: string, @Res() res: Response): Promise<void> {
+    const filePath = await this.form201Service.getCroquisPath(id);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.sendFile(filePath);
   }
 
   @ApiParam({ name: 'id', type: 'string' })

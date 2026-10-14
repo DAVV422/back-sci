@@ -1,4 +1,5 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
+import { SituationMap } from '../situation-map';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { EmergencyEntity } from '../../../organization_module/emergency/entities/emergency.entity';
 import { UserEntity } from '../../../user/entities/user.entity';
@@ -48,6 +49,14 @@ export class Form201Entity extends BaseEntity {
     nullable: true,
   })
   affectedAreasMapUrl?: string;
+
+  /** Casilla 12: imagen del croquis (nombre en el almacenamiento; se sirve en GET /form201/:id/croquis). */
+  @Column({ name: 'croquis_image', type: 'varchar', length: 255, nullable: true })
+  croquisImage?: string | null;
+
+  /** Casilla 12: mapa de situación dibujado (perímetro y símbolos SCI). Ver `situation-map.ts`. */
+  @Column({ name: 'situation_map', type: 'jsonb', nullable: true })
+  situationMap?: SituationMap | null;
 
   @Column({ name: 'objectives', type: 'text', nullable: false })
   objectives: string;
