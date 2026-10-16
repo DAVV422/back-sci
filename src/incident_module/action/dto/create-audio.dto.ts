@@ -10,7 +10,7 @@ import {
 
 export class CreateAudioDto {
   @ApiProperty({
-    example: 'data/audios/01b9bbf4.../02b9bbf4.../audio_1724112000.m4a',
+    example: 'audios/01b9bbf4.../02b9bbf4.../audio_<uuid>.m4a',
     description: 'Ruta local o relativa del archivo de audio almacenado',
   })
   @IsNotEmpty()

@@ -37,6 +37,7 @@ import {
   UserQueryDto,
 } from '../dto/';
 import { UserDirectoryEntry, UserService } from '../services/user.service';
+import { contentTypeFor, sendStoredObject } from '../../common/services/storage/stored-files';
 import { ApiResponse } from './../../common/interfaces/responseMessage.interface';
 import { ROLES } from './../../common/constants';
 import { UserEntity } from '../entities/user.entity';
@@ -172,12 +173,12 @@ export class UserController {
   @PublicAccess()
   @ApiParam({ name: 'filename', type: 'string', description: 'Nombre del archivo de imagen' })
   @Get('image/:filename')
-  public getImage(
+  public async getImage(
     @Param('filename') filename: string,
     @Res() res: Response,
-  ): void {
-    const filePath = this.userService.getProfileImagePath(filename);
-    res.sendFile(filePath);
+  ): Promise<void> {
+    const image = await this.userService.getProfileImage(filename);
+    sendStoredObject(res, image, { contentType: contentTypeFor(filename, 'image/png'), cache: 'public, max-age=86400' });
   }
 
   @ApiParam({ name: 'id', type: 'string' })

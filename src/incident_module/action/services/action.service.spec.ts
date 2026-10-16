@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
@@ -13,6 +13,8 @@ import { EmergencyStatus } from '../../../organization_module/emergency/enums/em
 describe('ActionService', () => {
   let service: ActionService;
   let mockEmergencyService: any;
+  let mockStorage: any;
+  let mockAudioRepo: any;
   let mockActionRepo: any;
 
   const mockEmergencyAccessService = {
@@ -37,11 +39,19 @@ describe('ActionService', () => {
       find: jest.fn(),
     };
 
+    mockStorage = { put: jest.fn(), get: jest.fn().mockResolvedValue({ stream: 's', size: 1 }), exists: jest.fn().mockResolvedValue(true), delete: jest.fn() };
+    mockAudioRepo = {
+      create: jest.fn((data: any) => ({ ...data })),
+      save: jest.fn(async (data: any) => ({ id: 'aud-1', ...data })),
+      findOne: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ActionService,
         { provide: getRepositoryToken(ActionEntity), useValue: mockActionRepo },
-        { provide: getRepositoryToken(AudioEntity), useValue: {} },
+        { provide: getRepositoryToken(AudioEntity), useValue: mockAudioRepo },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorage },
         { provide: EmergencyService, useValue: mockEmergencyService },
         {
           provide: EmergencyAccessService,
@@ -59,6 +69,54 @@ describe('ActionService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('audios en el almacenamiento (P1 #12)', () => {
+    const active = { id: 'emg-1', state: 'a' };
+    const withAudio = (pathAudio: string) => ({
+      emergency: 'emg-1', description: 'Nota', date: new Date('2026-10-03'), hour: '10:00',
+      audio: { pathAudio, duration: 3 },
+    }) as any;
+
+    beforeEach(() => {
+      mockEmergencyService.findOne.mockResolvedValue(active);
+      mockEmergencyService.assertEditable.mockImplementation(() => undefined);
+    });
+
+    it('acepta un audio propio de esa emergencia y guarda la clave (también desde la ruta antigua)', async () => {
+      mockActionRepo.findOne.mockResolvedValue({ id: 'act-1' });
+      await service.create(withAudio('data/audios/user-1/emg-1/audio_1.m4a'), 'user-1', 'basic');
+      expect(mockStorage.exists).toHaveBeenCalledWith('audios/user-1/emg-1/audio_1.m4a');
+      expect(mockAudioRepo.create).toHaveBeenCalledWith(expect.objectContaining({ pathAudio: 'audios/user-1/emg-1/audio_1.m4a' }));
+    });
+
+    it.each([
+      ['de otro usuario', 'audios/otro-user/emg-1/audio_1.m4a'],
+      ['de otra emergencia', 'audios/user-1/emg-2/audio_1.m4a'],
+      ['fuera de la carpeta de audios', 'data/uploads/profiles/profile_1.png'],
+      ['con ..', 'audios/user-1/emg-1/../../otro-user/emg-1/a.m4a'],
+    ])('rechaza un pathAudio %s', async (_case, pathAudio) => {
+      await expect(service.create(withAudio(pathAudio), 'user-1', 'basic')).rejects.toThrow(BadRequestException);
+      expect(mockAudioRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rechaza un audio propio que no existe en el almacenamiento', async () => {
+      mockStorage.exists.mockResolvedValue(false);
+      await expect(service.create(withAudio('audios/user-1/emg-1/fantasma.m4a'), 'user-1', 'basic')).rejects.toThrow(BadRequestException);
+    });
+
+    it('al reproducir toma el tipo de la extensión guardada, no el que declaró el cliente', async () => {
+      mockAudioRepo.findOne.mockResolvedValue({ id: 'aud-1', pathAudio: 'data/audios/user-1/emg-1/audio_1.m4a', mimeType: 'text/html', fileName: 'nota.m4a' });
+      const file = await service.getAudioFile('aud-1');
+      expect(mockStorage.get).toHaveBeenCalledWith('audios/user-1/emg-1/audio_1.m4a');
+      expect(file.mimeType).toBe('audio/mp4');
+    });
+
+    it('una ruta corrupta en la base da 404, no lee nada', async () => {
+      mockAudioRepo.findOne.mockResolvedValue({ id: 'aud-1', pathAudio: '../../.env' });
+      await expect(service.getAudioFile('aud-1')).rejects.toThrow(NotFoundException);
+      expect(mockStorage.get).not.toHaveBeenCalled();
+    });
   });
 
   describe('create - bloqueo de edición (F1-011)', () => {

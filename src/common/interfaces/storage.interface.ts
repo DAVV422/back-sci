@@ -1,24 +1,25 @@
+import { Readable } from 'stream';
+
+/** Un archivo leído del almacenamiento, listo para enviarse al cliente. */
+export interface StoredObject {
+  readonly stream: Readable;
+  readonly size: number;
+}
+
+/**
+ * Almacenamiento de archivos por **clave** (p. ej. `uploads/croquis/croquis_<uuid>.png`,
+ * `audios/<userId>/<emergencyId>/audio_<n>.m4a`), sin rutas de disco: es el mismo contrato
+ * que un bucket S3 (PutObject / GetObject / HeadObject / DeleteObject). Hoy lo implementa
+ * `LocalStorageService` en disco; para S3 basta otro proveedor de `STORAGE_SERVICE`.
+ *
+ * Las claves se arman con `storageKey()` (ver `storage-keys.ts`), que rechaza `..`, rutas
+ * absolutas y caracteres raros, así ningún dato del cliente puede salir de la carpeta.
+ */
 export interface IStorageService {
-  /**
-   * Guarda un archivo en el almacenamiento configurado.
-   * @param file Archivo subido mediante Multer.
-   * @param subfolder Subdirectorio lógico opcional (ej: 'profiles').
-   * @returns En 'profiles', la URL pública ('/api/user/image/profile_xxx.png'); en otras
-   *   carpetas, solo el nombre del archivo, que sirve un endpoint propio con sesión.
-   */
-  saveFile(file: Express.Multer.File, subfolder?: string): Promise<string>;
-
-  /**
-   * Elimina un archivo del medio de almacenamiento.
-   * @param fileUrl URL, ruta o nombre del archivo a eliminar.
-   * @param subfolder Subdirectorio lógico (por defecto 'profiles').
-   */
-  deleteFile(fileUrl: string, subfolder?: string): Promise<void>;
-
-  /**
-   * Obtiene la ruta física del archivo en disco local para ser servido.
-   * @param filename Nombre del archivo.
-   * @param subfolder Subdirectorio lógico.
-   */
-  getFilePath(filename: string, subfolder?: string): string;
+  put(key: string, data: Buffer): Promise<void>;
+  /** 404 si no existe. */
+  get(key: string): Promise<StoredObject>;
+  exists(key: string): Promise<boolean>;
+  /** No falla si el archivo ya no existe. */
+  delete(key: string): Promise<void>;
 }

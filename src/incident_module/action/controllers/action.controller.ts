@@ -1,4 +1,5 @@
 import {
+  Inject,
   BadRequestException,
   Body,
   Controller,
@@ -25,8 +26,6 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
-import * as fs from 'fs';
-import * as path from 'path';
 
 import { CreateActionDto } from './../dto/create-action.dto';
 import { CreateAudioDto } from './../dto/create-audio.dto';
@@ -36,14 +35,20 @@ import { ApiResponse } from '../../../common/interfaces/responseMessage.interfac
 import { GetUser } from '../../../auth/decorators';
 import { AuthGuard, RolesGuard } from '../../../auth/guards';
 import { ActionEntity } from './../entities/action.entity';
-import { audioUploadOptions } from './audio-upload.options';
+import { AUDIO_EXTENSION, audioUploadOptions } from './audio-upload.options';
+import { sendStoredObject } from '../../../common/services/storage/stored-files';
+import { audioKey, uniqueFileName } from '../../../common/services/storage/storage-keys';
+import { IStorageService } from '../../../common/interfaces/storage.interface';
 
 @ApiTags('Action')
 @ApiBearerAuth()
 @UseGuards(AuthGuard, RolesGuard)
 @Controller('action')
 export class ActionController {
-  constructor(private readonly actionService: ActionService) {}
+  constructor(
+    private readonly actionService: ActionService,
+    @Inject('STORAGE_SERVICE') private readonly storageService: IStorageService,
+  ) {}
 
   @Get('audio/:audioId')
   @ApiOperation({ summary: 'Descargar/reproducir el archivo de una nota de voz' })
@@ -53,12 +58,7 @@ export class ActionController {
     @Res() res: Response,
   ): Promise<void> {
     const audio = await this.actionService.getAudioFile(audioId);
-    res.setHeader('Content-Type', audio.mimeType);
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${encodeURIComponent(audio.fileName)}"`,
-    );
-    res.sendFile(audio.absolutePath);
+    sendStoredObject(res, audio.object, { contentType: audio.mimeType, fileName: audio.fileName });
   }
 
   @Get(':id')
@@ -93,7 +93,7 @@ export class ActionController {
   @Post('upload-audio/:emergencyId')
   @ApiOperation({
     summary:
-      'Subir y almacenar un archivo de audio grabado en data/audios/{userId}/{emergencyId}',
+      'Subir una nota de voz: se guarda en el almacenamiento bajo audios/{userId}/{emergencyId}/ y se registra como acción',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -136,9 +136,9 @@ export class ActionController {
       now.getMinutes(),
     ).padStart(2, '0')}`;
 
-    const relativePath = path
-      .join('data', 'audios', userId, emergencyId, file?.filename || '')
-      .replace(/\\/g, '/');
+    // Extensión normalizada desde la lista blanca (ver audio-upload.options); el nombre lo genera el servidor.
+    const key = audioKey(userId, emergencyId, uniqueFileName('audio', file.originalname, AUDIO_EXTENSION(file)));
+    await this.storageService.put(key, file.buffer);
 
     const createActionDto: CreateActionDto = {
       description: description || '[Nota de voz]',
@@ -147,7 +147,7 @@ export class ActionController {
       emergency: emergencyId,
       clientGeneratedId,
       audio: {
-        pathAudio: relativePath,
+        pathAudio: key,
         duration: duration ? parseFloat(duration) : 0,
         processed: false,
         fileName: file?.originalname || file?.filename,
@@ -165,8 +165,8 @@ export class ActionController {
         userRole,
       );
     } catch (error) {
-      // Multer ya escribió el archivo: si la acción se rechaza no debe quedar huérfano.
-      if (file?.path) fs.promises.unlink(file.path).catch(() => undefined);
+      // El archivo ya se guardó: si la acción se rechaza no debe quedar huérfano.
+      await this.storageService.delete(key);
       throw error;
     }
     return {

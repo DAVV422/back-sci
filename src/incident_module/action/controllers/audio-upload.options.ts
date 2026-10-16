@@ -1,7 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
-import { diskStorage } from 'multer';
-import * as fs from 'fs';
+import { memoryStorage } from 'multer';
 import * as path from 'path';
 import { isUUID } from 'class-validator';
 
@@ -11,12 +10,16 @@ export const AUDIO_MAX_BYTES = 25 * 1024 * 1024;
 /** Formatos que graban los teléfonos (Android/iOS) y los navegadores. */
 export const AUDIO_ALLOWED_EXTENSIONS = ['.m4a', '.aac', '.mp3', '.wav', '.ogg', '.oga', '.opus', '.webm', '.3gp', '.amr'];
 
-export const AUDIO_ROOT = path.join(process.cwd(), 'data', 'audios');
+/** Extensión ya validada por `audioFileFilter`, en minúsculas. */
+export const AUDIO_EXTENSION = (file: Express.Multer.File): string => {
+  const ext = path.extname(file?.originalname ?? '').toLowerCase();
+  return AUDIO_ALLOWED_EXTENSIONS.includes(ext) ? ext : '.m4a';
+};
 
 /**
  * Multer corre antes que los pipes de la ruta: el `emergencyId` y el nombre del archivo llegan
- * sin validar. Por eso se valida aquí el UUID (la ruta en disco se arma con él) y se acepta solo
- * una lista blanca de extensiones de audio, con la extensión normalizada al guardar.
+ * sin validar. Por eso se valida aquí el UUID (forma parte de la clave en el almacenamiento) y se
+ * acepta solo una lista blanca de extensiones de audio.
  */
 export const audioFileFilter: MulterOptions['fileFilter'] = (req: any, file, cb) => {
   if (!isUUID(req.params?.emergencyId)) {
@@ -35,19 +38,12 @@ export const audioFileFilter: MulterOptions['fileFilter'] = (req: any, file, cb)
   cb(null, true);
 };
 
+/**
+ * En memoria: el controlador lo guarda en el almacenamiento (`IStorageService`), que hoy es el
+ * disco y mañana puede ser S3, en lugar de que multer escriba directo en una carpeta local.
+ */
 export const audioUploadOptions: MulterOptions = {
   limits: { fileSize: AUDIO_MAX_BYTES, files: 1 },
   fileFilter: audioFileFilter,
-  storage: diskStorage({
-    destination: (req: any, _file, cb) => {
-      // userId viene del AuthGuard (UUID del token); emergencyId ya fue validado en fileFilter.
-      const uploadPath = path.join(AUDIO_ROOT, String(req.user?.id), String(req.params.emergencyId));
-      fs.mkdirSync(uploadPath, { recursive: true });
-      cb(null, uploadPath);
-    },
-    filename: (_req, file, cb) => {
-      const uniqueSuffix = `${Date.now()}_${Math.round(Math.random() * 1e9)}`;
-      cb(null, `audio_${uniqueSuffix}${path.extname(file.originalname).toLowerCase()}`);
-    },
-  }),
+  storage: memoryStorage(),
 };

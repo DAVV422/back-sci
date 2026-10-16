@@ -1,93 +1,56 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
-import { randomUUID } from 'crypto';
-import { IStorageService } from '../../interfaces/storage.interface';
+import { IStorageService, StoredObject } from '../../interfaces/storage.interface';
+import { assertStorageKey } from './storage-keys';
 
-const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-
+/**
+ * `IStorageService` sobre disco. La raíz es `STORAGE_LOCAL_ROOT` (por defecto `<cwd>/data`), así
+ * el E2E y otros entornos usan su propia carpeta sin mezclar archivos con los de desarrollo.
+ */
 @Injectable()
 export class LocalStorageService implements IStorageService {
   private readonly logger = new Logger(LocalStorageService.name);
-  private readonly baseUploadDir: string;
+  readonly root: string;
 
-  constructor(private readonly configService: ConfigService) {
-    this.baseUploadDir = path.join(process.cwd(), 'data', 'uploads');
+  constructor(configService: ConfigService) {
+    const configured = configService.get<string>('STORAGE_LOCAL_ROOT');
+    this.root = path.resolve(configured || path.join(process.cwd(), 'data'));
   }
 
-  public async saveFile(
-    file: Express.Multer.File,
-    subfolder = 'profiles',
-  ): Promise<string> {
-    if (!file) {
-      throw new BadRequestException('No se ha proporcionado ningún archivo.');
-    }
-
-    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-      throw new BadRequestException(
-        `Formato de imagen no permitido (${file.mimetype}). Solo se permiten: JPEG, PNG y WebP.`,
-      );
-    }
-
-    const targetDir = path.join(this.baseUploadDir, subfolder);
-    if (!fs.existsSync(targetDir)) {
-      fs.mkdirSync(targetDir, { recursive: true });
-    }
-
-    const ext = path.extname(file.originalname).toLowerCase() || '.png';
-    const prefix = subfolder === 'profiles' ? 'profile' : subfolder;
-    const filename = `${prefix}_${randomUUID()}${ext}`;
-    const destinationPath = path.join(targetDir, filename);
-
-    if (file.buffer) {
-      fs.writeFileSync(destinationPath, file.buffer);
-    } else if (file.path) {
-      fs.copyFileSync(file.path, destinationPath);
-    } else {
-      throw new BadRequestException('El archivo no contiene datos válidos.');
-    }
-
-    this.logger.log(
-      `[saveFile] Archivo almacenado exitosamente en: ${destinationPath}`,
-    );
-
-    // Las fotos de perfil se sirven públicamente en GET /api/user/image/:filename. El resto
-    // (p. ej. el croquis del F201) devuelve solo el nombre: lo sirve su propio endpoint con sesión.
-    return subfolder === 'profiles' ? `/api/user/image/${filename}` : filename;
+  async put(key: string, data: Buffer): Promise<void> {
+    const filePath = this.resolve(key);
+    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.promises.writeFile(filePath, data);
+    this.logger.log(`[put] ${key} (${data.length} bytes)`);
   }
 
-  public async deleteFile(fileUrl: string, subfolder = 'profiles'): Promise<void> {
-    if (!fileUrl) return;
+  async get(key: string): Promise<StoredObject> {
+    const filePath = this.resolve(key);
+    const stat = await fs.promises.stat(filePath).catch(() => null);
+    if (!stat?.isFile()) throw new NotFoundException('El archivo solicitado no existe.');
+    return { stream: fs.createReadStream(filePath), size: stat.size };
+  }
 
+  async exists(key: string): Promise<boolean> {
+    const stat = await fs.promises.stat(this.resolve(key)).catch(() => null);
+    return !!stat?.isFile();
+  }
+
+  async delete(key: string): Promise<void> {
     try {
-      const filename = path.basename(fileUrl);
-      const filePath = path.join(this.baseUploadDir, path.basename(subfolder), filename);
-
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        this.logger.log(`[deleteFile] Archivo eliminado: ${filePath}`);
-      }
+      await fs.promises.unlink(this.resolve(key));
+      this.logger.log(`[delete] ${key}`);
     } catch (error: any) {
-      this.logger.warn(
-        `[deleteFile] No se pudo eliminar el archivo (${fileUrl}): ${error.message}`,
-      );
+      if (error?.code !== 'ENOENT') this.logger.warn(`[delete] No se pudo eliminar ${key}: ${error?.message}`);
     }
   }
 
-  public getFilePath(filename: string, subfolder = 'profiles'): string {
-    const safeFilename = path.basename(filename);
-    const filePath = path.join(this.baseUploadDir, subfolder, safeFilename);
-
-    if (!fs.existsSync(filePath)) {
-      throw new NotFoundException('La imagen solicitada no existe.');
-    }
-
+  /** Clave → ruta en disco, comprobando que quede dentro de la raíz. */
+  private resolve(key: string): string {
+    const filePath = path.resolve(this.root, assertStorageKey(key));
+    if (!filePath.startsWith(this.root + path.sep)) throw new NotFoundException('El archivo solicitado no existe.');
     return filePath;
   }
 }

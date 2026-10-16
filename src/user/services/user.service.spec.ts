@@ -728,9 +728,10 @@ describe('UserService - image upload and fault tolerance', () => {
       findOne: jest.fn(),
     };
     mockStorage = {
-      saveFile: jest.fn().mockResolvedValue('/api/user/image/profile_123.png'),
-      deleteFile: jest.fn().mockResolvedValue(undefined),
-      getFilePath: jest.fn().mockReturnValue('data/uploads/profiles/profile_123.png'),
+      put: jest.fn().mockResolvedValue(undefined),
+      delete: jest.fn().mockResolvedValue(undefined),
+      get: jest.fn().mockResolvedValue({ stream: 'stream', size: 3 }),
+      exists: jest.fn().mockResolvedValue(true),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -747,20 +748,11 @@ describe('UserService - image upload and fault tolerance', () => {
     service = module.get<UserService>(UserService);
   });
 
-  it('stores image and assigns urlImage when file is provided on createUser', async () => {
-    const mockFile: Express.Multer.File = {
-      fieldname: 'file',
-      originalname: 'avatar.png',
-      mimetype: 'image/png',
-      size: 1024,
-      buffer: Buffer.from('test'),
-    } as any;
+  const PROFILE_URL = /^\/api\/user\/image\/profile_[0-9a-f-]{36}\.png$/;
 
-    jest.spyOn(service, 'findOneBy').mockResolvedValue({
-      id: 'uuid-img-1',
-      email: 'img@sci.local',
-      urlImage: '/api/user/image/profile_123.png',
-    } as any);
+  it('guarda la foto con un nombre nuevo y asigna su URL pública al crear el usuario', async () => {
+    const mockFile = { originalname: 'avatar.png', mimetype: 'image/png', buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]) } as any;
+    jest.spyOn(service, 'findOneBy').mockResolvedValue({ id: 'uuid-img-1', email: 'img@sci.local' } as any);
 
     await service.createUser(
       { email: 'img@sci.local', name: 'Img', lastName: 'User', role: ROLES.BASIC } as any,
@@ -768,67 +760,55 @@ describe('UserService - image upload and fault tolerance', () => {
       mockFile,
     );
 
-    expect(mockStorage.saveFile).toHaveBeenCalledWith(mockFile, 'profiles');
-    expect(mockRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ urlImage: '/api/user/image/profile_123.png' }),
-    );
+    expect(mockStorage.put).toHaveBeenCalledWith(expect.stringMatching(/^uploads\/profiles\/profile_.+\.png$/), mockFile.buffer);
+    expect(mockRepo.save).toHaveBeenCalledWith(expect.objectContaining({ urlImage: expect.stringMatching(PROFILE_URL) }));
   });
 
-  it('tolerates image upload failure on createUser by setting urlImage=null and continuing creation', async () => {
-    mockStorage.saveFile.mockRejectedValue(new Error('Disk full error'));
-
-    const mockFile: Express.Multer.File = {
-      fieldname: 'file',
-      originalname: 'broken.png',
-      mimetype: 'image/png',
-    } as any;
-
-    jest.spyOn(service, 'findOneBy').mockResolvedValue({
-      id: 'uuid-img-2',
-      email: 'fault@sci.local',
-      urlImage: null,
-    } as any);
+  it('un archivo que no es imagen no se guarda y el usuario se crea sin foto', async () => {
+    const fake = { originalname: 'avatar.png', mimetype: 'image/png', buffer: Buffer.from('<script>alert(1)</script>') } as any;
+    jest.spyOn(service, 'findOneBy').mockResolvedValue({ id: 'uuid-img-2', email: 'fault@sci.local', urlImage: null } as any);
 
     const user = await service.createUser(
       { email: 'fault@sci.local', name: 'Fault', lastName: 'User', role: ROLES.BASIC } as any,
       ROLES.ADMIN,
-      mockFile,
+      fake,
     );
 
-    expect(mockStorage.saveFile).toHaveBeenCalledWith(mockFile, 'profiles');
-    expect(mockRepo.save).toHaveBeenCalledWith(
-      expect.objectContaining({ urlImage: null }),
-    );
+    expect(mockStorage.put).not.toHaveBeenCalled();
+    expect(mockRepo.save).toHaveBeenCalledWith(expect.objectContaining({ urlImage: null }));
     expect(user).toBeDefined();
   });
 
-  it('updates profile image and cleans up old image file on updateProfile', async () => {
-    const existingUser = {
-      id: 'user-profile-id',
-      urlImage: '/api/user/image/old_profile.png',
-    } as UserEntity;
-    jest.spyOn(service, 'findOne').mockResolvedValue(existingUser);
+  it('si falla el almacenamiento, el usuario se crea igual sin foto', async () => {
+    mockStorage.put.mockRejectedValue(new Error('Disk full error'));
+    const mockFile = { originalname: 'broken.png', mimetype: 'image/png', buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]) } as any;
+    jest.spyOn(service, 'findOneBy').mockResolvedValue({ id: 'uuid-img-3', email: 'disk@sci.local', urlImage: null } as any);
 
-    const mockFile: Express.Multer.File = {
-      fieldname: 'file',
-      originalname: 'new_avatar.webp',
-      mimetype: 'image/webp',
-    } as any;
+    await service.createUser({ email: 'disk@sci.local', name: 'D', lastName: 'U', role: ROLES.BASIC } as any, ROLES.ADMIN, mockFile);
+
+    expect(mockRepo.save).toHaveBeenCalledWith(expect.objectContaining({ urlImage: null }));
+  });
+
+  it('al cambiar la foto de perfil borra la anterior', async () => {
+    jest.spyOn(service, 'findOne').mockResolvedValue({ id: 'user-profile-id', urlImage: '/api/user/image/old_profile.png' } as UserEntity);
+    const mockFile = { originalname: 'new_avatar.webp', mimetype: 'image/webp', buffer: Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP')]) } as any;
 
     await service.updateProfile('user-profile-id', { name: 'Updated' }, mockFile);
 
-    expect(mockStorage.saveFile).toHaveBeenCalledWith(mockFile, 'profiles');
-    expect(mockStorage.deleteFile).toHaveBeenCalledWith('/api/user/image/old_profile.png');
+    expect(mockStorage.put).toHaveBeenCalledWith(expect.stringMatching(/^uploads\/profiles\/profile_.+\.webp$/), mockFile.buffer);
+    expect(mockStorage.delete).toHaveBeenCalledWith('uploads/profiles/old_profile.png');
     expect(mockRepo.update).toHaveBeenCalledWith(
       'user-profile-id',
-      expect.objectContaining({ urlImage: '/api/user/image/profile_123.png' }),
+      expect.objectContaining({ urlImage: expect.stringMatching(/^\/api\/user\/image\/profile_.+\.webp$/) }),
     );
   });
 
-  it('returns file path from storageService on getProfileImagePath', () => {
-    const pathResult = service.getProfileImagePath('profile_test.png');
-    expect(mockStorage.getFilePath).toHaveBeenCalledWith('profile_test.png', 'profiles');
-    expect(pathResult).toBe('data/uploads/profiles/profile_123.png');
+  it('sirve la foto desde el almacenamiento y rechaza nombres con rutas', async () => {
+    await service.getProfileImage('profile_test.png');
+    expect(mockStorage.get).toHaveBeenCalledWith('uploads/profiles/profile_test.png');
+    // Un intento de salir de la carpeta (o un archivo oculto) se rechaza sin tocar el almacenamiento.
+    await expect(service.getProfileImage('../../../.env')).rejects.toThrow(BadRequestException);
+    expect(mockStorage.get).toHaveBeenCalledTimes(1);
   });
 });
 

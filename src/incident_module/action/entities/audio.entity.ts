@@ -12,7 +12,7 @@ export class AudioEntity extends BaseEntity {
     length: 500,
     nullable: false,
     comment:
-      'Ruta local o relativa del archivo (ej. data/audios/{userId}/{emergencyId}/{filename})',
+      'Clave del archivo en el almacenamiento (audios/{userId}/{emergencyId}/{archivo}; los registros antiguos usan data/audios/...)',
   })
   pathAudio: string;
 

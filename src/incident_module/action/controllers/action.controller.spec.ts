@@ -10,6 +10,7 @@ describe('ActionController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ActionController],
       providers: [
+        { provide: 'STORAGE_SERVICE', useValue: { put: jest.fn(), get: jest.fn(), exists: jest.fn(), delete: jest.fn() } },
         {
           provide: ActionService,
           useValue: {},

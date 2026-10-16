@@ -38,7 +38,9 @@ import { FRONTEND_ROUTES, ROLES } from '../../common/constants';
 import { EmailService } from '../../common/services/email.service';
 import { AuthTokenService } from '../../auth/services/auth-token.service';
 import { AuthTokenType } from '../../auth/entities/auth-token.entity';
-import { IStorageService } from '../../common/interfaces/storage.interface';
+import { IStorageService, StoredObject } from '../../common/interfaces/storage.interface';
+import { profileImageUrl, profileKey, uniqueFileName } from '../../common/services/storage/storage-keys';
+import { assertImageFile } from '../../common/services/storage/stored-files';
 
 /** Entrada del directorio de personal (`GET /user/directory`). */
 export interface UserDirectoryEntry {
@@ -242,7 +244,7 @@ export class UserService {
     try {
       if (file) {
         try {
-          createUserDto.urlImage = await this.storageService.saveFile(file, 'profiles');
+          createUserDto.urlImage = await this.saveProfileImage(file);
         } catch (error: any) {
           this.logger.warn(
             `[createUser] Error al guardar imagen de perfil: ${error?.message}. Se continuará la creación con urlImage=null.`,
@@ -375,10 +377,8 @@ export class UserService {
       if (file) {
         try {
           const oldUrl = user.urlImage;
-          allowedUpdates.urlImage = await this.storageService.saveFile(file, 'profiles');
-          if (oldUrl && oldUrl.startsWith('/api/user/image/')) {
-            await this.storageService.deleteFile(oldUrl);
-          }
+          allowedUpdates.urlImage = await this.saveProfileImage(file);
+          await this.deleteProfileImage(oldUrl);
         } catch (error: any) {
           this.logger.warn(
             `[update] Error al guardar imagen de perfil: ${error?.message}.`,
@@ -430,10 +430,8 @@ export class UserService {
       if (file) {
         try {
           const oldUrl = user?.urlImage;
-          editableFields.urlImage = await this.storageService.saveFile(file, 'profiles');
-          if (oldUrl && oldUrl.startsWith('/api/user/image/')) {
-            await this.storageService.deleteFile(oldUrl);
-          }
+          editableFields.urlImage = await this.saveProfileImage(file);
+          await this.deleteProfileImage(oldUrl);
         } catch (error: any) {
           this.logger.warn(
             `[updateProfile] Error al guardar imagen de perfil: ${error?.message}. Se mantiene la previa.`,
@@ -453,8 +451,23 @@ export class UserService {
     }
   }
 
-  public getProfileImagePath(filename: string): string {
-    return this.storageService.getFilePath(filename, 'profiles');
+  /** Foto de perfil por nombre de archivo (`GET /api/user/image/:filename`, público). */
+  public async getProfileImage(filename: string): Promise<StoredObject> {
+    return this.storageService.get(profileKey(filename));
+  }
+
+  /** Valida que sea una imagen real, la guarda con nombre nuevo y devuelve su URL pública. */
+  private async saveProfileImage(file: Express.Multer.File): Promise<string> {
+    assertImageFile(file, 'La foto de perfil');
+    const fileName = uniqueFileName('profile', file.originalname, '.png');
+    await this.storageService.put(profileKey(fileName), file.buffer);
+    return profileImageUrl(fileName);
+  }
+
+  private async deleteProfileImage(url: string | null | undefined): Promise<void> {
+    if (url && url.startsWith(profileImageUrl(''))) {
+      await this.storageService.delete(profileKey(url.slice(profileImageUrl('').length)));
+    }
   }
 
   public async updateStatus(

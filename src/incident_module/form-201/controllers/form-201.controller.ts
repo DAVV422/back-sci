@@ -17,6 +17,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { croquisUploadOptions } from './croquis-upload.options';
+import { contentTypeFor, sendStoredObject } from '../../../common/services/storage/stored-files';
 
 import { AuthGuard, RolesGuard } from '../../../auth/guards';
 import { RolesAccess } from '../../../auth/decorators';
@@ -130,10 +131,8 @@ export class Form201Controller {
   @ApiParam({ name: 'id', type: 'string' })
   @Get('form201/:id/croquis')
   async getCroquis(@Param('id', ParseUUIDPipe) id: string, @Res() res: Response): Promise<void> {
-    const filePath = await this.form201Service.getCroquisPath(id);
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Cache-Control', 'private, max-age=300');
-    res.sendFile(filePath);
+    const { object, fileName } = await this.form201Service.getCroquis(id);
+    sendStoredObject(res, object, { contentType: contentTypeFor(fileName, 'image/png') });
   }
 
   @ApiParam({ name: 'id', type: 'string' })

@@ -4,10 +4,10 @@ import {
   NotFoundException,
   BadRequestException,
   Optional,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as fs from 'fs';
 import * as path from 'path';
 
 import { CreateActionDto } from './../dto/create-action.dto';
@@ -19,10 +19,12 @@ import { EmergencyService } from '../../../organization_module/emergency/service
 import { UserService } from '../../../user/services/user.service';
 import { EmergencyAccessService } from '../../../organization_module/emergency/services/emergency-access.service';
 
-const AUDIO_ROOT = path.join(process.cwd(), 'data', 'audios');
+import { IStorageService, StoredObject } from '../../../common/interfaces/storage.interface';
+import { AUDIO_FOLDER, audioKeyFromPath } from '../../../common/services/storage/storage-keys';
+import { AUDIO_TYPES } from '../../../common/services/storage/stored-files';
 
 export interface AudioFile {
-  absolutePath: string;
+  object: StoredObject;
   mimeType: string;
   fileName: string;
 }
@@ -40,8 +42,23 @@ export class ActionService {
     private readonly emergencyService: EmergencyService,
     private readonly userService: UserService,
     private readonly emergencyAccessService: EmergencyAccessService,
+    @Inject('STORAGE_SERVICE')
+    private readonly storageService: IStorageService,
     @Optional() private readonly realtimeService?: RealtimeService,
   ) {}
+
+  /**
+   * Un `pathAudio` que llega del cliente (sincronización móvil o `POST /action/:id/audio`) solo
+   * puede apuntar a un audio que ese usuario subió para esa emergencia y que exista en el
+   * almacenamiento. Antes cualquiera podía referenciar el audio de otra persona.
+   */
+  private async resolveOwnAudioKey(pathAudio: string, userId: string, emergencyId: string): Promise<string> {
+    const key = audioKeyFromPath(pathAudio);
+    if (!key.startsWith(`${AUDIO_FOLDER}/${userId}/${emergencyId}/`) || !(await this.storageService.exists(key))) {
+      throw new BadRequestException('El audio indicado no existe o no pertenece a este usuario y emergencia.');
+    }
+    return key;
+  }
 
   public async findOne(id: string): Promise<ActionEntity> {
     this.logger.log(`[findOne] Buscando acción. id=${id}`);
@@ -99,9 +116,10 @@ export class ActionService {
       let savedAudio: AudioEntity | undefined = undefined;
 
       if (audio) {
-        this.logger.log(`[create] Guardando registro de audio asociado. path=${audio.pathAudio}`);
+        const pathAudio = await this.resolveOwnAudioKey(audio.pathAudio, userId, emergencyEntity.id);
+        this.logger.log(`[create] Guardando registro de audio asociado. key=${pathAudio}`);
         const audioCreate = this.audioRepository.create({
-          pathAudio: audio.pathAudio,
+          pathAudio,
           duration: audio.duration ?? 0,
           processed: audio.processed ?? false,
           fileName: audio.fileName,
@@ -150,9 +168,11 @@ export class ActionService {
         }
       }
       const user = await this.userService.findOne(userId);
+      const pathAudio = await this.resolveOwnAudioKey(createAudioDto.pathAudio, userId, action.emergency?.id);
 
       const audio = this.audioRepository.create({
         ...createAudioDto,
+        pathAudio,
         emergency: action.emergency,
         user: user,
         action: action,
@@ -245,7 +265,7 @@ export class ActionService {
     }
   }
 
-  /** Resuelve el archivo físico de un audio de bitácora, impidiendo salir de data/audios. */
+  /** Archivo de un audio de bitácora, desde el almacenamiento (la clave se valida al leerla). */
   public async getAudioFile(audioId: string): Promise<AudioFile> {
     this.logger.log(`[getAudioFile] Buscando audio. id=${audioId}`);
     try {
@@ -254,19 +274,22 @@ export class ActionService {
       });
       if (!audio) throw new NotFoundException('Audio no encontrado.');
 
-      const absolutePath = path.resolve(process.cwd(), audio.pathAudio);
-      if (!absolutePath.startsWith(AUDIO_ROOT + path.sep)) {
-        this.logger.warn(`[getAudioFile] Ruta fuera del directorio de audios. id=${audioId}`);
+      let key: string;
+      try {
+        key = audioKeyFromPath(audio.pathAudio);
+      } catch {
+        this.logger.warn(`[getAudioFile] Ruta de audio inválida en la base. id=${audioId}`);
         throw new NotFoundException('Audio no encontrado.');
       }
-      if (!fs.existsSync(absolutePath)) {
-        this.logger.warn(`[getAudioFile] Archivo físico inexistente. id=${audioId}`);
+      if (!(await this.storageService.exists(key))) {
+        this.logger.warn(`[getAudioFile] Archivo inexistente en el almacenamiento. id=${audioId}`);
         throw new NotFoundException('El archivo de audio no está disponible.');
       }
+      // El tipo sale de la extensión guardada, no del MIME que declaró el cliente al subirlo.
       return {
-        absolutePath,
-        mimeType: audio.mimeType || 'audio/mp4',
-        fileName: audio.fileName || path.basename(absolutePath),
+        object: await this.storageService.get(key),
+        mimeType: AUDIO_TYPES[path.extname(key).toLowerCase()] ?? 'application/octet-stream',
+        fileName: audio.fileName || path.basename(key),
       };
     } catch (error) {
       handlerError(error, this.logger);
