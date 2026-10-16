@@ -32,7 +32,7 @@ export class NotificationEntity {
   @Column({ name: 'is_read', type: 'boolean', default: false })
   isRead: boolean;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
   @ManyToOne(() => UserEntity, {

@@ -36,7 +36,7 @@ export class AuthTokenEntity extends BaseEntity {
   })
   type: AuthTokenType;
 
-  @Column({ name: 'expires_at', type: 'timestamp', nullable: false })
+  @Column({ name: 'expires_at', type: 'timestamptz', nullable: false })
   expiresAt: Date;
 
   @Column({ name: 'is_used', type: 'boolean', default: false })

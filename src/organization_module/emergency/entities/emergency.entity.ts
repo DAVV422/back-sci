@@ -5,6 +5,7 @@ import {
   ManyToOne,
   OneToMany,
   OneToOne,
+  Index,
 } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { UserEntity } from '../../../user/entities/user.entity';
@@ -18,6 +19,7 @@ import { InitialAssessmentEntity } from './initial-assessment.entity';
 import { DEFAULT_APP_TIMEZONE } from '../../../config/timezone';
 
 @Entity({ name: 'emergency' })
+@Index('idx_emergency_occurred_at', ['occurredAt'])
 export class EmergencyEntity extends BaseEntity {
   @Column({
     name: 'code',
@@ -44,6 +46,13 @@ export class EmergencyEntity extends BaseEntity {
 
   @Column({ name: 'hour', type: 'varchar', nullable: false })
   hour: string;
+
+  /**
+   * Instante (UTC) de el inicio de la emergencia, derivado de `date` + `hour` por un trigger de la base
+   * (migración TimestampsWithTimeZone). Solo lectura: sirve para filtrar y ordenar por rango.
+   */
+  @Column({ name: 'occurred_at', type: 'timestamptz', nullable: true, insert: false, update: false })
+  occurredAt?: Date | null;
 
   @Column({ name: 'type', type: 'varchar', length: 50, nullable: false })
   type: string;

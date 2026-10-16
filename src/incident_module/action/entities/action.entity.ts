@@ -1,10 +1,11 @@
-import { Column, Entity, JoinColumn, ManyToOne, OneToOne } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, OneToOne, Index } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { EmergencyEntity } from '../../../organization_module/emergency/entities/emergency.entity';
 import { UserEntity } from '../../../user/entities/user.entity';
 import { AudioEntity } from './audio.entity';
 
 @Entity({ name: 'action' })
+@Index('idx_action_occurred_at', ['occurredAt'])
 export class ActionEntity extends BaseEntity {
   @Column({
     name: 'description',
@@ -19,6 +20,13 @@ export class ActionEntity extends BaseEntity {
 
   @Column({ name: 'hour', type: 'varchar', length: 10, nullable: false })
   hour: string;
+
+  /**
+   * Instante (UTC) de la acción, derivado de `date` + `hour` por un trigger de la base
+   * (migración TimestampsWithTimeZone). Solo lectura: sirve para filtrar y ordenar por rango.
+   */
+  @Column({ name: 'occurred_at', type: 'timestamptz', nullable: true, insert: false, update: false })
+  occurredAt?: Date | null;
 
   @Column({
     name: 'client_generated_id',

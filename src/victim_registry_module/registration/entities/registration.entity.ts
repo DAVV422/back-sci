@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Index,
 } from 'typeorm';
 import { VictimEntity } from './../../victim/entities/victim.entity';
 import { Form207Entity } from './../../form-207/entities/form-207.entity';
@@ -16,6 +17,7 @@ export const TRANSPORT_MEANS = ['ambulancia', 'aereo', 'embarcacion', 'otro'] as
 export type TransportMeans = (typeof TRANSPORT_MEANS)[number];
 
 @Entity('registration')
+@Index('idx_registration_occurred_at', ['occurredAt'])
 export class RegistrationEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -57,6 +59,13 @@ export class RegistrationEntity {
   @Column({ name: 'hour', type: 'varchar', length: 10, nullable: false })
   hour: string;
 
+  /**
+   * Instante (UTC) de la evaluación de triage, derivado de `date` + `hour` por un trigger de la base
+   * (migración TimestampsWithTimeZone). Solo lectura: sirve para filtrar y ordenar por rango.
+   */
+  @Column({ name: 'occurred_at', type: 'timestamptz', nullable: true, insert: false, update: false })
+  occurredAt?: Date | null;
+
   @Column({
     name: 'client_generated_id',
     type: 'uuid',
@@ -65,7 +74,7 @@ export class RegistrationEntity {
   })
   clientGeneratedId?: string;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
   @ManyToOne(() => VictimEntity, (victim) => victim.registrations, {

@@ -77,11 +77,11 @@ export class Form201Entity extends BaseEntity {
   isFinalized: boolean;
 
   /** Casilla 2: fecha y hora de preparación (instante UTC). Si no se indica, la de creación. */
-  @Column({ name: 'prepared_at', type: 'timestamp', nullable: true })
+  @Column({ name: 'prepared_at', type: 'timestamptz', nullable: true })
   preparedAt?: Date | null;
 
   /** Cierre del 201 (fin del periodo de ese mando): acota su resumen de acciones (casilla 13). */
-  @Column({ name: 'finalized_at', type: 'timestamp', nullable: true })
+  @Column({ name: 'finalized_at', type: 'timestamptz', nullable: true })
   finalizedAt?: Date | null;
 
   @Column({

@@ -5,6 +5,7 @@ import { EmergencyEntity } from '../../emergency/entities/emergency.entity';
 import { ChargeEntity } from 'src/sci_module/charges/entities/charges.entity';
 
 @Entity({ name: 'attend' })
+@Index('idx_attend_occurred_at', ['occurredAt'])
 @Index('uq_attend_incident_commander_active', ['emergency'], {
   unique: true,
   where: `charge_system_name = 'incident_commander' AND is_active = true`,
@@ -15,6 +16,13 @@ export class AttendEntity extends BaseEntity {
 
   @Column({ name: 'hour', type: 'time', nullable: false })
   hour: string;
+
+  /**
+   * Instante (UTC) de la asignación, derivado de `date` + `hour` por un trigger de la base
+   * (migración TimestampsWithTimeZone). Solo lectura: sirve para filtrar y ordenar por rango.
+   */
+  @Column({ name: 'occurred_at', type: 'timestamptz', nullable: true, insert: false, update: false })
+  occurredAt?: Date | null;
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
