@@ -6,7 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as admin from 'firebase-admin';
+// firebase-admin 13+: API modular (el espacio de nombres `admin.*` ya no existe).
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getMessaging, MulticastMessage } from 'firebase-admin/messaging';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -38,16 +40,14 @@ export class NotificationService {
 
   private initFirebase() {
     try {
-      if (admin.apps.length > 0) {
+      if (getApps().length > 0) {
         this.firebaseInitialized = true;
         return;
       }
       const firebasePath = path.resolve(process.cwd(), 'firebase-service.json');
       if (fs.existsSync(firebasePath)) {
         const serviceAccount = JSON.parse(fs.readFileSync(firebasePath, 'utf8'));
-        admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount),
-        });
+        initializeApp({ credential: cert(serviceAccount) });
         this.firebaseInitialized = true;
         this.logger.log('Firebase Admin SDK inicializado correctamente.');
       } else {
@@ -166,7 +166,7 @@ export class NotificationService {
         return;
       }
 
-      const message: admin.messaging.MulticastMessage = {
+      const message: MulticastMessage = {
         tokens: tokensList,
         notification: {
           title,
@@ -179,7 +179,7 @@ export class NotificationService {
         },
       };
 
-      const response = await admin.messaging().sendEachForMulticast(message);
+      const response = await getMessaging().sendEachForMulticast(message);
       this.logger.log(
         `[FCM Push] Éxito: ${response.successCount}, Fallos: ${response.failureCount}`,
       );

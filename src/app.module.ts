@@ -9,11 +9,9 @@ import { DataSourceConfig } from './config/data.source';
 import { pinoHttpOptions } from './config/logger.config';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
-// import { ProvidersModule } from './providers/providers.module';
 import { CommonModule } from './common/common.module';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 import { SeederModule } from './seeder/seeder.module';
-// import { MongooseModule } from '@nestjs/mongoose';
 import { ActionModule } from './incident_module/action/action.module';
 import { AttendsModule } from './organization_module/attends/attends.module';
 import { EmergencyModule } from './organization_module/emergency/emergency.module';
@@ -40,7 +38,6 @@ import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
         limit: globalThrottleLimit, // THROTTLE_LIMIT; 300 requests por IP y minuto por defecto
       },
     ]),
-    // MongooseModule.forRoot(process.env.URL_MONGO),
     CommonModule,
     UserModule,
     AuthModule,
