@@ -5,12 +5,14 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { AttendService } from './attends.service';
 import { AttendEntity } from '../entities/attends.entity';
 import { OrganizationChangeEntity } from '../entities/organization-change.entity';
+import { NotificationService } from '../../../notification/services/notification.service';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { UserService } from '../../../user/services/user.service';
 import { ChargeService } from '../../../sci_module/charges/services/charge.service';
 import { EmergencyStatus } from '../../../organization_module/emergency/enums/emergency-status.enum';
 
 describe('AttendService', () => {
+  const mockNotifications = { notifyUsers: jest.fn() };
   const mockHistoryRepo = { find: jest.fn().mockResolvedValue([{ id: 'h1', changeType: 'assigned' }]) };
   let service: AttendService;
   let mockEmergencyService: any;
@@ -48,6 +50,7 @@ describe('AttendService', () => {
         },
         { provide: EmergencyService, useValue: mockEmergencyService },
         { provide: ChargeService, useValue: mockChargeService },
+        { provide: NotificationService, useValue: mockNotifications },
       ],
     }).compile();
 
@@ -94,6 +97,20 @@ describe('AttendService', () => {
 
       expect(mockAttendRepo.save).toHaveBeenCalled();
       expect(result.id).toBe('att-1');
+    });
+
+    it('avisa a la persona asignada (no a quien la asignó)', async () => {
+      mockEmergencyService.findOne.mockResolvedValue({ id: 'emg-1', code: 'EMG-001', name: 'Incendio', state: EmergencyStatus.Active });
+      mockEmergencyService.assertEditable.mockReturnValue(undefined);
+      mockChargeService.findOne.mockResolvedValue({ id: 'charge-1', name: 'Líder de la Unidad Médica' });
+
+      await service.create(dto, 'ci-1', 'basic');
+
+      expect(mockNotifications.notifyUsers).toHaveBeenCalledWith(
+        ['user-1'],
+        expect.objectContaining({ type: 'assignment', emergencyId: 'emg-1', message: expect.stringContaining('Líder de la Unidad Médica') }),
+        'ci-1',
+      );
     });
   });
 

@@ -39,6 +39,7 @@ import { UserService } from '../../../user/services/user.service';
 import { ROLES } from '../../../common/constants';
 import { EmergencyStateMachine } from './emergency-state-machine';
 import { RealtimeService } from '../../../notification/services/realtime.service';
+import { NotificationService } from '../../../notification/services/notification.service';
 import { EmergencyAccessService } from './emergency-access.service';
 import { getAppTimezone } from '../../../config/timezone';
 
@@ -67,6 +68,7 @@ export class EmergencyService {
     private readonly stateMachine: EmergencyStateMachine,
     private readonly emergencyAccessService: EmergencyAccessService,
     @Optional() private readonly realtimeService?: RealtimeService,
+    @Optional() private readonly notificationService?: NotificationService,
   ) {}
 
   public async findAll(
@@ -407,6 +409,17 @@ export class EmergencyService {
       }
 
       this.logger.log(`[changeState] Estado de emergencia cambiado con éxito: ${from} -> ${to}. id=${id}`);
+      const label = ({ p: 'Pendiente', a: 'Activa', f: 'Finalizada', c: 'Cancelada' } as Record<string, string>)[to] ?? to;
+      this.notificationService?.notifyUsers(
+        (emergency.attends ?? []).filter((a) => a.isActive && !a.isDeleted).map((a) => a.user?.id),
+        {
+          type: 'emergency_state_change',
+          title: `${emergency.code}: ${label}`,
+          message: `La emergencia "${emergency.name}" pasó a ${label}.`,
+          emergencyId: emergency.id,
+        },
+        userId,
+      );
       return this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);
@@ -547,6 +560,12 @@ export class EmergencyService {
         this.logger.log(
           `[assignCommander] CI asignado exitosamente: user=${newCommanderUser.id} en emergencia=${emergencyId}`,
         );
+        this.notificationService?.notifyUsers([newCommanderUser.id], {
+          type: 'ci_change',
+          title: `Eres el Comandante del Incidente (${emergency.code})`,
+          message: `Te asignaron el mando de la emergencia "${emergency.name}".`,
+          emergencyId: emergency.id,
+        }, requesterId);
         return await this.findOne(emergencyId);
       } catch (error) {
         await queryRunner.rollbackTransaction();
@@ -731,6 +750,18 @@ export class EmergencyService {
         this.logger.log(
           `[transferCommand] Traspaso de mando completado exitosamente: de ${prevName} a ${newName} en emergencia ${emergencyId}`,
         );
+        this.notificationService?.notifyUsers([newCommanderUser.id], {
+          type: 'ci_change',
+          title: `Asumiste el mando (${emergency.code})`,
+          message: `${prevName} te traspasó el mando de "${emergency.name}". Prepara tu Formulario 201.`,
+          emergencyId: emergency.id,
+        }, requesterId);
+        this.notificationService?.notifyUsers([currentActiveCI?.user?.id], {
+          type: 'ci_change',
+          title: `Entregaste el mando (${emergency.code})`,
+          message: `${newName} es ahora el Comandante del Incidente de "${emergency.name}".`,
+          emergencyId: emergency.id,
+        }, requesterId);
         return await this.findOne(emergencyId);
       } catch (error) {
         await queryRunner.rollbackTransaction();

@@ -110,6 +110,7 @@ export class NotificationService {
         title: createDto.title,
         message: createDto.message,
         user,
+        ...(createDto.emergencyId ? { emergency: { id: createDto.emergencyId } as any } : {}),
       });
 
       const savedNotification = await this.notificationRepository.save(notification);
@@ -122,6 +123,7 @@ export class NotificationService {
         message: savedNotification.message,
         isRead: savedNotification.isRead,
         createdAt: savedNotification.createdAt,
+        emergencyId: createDto.emergencyId ?? null,
       });
 
       // 2. Enviar Push via FCM multicast a los dispositivos registrados
@@ -217,11 +219,42 @@ export class NotificationService {
     }
   }
 
+  /**
+   * Avisa a varios usuarios (sin repetir y sin el que hizo la acción). Nunca lanza: una
+   * notificación que falla no debe deshacer ni frenar la operación que la originó.
+   */
+  notifyUsers(
+    userIds: (string | null | undefined)[],
+    notification: Omit<CreateNotificationDto, 'userId'>,
+    exceptUserId?: string,
+  ): void {
+    const targets = [...new Set(userIds.filter((id): id is string => !!id && id !== exceptUserId))];
+    for (const userId of targets) {
+      this.sendNotification({ ...notification, userId }).catch((error) =>
+        this.logger.warn(`[notifyUsers] No se pudo notificar a ${userId}: ${error?.message}`),
+      );
+    }
+  }
+
+  /** Las últimas 100, con la emergencia (id, código, nombre) para poder abrirla. */
   async findByUser(userId: string): Promise<NotificationEntity[]> {
     return await this.notificationRepository.find({
       where: { user: { id: userId } },
+      relations: ['emergency'],
+      select: { emergency: { id: true, code: true, name: true } } as any,
       order: { createdAt: 'DESC' },
+      take: 100,
     });
+  }
+
+  async markAllAsRead(userId: string): Promise<number> {
+    const result = await this.notificationRepository
+      .createQueryBuilder()
+      .update(NotificationEntity)
+      .set({ isRead: true })
+      .where('user_id = :userId AND is_read = false', { userId })
+      .execute();
+    return result.affected ?? 0;
   }
 
   async markAsRead(id: string, userId: string): Promise<NotificationEntity> {

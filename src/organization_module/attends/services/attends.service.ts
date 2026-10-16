@@ -21,6 +21,7 @@ import { EmergencyService } from '../../../organization_module/emergency/service
 import { ChargeService } from '../../../sci_module/charges/services/charge.service';
 import { ROLES } from '../../../common/constants';
 import { RealtimeService } from '../../../notification/services/realtime.service';
+import { NotificationService } from '../../../notification/services/notification.service';
 
 @Injectable()
 export class AttendService {
@@ -35,6 +36,7 @@ export class AttendService {
     private readonly emergencyService: EmergencyService,
     private readonly chargeService: ChargeService,
     @Optional() private readonly realtimeService?: RealtimeService,
+    @Optional() private readonly notificationService?: NotificationService,
   ) {}
 
   public async assertCanManageAttends(
@@ -156,6 +158,12 @@ export class AttendService {
         throw error;
       }
       this.logger.log(`[create] Asistencia asignada exitosamente. id=${attend_created.id}, charge=${chargeEntity.systemName}`);
+      this.notificationService?.notifyUsers([userEntity.id], {
+        type: 'assignment',
+        title: `Asignación en ${emergencyEntity.code}`,
+        message: `Te asignaron como ${chargeEntity.name} en la emergencia "${emergencyEntity.name}".`,
+        emergencyId: emergencyEntity.id,
+      }, requesterId);
       return await this.findOne(attend_created.id);
     } catch (error) {
       handlerError(error, this.logger);
