@@ -45,4 +45,7 @@ export class ChargeEntity extends BaseEntity {
 
   @OneToMany(() => AttendEntity, (attend) => attend.charge)
   attends: AttendEntity[];
+
+  /** No es columna: `true` si es un cargo del manual (solo lectura). Lo completa ChargeService. */
+  isCatalog?: boolean;
 }

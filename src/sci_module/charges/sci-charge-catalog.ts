@@ -99,5 +99,28 @@ export const RETIRED_CHARGE_NAMES: readonly string[] = [
   'Voluntario de Apoyo',
 ];
 
+const normalize = (value: string | null | undefined) => (value ?? '').trim().toLowerCase();
+
+/**
+ * Si un cargo es (o sería tomado como) uno del manual: por clave actual o anterior, o por nombre
+ * actual o anterior. La sincronización reescribe esos registros, así que no se editan a mano.
+ */
+export function catalogDefinitionFor(charge: {
+  readonly systemName?: string | null;
+  readonly name?: string | null;
+}): SciChargeDefinition | undefined {
+  const name = normalize(charge.name);
+  return SCI_CHARGE_CATALOG.find(
+    (def) =>
+      (!!charge.systemName && (def.systemName === charge.systemName || !!def.legacySystemNames?.includes(charge.systemName))) ||
+      (!!name && [def.name, ...(def.aliases ?? [])].some((n) => normalize(n) === name)),
+  );
+}
+
+/** Nombres que la sincronización retira al arrancar (no son cargos del SCI). */
+export function isRetiredChargeName(name: string | null | undefined): boolean {
+  return RETIRED_CHARGE_NAMES.some((n) => normalize(n) === normalize(name));
+}
+
 /** Clave por defecto al asignar personal en la web. */
 export const DEFAULT_PERSONNEL_CHARGE = 'intervention_team_member';

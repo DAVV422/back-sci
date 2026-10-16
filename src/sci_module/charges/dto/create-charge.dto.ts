@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 
 export class CreateChargeDto {
   @ApiProperty({
@@ -9,6 +9,7 @@ export class CreateChargeDto {
   })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(100)
   name: string;
 
   @ApiPropertyOptional({
@@ -18,6 +19,7 @@ export class CreateChargeDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(20)
   abbreviation?: string;
 
   @ApiProperty({
@@ -26,7 +28,9 @@ export class CreateChargeDto {
     description: 'Nivel del cargo',
   })
   @IsNotEmpty()
-  @IsNumber()
+  @IsInt()
+  @Min(1)
+  @Max(5)
   level: number;
 
   @ApiProperty({
@@ -35,7 +39,9 @@ export class CreateChargeDto {
     description: 'Peso del cargo',
   })
   @IsNotEmpty()
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999.99)
   weight: number;
 
   @ApiPropertyOptional({
@@ -46,5 +52,7 @@ export class CreateChargeDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
+  @Matches(/^[a-z][a-z0-9_]*$/, { message: 'systemName solo admite minúsculas, números y guion bajo.' })
   systemName?: string;
 }
