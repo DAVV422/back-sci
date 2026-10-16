@@ -8,6 +8,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
 import { EmergencyService } from './emergency.service';
+import { TRANSFER_BRIEFING_KEYS } from '../transfer-briefing';
 import { EmergencyStateMachine } from './emergency-state-machine';
 import { EmergencyAccessService } from './emergency-access.service';
 import { EmergencyEntity } from '../entities/emergency.entity';
@@ -683,7 +684,7 @@ describe('EmergencyService', () => {
         form207: [{ id: 'f207-1', code: 'F207-1' }],
       });
       await expect(
-        service.transferCommand('emg-1', { newCommanderUserId: 'u-2' } as any, 'u-1', ROLES.MANAGER),
+        service.transferCommand('emg-1', { newCommanderUserId: 'u-2', briefing: TRANSFER_BRIEFING_KEYS } as any, 'u-1', ROLES.MANAGER),
       ).rejects.toThrow(/F207-1/);
       expect(queryRunner.startTransaction).not.toHaveBeenCalled();
     });
@@ -725,10 +726,23 @@ describe('EmergencyService', () => {
         expect(blockers).toEqual([expect.stringContaining('Formulario 201 del mando actual')]);
       });
 
+      it('exige confirmar todos los temas de la lista de transferencia del manual', async () => {
+        jest.spyOn(service, 'findOne').mockResolvedValue(complete as any);
+        await expect(
+          service.transferCommand(
+            'emg-1',
+            { newCommanderUserId: 'u-2', briefing: TRANSFER_BRIEFING_KEYS.filter((k) => k !== 'probable_evolution') } as any,
+            'u-1',
+            ROLES.MANAGER,
+          ),
+        ).rejects.toThrow(/Probable evolución/);
+        expect(queryRunner.startTransaction).not.toHaveBeenCalled();
+      });
+
       it('transferCommand no avanza si hay bloqueos', async () => {
         jest.spyOn(service, 'findOne').mockResolvedValue({ ...complete, coordinates_pc: null } as any);
         await expect(
-          service.transferCommand('emg-1', { newCommanderUserId: 'u-2' } as any, 'u-1', ROLES.MANAGER),
+          service.transferCommand('emg-1', { newCommanderUserId: 'u-2', briefing: TRANSFER_BRIEFING_KEYS } as any, 'u-1', ROLES.MANAGER),
         ).rejects.toThrow(/Casilla 6/);
         expect(queryRunner.startTransaction).not.toHaveBeenCalled();
       });

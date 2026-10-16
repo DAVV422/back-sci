@@ -24,6 +24,7 @@ import { AttendEntity } from '../../attends/entities/attends.entity';
 import { ChargeEntity } from '../../../sci_module/charges/entities/charges.entity';
 import { Form201Entity } from '../../../incident_module/form-201/entities/form-201.entity';
 import { Form207Entity } from '../../../victim_registry_module/form-207/entities/form-207.entity';
+import { TRANSFER_BRIEFING_ITEMS, TRANSFER_BRIEFING_KEYS, missingBriefingItems } from '../transfer-briefing';
 import { handlerError } from '../../../common/utils/handlerError.utils';
 import { QueryDto } from '../../../common/dto/query.dto';
 import {
@@ -578,6 +579,14 @@ export class EmergencyService {
         throw new BadRequestException(`No se puede traspasar el mando todavía: ${blockers.join(' ')}`);
       }
 
+      // 0b. Lista de transferencia del manual (paso 8): todos los temas confirmados.
+      const missing = missingBriefingItems(transferCommandDto.briefing);
+      if (missing.length) {
+        throw new BadRequestException(
+          `Confirma todos los temas de la lista de transferencia: ${missing.map((k) => TRANSFER_BRIEFING_ITEMS[k]).join('; ')}.`,
+        );
+      }
+
       // 1. El traspaso cierra el periodo del CI saliente: F201 y F207 deben estar finalizados
       //    (decisión 6). POST /emergency/:id/forms/finalize-all los cierra en un paso.
       const pending = await this.findPendingForms(emergencyId);
@@ -705,8 +714,12 @@ export class EmergencyService {
           `${newCommanderUser.name || ''} ${newCommanderUser.lastName || ''}`.trim() ||
           newCommanderUser.email;
 
+        const notes = transferCommandDto.notes?.trim();
         const actionRecord = queryRunner.manager.create(ActionEntity, {
-          description: `Traspaso de mando: de ${prevName} a ${newName}`,
+          description:
+            `Traspaso de mando: de ${prevName} a ${newName}. Entrega en persona con el SCI-201 completo; ` +
+            `temas cubiertos: ${TRANSFER_BRIEFING_KEYS.filter((k) => k !== 'in_person').map((k) => TRANSFER_BRIEFING_ITEMS[k]).join('; ')}.` +
+            (notes ? ` Observaciones: ${notes}` : ''),
           date: now,
           hour: hourStr,
           user: { id: requesterId },
