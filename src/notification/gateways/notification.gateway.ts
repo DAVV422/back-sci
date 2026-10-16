@@ -13,6 +13,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 
 import { emergencyRoom } from '../realtime/realtime-events';
+import { verifyAccessToken } from '../../common/utils/user.token';
 
 @WebSocketGateway({
   cors: {
@@ -46,15 +47,14 @@ export class NotificationGateway
         return;
       }
 
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: this.configService.get<string>('JWT_AUTH'),
-      });
-
-      const userId = payload.sub || payload.id;
-      if (!userId) {
+      // Misma verificación que el AuthGuard: firma, expiración y que no sea un refresh token.
+      const verified = verifyAccessToken(token, this.configService.get<string>('JWT_AUTH') || undefined);
+      if (typeof verified === 'string') {
+        this.logger.warn(`Cliente ${client.id} rechazado: ${verified}`);
         client.disconnect();
         return;
       }
+      const userId = verified.sub;
 
       client.data.userId = userId;
       client.join(`user_${userId}`);

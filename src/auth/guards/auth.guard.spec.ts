@@ -29,6 +29,10 @@ describe('AuthGuard - error handling específico (F1-022)', () => {
     expiresIn: '-1h',
   });
 
+  const originalSecret = process.env.JWT_AUTH;
+  beforeAll(() => (process.env.JWT_AUTH = 'secret'));
+  afterAll(() => (process.env.JWT_AUTH = originalSecret));
+
   beforeEach(async () => {
     mockUserService = { findOneAuth: jest.fn() };
     guard = new AuthGuard(mockUserService, new Reflector());
@@ -87,6 +91,23 @@ describe('AuthGuard - error handling específico (F1-022)', () => {
     await expect(guard.canActivate(context)).rejects.toThrow(
       'Error interno al validar el token',
     );
+  });
+
+  describe('verificación de la firma (P1 #13)', () => {
+    const forged = (claims: object, secret = 'otra-clave') => jwt.sign(claims, secret, { expiresIn: '1h' });
+
+    it.each([
+      ['firmado con otra clave', forged({ sub: 'admin-1', role: 'suadmin' })],
+      ['sin firma (alg none)', jwt.sign({ sub: 'admin-1', role: 'suadmin' }, '', { algorithm: 'none' })],
+      ['un refresh token', forged({ sub: 'user-1', role: 'basic', typ: 'refresh' }, 'secret')],
+      ['un refresh token anterior (con jti)', forged({ sub: 'user-1', role: 'basic', jti: 'abc' }, 'secret')],
+      ['sin sub', forged({ role: 'basic' }, 'secret')],
+    ])('rechaza un token %s sin consultar al usuario', async (_case, token) => {
+      await expect(guard.canActivate(buildContext({ authorization: `Bearer ${token}` }))).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(mockUserService.findOneAuth).not.toHaveBeenCalled();
+    });
   });
 
   it('token válido y usuario existente → permite el acceso y adjunta el usuario', async () => {

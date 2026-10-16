@@ -10,7 +10,7 @@ import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 
 import { UserService } from '../../user/services/user.service';
-import { userToken } from '../../common/utils/user.token';
+import { verifyAccessToken } from '../../common/utils/user.token';
 import { IUserToken } from '../interfaces/userToken.interface';
 import { PUBLIC_KEY } from '../../common/constants';
 
@@ -30,11 +30,10 @@ export class AuthGuard implements CanActivate {
     const token = request.headers.authorization?.split(' ')[1];
     if (!token || Array.isArray(token))
       throw new UnauthorizedException('Token no encontrado');
-    const managerToken: IUserToken | string = userToken(token);
+    // Firma, expiración y tipo verificados (no solo decodificados).
+    const managerToken: IUserToken | string = verifyAccessToken(token);
     if (typeof managerToken === 'string')
       throw new UnauthorizedException(managerToken);
-    if (managerToken.isExpired)
-      throw new UnauthorizedException('Token expirado');
     try {
       const user = await this.userService.findOneAuth(managerToken.sub);
       request.idUser = user.id;

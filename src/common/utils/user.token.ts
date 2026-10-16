@@ -1,27 +1,30 @@
 import * as jwt from 'jsonwebtoken';
 
-import { IAuthTokenResult } from '../../auth/interfaces/auth.interface';
 import { IUserToken } from '../../auth/interfaces/userToken.interface';
 
-export const userToken = (token: string): IUserToken | string => {
+/** Claim `typ` de los tokens que emite `JwtServiceAdapter`. */
+export const ACCESS_TOKEN_TYPE = 'access';
+export const REFRESH_TOKEN_TYPE = 'refresh';
+
+/** Mismo valor por defecto que `config/app.config.ts`; en producción `assertProductionConfig` exige uno real. */
+export const accessTokenSecret = (): string => process.env.JWT_AUTH || 'secret';
+
+/**
+ * Verifica un token de acceso: firma (HS256 con JWT_AUTH), expiración y que no sea un refresh
+ * token. Antes el guard solo hacía `jwt.decode`, sin verificar la firma: cualquiera podía
+ * fabricar un token con el `sub` de otro usuario. Devuelve el motivo del rechazo como texto.
+ */
+export const verifyAccessToken = (token: string, secret: string = accessTokenSecret()): IUserToken | string => {
+  let payload: jwt.JwtPayload;
   try {
-    const decode = jwt.decode(token) as IAuthTokenResult;
-    const currentDate = new Date();
-    const expiresDate = new Date(decode.exp * 1000);
-
-    const isExpired = +expiresDate <= +currentDate;
-    const timeRemaining = Math.max(
-      0,
-      Math.floor((expiresDate.getTime() - currentDate.getTime()) / 1000),
-    );
-
-    return {
-      role: decode.role,
-      sub: decode.sub,
-      time: timeRemaining,
-      isExpired,
-    };
+    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] });
+    if (typeof decoded === 'string') return 'Token no valido.';
+    payload = decoded;
   } catch (error) {
-    return 'Token no valido.';
+    return error instanceof jwt.TokenExpiredError ? 'Token expirado' : 'Token no valido.';
   }
+  // Los refresh tokens llevan `typ: 'refresh'` (y los anteriores a este cambio, un `jti`).
+  if (payload.typ === REFRESH_TOKEN_TYPE || payload.jti || !payload.sub) return 'Token no valido.';
+  const timeRemaining = payload.exp ? Math.max(0, payload.exp - Math.floor(Date.now() / 1000)) : 0;
+  return { role: payload.role, sub: String(payload.sub), time: timeRemaining, isExpired: false };
 };
