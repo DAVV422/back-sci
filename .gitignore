@@ -40,4 +40,6 @@ firebase-service.json
 docs/implementacion/*
 docs/checklist/*
 data/audios/*
-data/uploads/*
+data/uploads/*
+# Respaldos locales (scripts/backup.sh)
+/backups
