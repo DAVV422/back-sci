@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
   ValidateNested,
 } from 'class-validator';
 import { CreateAudioDto } from './create-audio.dto';
@@ -16,6 +17,8 @@ export class CreateActionDto {
   })
   @IsNotEmpty()
   @IsString()
+  // Antes el límite real era la columna (500) y excederlo daba 500; ahora es text con tope en el DTO.
+  @MaxLength(4000)
   description: string;
 
   @ApiProperty({

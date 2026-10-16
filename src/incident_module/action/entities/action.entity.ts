@@ -7,10 +7,10 @@ import { AudioEntity } from './audio.entity';
 @Entity({ name: 'action' })
 @Index('idx_action_occurred_at', ['occurredAt'])
 export class ActionEntity extends BaseEntity {
+  /** Texto libre: las entradas automáticas (traspaso con su lista) y, en la Etapa 2, los resúmenes de notas de voz superan los 500 caracteres. */
   @Column({
     name: 'description',
-    type: 'varchar',
-    length: 500,
+    type: 'text',
     nullable: false,
   })
   description: string;
