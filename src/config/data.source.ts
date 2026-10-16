@@ -26,8 +26,11 @@ export const DataSourceConfig: DataSourceOptions = {
   database: configService.get('DB_DATABASE'),
   entities: [__dirname + '/../**/**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/../migrations/*{.ts,.js}'],
-  // synchronize: configService.get('APP_PROD') === 'true' ? true : false,
-  synchronize: true,
+  // El esquema se versiona con migraciones (src/migrations), que corren solas al arrancar.
+  // `synchronize` alteraba las tablas según las entidades y podía borrar columnas con datos;
+  // queda solo como herramienta puntual de desarrollo (DB_SYNCHRONIZE=true), nunca en producción.
+  synchronize: configService.get('DB_SYNCHRONIZE') === 'true' && configService.get('APP_PROD') !== 'true',
+  migrationsRun: configService.get('DB_MIGRATIONS_RUN') !== 'false',
   logging: false,
   extra: {
     ssl: databaseSsl(configService.get('DB_SSL'), configService.get('APP_PROD') === 'true'),
