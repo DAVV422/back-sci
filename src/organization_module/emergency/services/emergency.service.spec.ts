@@ -40,6 +40,7 @@ describe('EmergencyService', () => {
       take: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
@@ -50,6 +51,7 @@ describe('EmergencyService', () => {
       save: jest.fn(),
       delete: jest.fn(),
       update: jest.fn(),
+      query: jest.fn().mockResolvedValue([]),
     };
     mockUserService = {
       findOne: jest.fn(),
@@ -603,6 +605,26 @@ describe('EmergencyService', () => {
     });
   });
 
+  describe('findAll - KPI de víctimas (B3)', () => {
+    it('agrega victimsCount por emergencia y 0 a las que no tienen registros', async () => {
+      queryBuilder.getManyAndCount.mockResolvedValue([[{ id: 'e-1' }, { id: 'e-2' }], 2]);
+      mockRepo.query.mockResolvedValue([{ emergency_id: 'e-1', victims: '3' }]);
+
+      const { items } = await service.findAll({} as QueryDto);
+
+      expect(items).toEqual([
+        expect.objectContaining({ id: 'e-1', victimsCount: 3 }),
+        expect.objectContaining({ id: 'e-2', victimsCount: 0 }),
+      ]);
+      expect(mockRepo.query).toHaveBeenCalledWith(expect.stringContaining('COUNT(DISTINCT r.victim_id)'), [['e-1', 'e-2']]);
+    });
+
+    it('ordena por el instante de inicio (occurred_at)', async () => {
+      await service.findAll({} as QueryDto);
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('emergency.occurredAt', 'DESC', 'NULLS LAST');
+    });
+  });
+
   describe('autorización (P0)', () => {
     it('changeState exige CI activo o manager+ antes de validar la transición', async () => {
       mockRepo.findOne.mockResolvedValue({
@@ -655,6 +677,7 @@ describe('EmergencyService', () => {
 
     it('transferCommand rechaza el traspaso si queda un F207 abierto y lista los códigos', async () => {
       jest.spyOn(service, 'findOne').mockResolvedValue({ id: 'emg-1', state: EmergencyStatus.Active } as any);
+      jest.spyOn(service, 'findTransferBlockers').mockResolvedValue([]);
       jest.spyOn(service, 'findPendingForms').mockResolvedValue({
         form201: [],
         form207: [{ id: 'f207-1', code: 'F207-1' }],
@@ -663,6 +686,52 @@ describe('EmergencyService', () => {
         service.transferCommand('emg-1', { newCommanderUserId: 'u-2' } as any, 'u-1', ROLES.MANAGER),
       ).rejects.toThrow(/F207-1/);
       expect(queryRunner.startTransaction).not.toHaveBeenCalled();
+    });
+
+    describe('casillas mínimas del 201 antes de traspasar', () => {
+      const assumedAt = new Date('2026-10-03T10:00:00Z');
+      const complete = {
+        id: 'emg-1', state: EmergencyStatus.Active, location_description: 'Sector Norte',
+        coordinates: ['-68.1', '-16.5'], coordinates_pc: ['-68.11', '-16.51'],
+        form201: [{ id: 'f1', isDeleted: false, createdAt: new Date('2026-10-03T10:30:00Z') }],
+      };
+      beforeEach(() => {
+        mockRepo.manager = { findOne: jest.fn().mockResolvedValue({ occurredAt: new Date('2026-10-03T10:00:00Z'), createdAt: assumedAt }) };
+      });
+
+      it('sin bloqueos cuando el CI preparó su 201 y están el lugar y el PC', async () => {
+        await expect(service.findTransferBlockers(complete as any)).resolves.toEqual([]);
+      });
+
+      it('exige el lugar (3), el PC (6) y un 201 preparado durante el mando actual', async () => {
+        const blockers = await service.findTransferBlockers({
+          ...complete, location_description: ' ', coordinates: [], coordinates_pc: null,
+          form201: [{ id: 'f0', isDeleted: false, createdAt: new Date('2026-10-03T09:00:00Z') }], // del mando anterior
+        } as any);
+        expect(blockers).toEqual([
+          expect.stringContaining('Casilla 3'),
+          expect.stringContaining('Casilla 6'),
+          expect.stringContaining('Formulario 201 del mando actual'),
+        ]);
+      });
+
+      it('un 201 de segundos antes de asumir (mismo minuto) es del mando anterior', async () => {
+        mockRepo.manager.findOne.mockResolvedValue({
+          occurredAt: new Date('2026-10-03T10:30:00Z'), createdAt: new Date('2026-10-03T10:30:40Z'),
+        });
+        const blockers = await service.findTransferBlockers({
+          ...complete, form201: [{ id: 'f1', isDeleted: false, createdAt: new Date('2026-10-03T10:30:10Z') }],
+        } as any);
+        expect(blockers).toEqual([expect.stringContaining('Formulario 201 del mando actual')]);
+      });
+
+      it('transferCommand no avanza si hay bloqueos', async () => {
+        jest.spyOn(service, 'findOne').mockResolvedValue({ ...complete, coordinates_pc: null } as any);
+        await expect(
+          service.transferCommand('emg-1', { newCommanderUserId: 'u-2' } as any, 'u-1', ROLES.MANAGER),
+        ).rejects.toThrow(/Casilla 6/);
+        expect(queryRunner.startTransaction).not.toHaveBeenCalled();
+      });
     });
 
     it('finalizeAllForms cierra F201 y F207 en una transacción y deja constancia en la bitácora', async () => {

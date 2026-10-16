@@ -54,6 +54,9 @@ export class EmergencyEntity extends BaseEntity {
   @Column({ name: 'occurred_at', type: 'timestamptz', nullable: true, insert: false, update: false })
   occurredAt?: Date | null;
 
+  /** No es columna: lo agrega `EmergencyService.findAll` (víctimas distintas en sus F207). */
+  victimsCount?: number;
+
   @Column({ name: 'type', type: 'varchar', length: 50, nullable: false })
   type: string;
 

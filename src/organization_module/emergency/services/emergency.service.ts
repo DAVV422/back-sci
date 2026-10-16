@@ -47,6 +47,11 @@ export interface PendingForms {
   form207: { id: string; code: string }[];
 }
 
+/** Lo que el modal de traspaso necesita saber: formularios abiertos y lo que impide traspasar. */
+export interface TransferReadiness extends PendingForms {
+  blockers: string[];
+}
+
 @Injectable()
 export class EmergencyService {
   private readonly logger = new Logger('EmergencyService');
@@ -83,15 +88,37 @@ export class EmergencyService {
       query.andWhere('emergency.is_deleted = false');
       if (limit) query.take(limit);
       if (offset) query.skip(offset);
-      query.orderBy('emergency.date', order.toLocaleUpperCase() as any);
+      // Por el instante de inicio (date + hour en UTC); `date` es texto y ordenaba mal entre días iguales.
+      query.orderBy('emergency.occurredAt', order.toLocaleUpperCase() as any, 'NULLS LAST');
+      query.addOrderBy('emergency.date', order.toLocaleUpperCase() as any);
       if (attr && value)
         query.andWhere(`emergency.${attr} ILIKE :value`, { value: `%${value}%` });
       const [items, total] = await query.getManyAndCount();
+      await this.attachVictimCounts(items);
       this.logger.log(`[findAll] Emergencias encontradas. total=${total}, entregadas=${items.length}`);
       return { items, total };
     } catch (error) {
       handlerError(error, this.logger);
     }
+  }
+
+  /**
+   * `victimsCount`: víctimas distintas registradas en los F207 vigentes de cada emergencia (KPI del
+   * dashboard, B3). Es un conteo agregado, sin datos de pacientes: no exige acceso al 207.
+   */
+  private async attachVictimCounts(items: EmergencyEntity[]): Promise<void> {
+    if (!items.length) return;
+    const rows: { emergency_id: string; victims: string }[] = await this.emergencyRepository.query(
+      `SELECT f.emergency_id, COUNT(DISTINCT r.victim_id) AS victims
+         FROM registration r
+         JOIN form207 f ON f.id = r.form207_id AND f.is_deleted = false
+         JOIN victim v ON v.id = r.victim_id AND v.is_deleted = false
+        WHERE f.emergency_id = ANY($1)
+        GROUP BY f.emergency_id`,
+      [items.map((e) => e.id)],
+    );
+    const counts = new Map(rows.map((r) => [r.emergency_id, Number(r.victims)]));
+    for (const item of items) item.victimsCount = counts.get(item.id) ?? 0;
   }
 
   public async create(
@@ -544,6 +571,13 @@ export class EmergencyService {
       const emergency = await this.findOne(emergencyId);
       this.assertEditable(emergency);
 
+      // 0. Casillas mínimas del SCI-201 completas antes de transferir (manual, reglas del 201).
+      const blockers = await this.findTransferBlockers(emergency);
+      if (blockers.length) {
+        this.logger.warn(`[transferCommand] Traspaso rechazado: ${blockers.join(' | ')}`);
+        throw new BadRequestException(`No se puede traspasar el mando todavía: ${blockers.join(' ')}`);
+      }
+
       // 1. El traspaso cierra el periodo del CI saliente: F201 y F207 deben estar finalizados
       //    (decisión 6). POST /emergency/:id/forms/finalize-all los cierra en un paso.
       const pending = await this.findPendingForms(emergencyId);
@@ -701,6 +735,45 @@ export class EmergencyService {
     return [...(emergency.form201 ?? []), ...(emergency.form207 ?? [])]
       .filter((form) => !form.isFinalized && !form.isDeleted)
       .map((form) => form.code);
+  }
+
+  /**
+   * Lo que impide traspasar el mando según el manual: "los campos 1, 2, 3, 4, 5, 6, 10 y 11 deben
+   * estar completos antes de permitir una transferencia de mando". Las casillas 2, 4, 5 y 10 ya las
+   * exige el formulario del 201; aquí se controla que exista el 201 del mando saliente (preparado
+   * después de que asumió), el lugar del incidente (3) y la ubicación del PC (6).
+   */
+  public async findTransferBlockers(emergency: EmergencyEntity): Promise<string[]> {
+    const blockers: string[] = [];
+    if (!emergency.location_description?.trim() && !emergency.coordinates?.length) {
+      blockers.push('Casilla 3: falta el lugar del incidente (descripción o punto en el mapa).');
+    }
+    if (!emergency.coordinates_pc?.length) {
+      blockers.push('Casilla 6: falta la ubicación del Puesto de Comando (PC); agrégala desde "Editar".');
+    }
+    const commander = await this.emergencyRepository.manager.findOne(AttendEntity, {
+      where: { emergency: { id: emergency.id }, chargeSystemName: 'incident_commander', isActive: true, isDeleted: false },
+    });
+    if (commander) {
+      // Instante exacto en que se registró la asignación: `occurred_at` (date + hour) tiene precisión
+      // de minutos y un 201 hecho segundos antes del traspaso contaría como del mando nuevo.
+      const since = commander.createdAt;
+      const ownForm = (emergency.form201 ?? []).some((f) => !f.isDeleted && f.createdAt >= since);
+      if (!ownForm) {
+        blockers.push('Falta el Formulario 201 del mando actual: el CI debe prepararlo antes de entregar el mando.');
+      }
+    }
+    return blockers;
+  }
+
+  /** Formularios abiertos y bloqueos, para el modal de traspaso de mando. */
+  public async getTransferReadiness(emergencyId: string): Promise<TransferReadiness> {
+    const emergency = await this.findOne(emergencyId);
+    const [pending, blockers] = await Promise.all([
+      this.findPendingForms(emergencyId),
+      this.findTransferBlockers(emergency),
+    ]);
+    return { ...pending, blockers };
   }
 
   /** Formularios abiertos de la emergencia (para el traspaso de mando y el cierre). */

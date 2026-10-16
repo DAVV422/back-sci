@@ -22,7 +22,7 @@ import {
   AssignCommanderDto,
   TransferCommandDto,
 } from '../dto/';
-import { EmergencyService, PendingForms } from './../services/emergency.service';
+import { EmergencyService, PendingForms, TransferReadiness } from './../services/emergency.service';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { ROLES } from '../../../common/constants';
 import { EmergencyEntity } from '../entities/emergency.entity';
@@ -141,11 +141,11 @@ export class EmergencyController {
   @Get(':id/forms/pending')
   public async findPendingForms(
     @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<ApiResponse<PendingForms>> {
+  ): Promise<ApiResponse<TransferReadiness>> {
     return {
       success: true,
       statusCode: 200,
-      data: await this.emergencyService.findPendingForms(id),
+      data: await this.emergencyService.getTransferReadiness(id),
     };
   }
 
