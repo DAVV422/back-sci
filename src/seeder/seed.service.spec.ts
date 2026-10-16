@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 
@@ -112,6 +112,33 @@ describe('SeedService', () => {
     it('delega en el catálogo del manual (ChargeCatalogService.sync)', async () => {
       await service.cargarChargeSCI();
       expect(mockChargeService.sync).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('producción y arranque (P1 #13)', () => {
+    afterEach(() => delete process.env.APP_PROD);
+
+    it('en producción /seed responde 404', async () => {
+      process.env.APP_PROD = 'true';
+      await expect(service.runAllSeeders()).rejects.toThrow(NotFoundException);
+      await expect(service.runSeedersCharges()).rejects.toThrow(NotFoundException);
+      expect(mockUserService.createUser).not.toHaveBeenCalled();
+    });
+
+    it('al arrancar crea el superadministrador si el correo no existe', async () => {
+      process.env.APP_PROD = 'true';
+      await expect(service.ensureInitialAdmin()).resolves.toBe(true);
+      expect(mockUserService.createUser).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'admin@sci.local', role: ROLES.SUADMIN, isActive: true }),
+        ROLES.SUADMIN,
+      );
+    });
+
+    it('al arrancar no toca una cuenta existente (ni su contraseña)', async () => {
+      mockUserService.findByEmail.mockResolvedValue({ id: 'admin-1' });
+      await expect(service.ensureInitialAdmin()).resolves.toBe(false);
+      expect(mockUserService.createUser).not.toHaveBeenCalled();
+      expect(mockUserService.update).not.toHaveBeenCalled();
     });
   });
 });
