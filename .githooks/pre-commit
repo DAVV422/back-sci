@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Rechaza commits con credenciales evidentes. Activar una vez por clon:
+#   git config core.hooksPath .githooks
+# Saltarlo (solo si es un falso positivo revisado): git commit --no-verify
+set -euo pipefail
+
+staged_files="$(git diff --cached --name-only --diff-filter=ACM)"
+[[ -z "$staged_files" ]] && exit 0
+
+problems=""
+# Archivos que nunca se versionan.
+while IFS= read -r f; do
+  case "$f" in
+    .env|*/.env|.env.local|*/.env.local|*firebase-service*.json|*service-account*.json|*.pem|*.p12|*.key)
+      problems+="  archivo sensible: $f"$'\n' ;;
+  esac
+done <<< "$staged_files"
+
+# Patrones de credenciales en las líneas agregadas.
+added="$(git diff --cached -U0 --diff-filter=ACM | grep -E '^\+' | grep -vE '^\+\+\+' || true)"
+if grep -qE 'AIza[0-9A-Za-z_-]{30,}' <<< "$added"; then problems+="  clave de Google (AIza…)"$'\n'; fi
+if grep -qE -- '-----BEGIN [A-Z ]*PRIVATE KEY-----' <<< "$added"; then problems+="  llave privada (BEGIN PRIVATE KEY)"$'\n'; fi
+if grep -qE '"private_key_id"[[:space:]]*:' <<< "$added"; then problems+="  credencial de cuenta de servicio (private_key_id)"$'\n'; fi
+if grep -qE 'AKIA[0-9A-Z]{16}' <<< "$added"; then problems+="  clave de acceso de AWS (AKIA…)"$'\n'; fi
+
+if [[ -n "$problems" ]]; then
+  echo "Commit rechazado: parece incluir credenciales." >&2
+  printf '%s' "$problems" >&2
+  echo "Quítalas del commit (git restore --staged <archivo>) y guárdalas fuera del repositorio." >&2
+  exit 1
+fi
