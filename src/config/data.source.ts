@@ -5,6 +5,18 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 ConfigModule.forRoot({ envFilePath: '.env' });
 const configService = new ConfigService();
 
+/**
+ * DB_SSL: `false` (Postgres en el mismo servidor), `true` (TLS verificando el certificado) o
+ * `no-verify` (TLS sin verificar: solo si el proveedor no da un certificado válido). Sin definir,
+ * se mantiene lo anterior: TLS sin verificar en producción y sin TLS en desarrollo.
+ */
+export function databaseSsl(value: string | undefined, isProduction: boolean): false | { rejectUnauthorized: boolean } {
+  const mode = (value ?? (isProduction ? 'no-verify' : 'false')).toLowerCase();
+  if (mode === 'true' || mode === 'verify') return { rejectUnauthorized: true };
+  if (mode === 'no-verify') return { rejectUnauthorized: false };
+  return false;
+}
+
 export const DataSourceConfig: DataSourceOptions = {
   type: 'postgres',
   host: configService.get('DB_HOST'),
@@ -18,10 +30,7 @@ export const DataSourceConfig: DataSourceOptions = {
   synchronize: true,
   logging: false,
   extra: {
-    ssl:
-      configService.get('APP_PROD') === 'true'
-        ? { rejectUnauthorized: false }
-        : null,
+    ssl: databaseSsl(configService.get('DB_SSL'), configService.get('APP_PROD') === 'true'),
     timezone: 'America/La_Paz',
   },
   namingStrategy: new SnakeNamingStrategy(),
