@@ -4,12 +4,14 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 
 import { AttendService } from './attends.service';
 import { AttendEntity } from '../entities/attends.entity';
+import { OrganizationChangeEntity } from '../entities/organization-change.entity';
 import { EmergencyService } from '../../../organization_module/emergency/services/emergency.service';
 import { UserService } from '../../../user/services/user.service';
 import { ChargeService } from '../../../sci_module/charges/services/charge.service';
 import { EmergencyStatus } from '../../../organization_module/emergency/enums/emergency-status.enum';
 
 describe('AttendService', () => {
+  const mockHistoryRepo = { find: jest.fn().mockResolvedValue([{ id: 'h1', changeType: 'assigned' }]) };
   let service: AttendService;
   let mockEmergencyService: any;
   let mockAttendRepo: any;
@@ -39,6 +41,7 @@ describe('AttendService', () => {
       providers: [
         AttendService,
         { provide: getRepositoryToken(AttendEntity), useValue: mockAttendRepo },
+        { provide: getRepositoryToken(OrganizationChangeEntity), useValue: mockHistoryRepo },
         {
           provide: UserService,
           useValue: { findOne: jest.fn().mockResolvedValue({ id: 'user-1' }) },
@@ -314,6 +317,14 @@ describe('AttendService', () => {
         isDeleted: true,
       });
       expect(result.success).toBe(true);
+    });
+  });
+
+  it('historial de la organización (casilla 14): en orden cronológico', async () => {
+    await expect(service.findOrganizationHistory('emg-1')).resolves.toEqual([{ id: 'h1', changeType: 'assigned' }]);
+    expect(mockHistoryRepo.find).toHaveBeenCalledWith({
+      where: { emergency: { id: 'emg-1' } },
+      order: { occurredAt: 'ASC', createdAt: 'ASC' },
     });
   });
 });

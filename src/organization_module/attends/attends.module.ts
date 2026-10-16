@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AttendEntity } from './entities/attends.entity';
+import { OrganizationChangeEntity } from './entities/organization-change.entity';
 import { AttendController } from './controllers/attends.controller';
 import { AttendService } from './services/attends.service';
 import { EmergencyModule } from '../emergency/emergency.module';
@@ -9,7 +10,7 @@ import { ChargesModule } from '../../sci_module/charges/charges.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AttendEntity]),
+    TypeOrmModule.forFeature([AttendEntity, OrganizationChangeEntity]),
     forwardRef(() => UserModule),
     forwardRef(() => EmergencyModule),
     forwardRef(() => ChargesModule),

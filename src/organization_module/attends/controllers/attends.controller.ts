@@ -19,6 +19,7 @@ import { AuthGuard, RolesGuard } from '../../../auth/guards';
 import { RolesAccess, GetUser } from '../../../auth/decorators';
 import { ROLES } from '../../../common/constants';
 import { AttendEntity } from '../entities/attends.entity';
+import { OrganizationChangeEntity } from '../entities/organization-change.entity';
 
 @ApiTags('Attend')
 @ApiBearerAuth()
@@ -88,6 +89,15 @@ export class AttendController {
     @GetUser('role') requesterRole: string,
   ): Promise<ApiResponse<null>> {
     return await this.attendService.delete(id, requesterId, requesterRole);
+  }
+
+  @ApiParam({ name: 'emergencyId', type: 'string' })
+  @RolesAccess(ROLES.BASIC)
+  @Get('emergency/:emergencyId/history')
+  public async findOrganizationHistory(
+    @Param('emergencyId', ParseUUIDPipe) emergencyId: string,
+  ): Promise<ApiResponse<OrganizationChangeEntity[]>> {
+    return { success: true, statusCode: 200, data: await this.attendService.findOrganizationHistory(emergencyId) };
   }
 
   @ApiParam({ name: 'emergencyId', type: 'string' })

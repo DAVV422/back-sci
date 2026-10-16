@@ -13,6 +13,7 @@ import { Repository } from 'typeorm';
 import { CreateAttendDto } from '../dto/create-attend.dto';
 import { UpdateAttendDto } from '../dto/update-attend.dto';
 import { AttendEntity } from '../entities/attends.entity';
+import { OrganizationChangeEntity } from '../entities/organization-change.entity';
 import { handlerError } from '../../../common/utils/handlerError.utils';
 import { ApiResponse } from '../../../common/interfaces/responseMessage.interface';
 import { UserService } from '../../../user/services/user.service';
@@ -28,6 +29,8 @@ export class AttendService {
   constructor(
     @InjectRepository(AttendEntity)
     private readonly attendRepository: Repository<AttendEntity>,
+    @InjectRepository(OrganizationChangeEntity)
+    private readonly organizationChangeRepository: Repository<OrganizationChangeEntity>,
     private readonly userService: UserService,
     private readonly emergencyService: EmergencyService,
     private readonly chargeService: ChargeService,
@@ -271,6 +274,14 @@ export class AttendService {
     } catch (error) {
       handlerError(error, this.logger);
     }
+  }
+
+  /** Casilla 14: cambios de la estructura en orden cronológico (los registra un trigger de la base). */
+  public async findOrganizationHistory(emergencyId: string): Promise<OrganizationChangeEntity[]> {
+    return this.organizationChangeRepository.find({
+      where: { emergency: { id: emergencyId } },
+      order: { occurredAt: 'ASC', createdAt: 'ASC' },
+    });
   }
 
   public async findByEmergency(emergencyId: string): Promise<AttendEntity[]> {
