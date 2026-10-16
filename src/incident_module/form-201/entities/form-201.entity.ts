@@ -76,6 +76,14 @@ export class Form201Entity extends BaseEntity {
   @Column({ name: 'is_finalized', type: 'boolean', default: false })
   isFinalized: boolean;
 
+  /** Casilla 2: fecha y hora de preparación (instante UTC). Si no se indica, la de creación. */
+  @Column({ name: 'prepared_at', type: 'timestamp', nullable: true })
+  preparedAt?: Date | null;
+
+  /** Cierre del 201 (fin del periodo de ese mando): acota su resumen de acciones (casilla 13). */
+  @Column({ name: 'finalized_at', type: 'timestamp', nullable: true })
+  finalizedAt?: Date | null;
+
   @Column({
     name: 'client_generated_id',
     type: 'uuid',

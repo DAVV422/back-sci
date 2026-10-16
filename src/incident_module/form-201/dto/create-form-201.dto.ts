@@ -20,6 +20,15 @@ export class CreateForm201Dto {
   date: string;
 
   @ApiProperty({
+    example: '2026-08-08T14:30:00.000Z',
+    description: 'Casilla 2: fecha y hora de preparación, en UTC. Por defecto, la de creación.',
+    required: false,
+  })
+  @IsOptional()
+  @IsDateString()
+  preparedAt?: string;
+
+  @ApiProperty({
     example: 'Accidente de tránsito múltiple',
     description: 'Naturaleza del incidente',
   })

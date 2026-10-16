@@ -183,6 +183,7 @@ export class Form201Service {
       const form201 = this.form201Repository.create({
         ...createForm201Dto,
         situationMap: normalizeSituationMap(createForm201Dto.situationMap ?? null),
+        preparedAt: createForm201Dto.preparedAt ? new Date(createForm201Dto.preparedAt) : new Date(),
         code,
         organizationChart: createForm201Dto.organizationChart || { members: organizationChart },
         emergency: emergencyEntity,
@@ -293,7 +294,8 @@ export class Form201Service {
         );
       }
 
-      const { clientGeneratedId, code, isFinalized, croquisImage, ...updateData } = updateForm201Dto as any;
+      const { clientGeneratedId, code, isFinalized, croquisImage, finalizedAt, ...updateData } = updateForm201Dto as any;
+      if (updateData.preparedAt) updateData.preparedAt = new Date(updateData.preparedAt);
       if ('situationMap' in updateData) updateData.situationMap = normalizeSituationMap(updateData.situationMap);
       await this.form201Repository.update(id, updateData);
       this.logger.log(`[update] Form201 actualizado exitosamente. id=${id}`);
@@ -371,6 +373,7 @@ export class Form201Service {
       }
 
       form201.isFinalized = true;
+      form201.finalizedAt = new Date();
       await this.form201Repository.save(form201);
 
       // Registrar en bitácora de la emergencia

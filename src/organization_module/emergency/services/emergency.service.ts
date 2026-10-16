@@ -742,6 +742,8 @@ export class EmergencyService {
       const forms201 = await queryRunner.manager.find(Form201Entity, { where, relations: ['emergency'] });
       const forms207 = await queryRunner.manager.find(Form207Entity, { where, relations: ['emergency'] });
       for (const form of [...forms201, ...forms207]) form.isFinalized = true;
+      const finalizedAt = new Date();
+      for (const form of forms201) form.finalizedAt = finalizedAt;
       await queryRunner.manager.save(forms201);
       await queryRunner.manager.save(forms207);
 

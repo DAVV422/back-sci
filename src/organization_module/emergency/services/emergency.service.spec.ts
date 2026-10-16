@@ -680,6 +680,7 @@ describe('EmergencyService', () => {
       });
       const saved = mockManager.save.mock.calls.slice(0, 2).flatMap(([forms]: any[]) => forms);
       expect(saved.every((f: any) => f.isFinalized)).toBe(true);
+      expect(saved[0].finalizedAt).toEqual(expect.any(Date)); // F201: fin del periodo del mando
       expect(mockManager.save).toHaveBeenCalledWith(
         expect.objectContaining({ description: expect.stringContaining('F201-1, F207-1') }),
       );

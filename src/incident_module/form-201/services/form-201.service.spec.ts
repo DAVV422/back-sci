@@ -109,6 +109,8 @@ describe('Form201Service', () => {
       expect(emergencyService.findOne).toHaveBeenCalledWith('emergency-1');
       expect(emergencyService.assertEditable).toHaveBeenCalledWith(mockEmergency);
       expect(form201Repo.save).toHaveBeenCalled();
+      // Sin hora de preparación explícita se usa la de creación (casilla 2).
+      expect(form201Repo.create).toHaveBeenCalledWith(expect.objectContaining({ preparedAt: expect.any(Date) }));
     });
 
     it('should throw BadRequestException if an active Form201 already exists', async () => {
@@ -205,10 +207,16 @@ describe('Form201Service', () => {
       await expect(service.removeCroquis('form-1', 'u-1', 'manager')).rejects.toThrow(BadRequestException);
     });
 
-    it('el croquis no se puede pisar desde el PATCH general', async () => {
+    it('el croquis y el cierre no se pueden pisar desde el PATCH general', async () => {
       form201Repo.findOne.mockResolvedValue(openForm as any);
-      await service.update('form-1', { croquisImage: '../../etc/passwd', nature: 'x' } as any);
+      await service.update('form-1', { croquisImage: '../../etc/passwd', finalizedAt: '2020-01-01', nature: 'x' } as any);
       expect(form201Repo.update).toHaveBeenCalledWith('form-1', { nature: 'x' });
+    });
+
+    it('el PATCH acepta la hora de preparación como instante UTC', async () => {
+      form201Repo.findOne.mockResolvedValue(openForm as any);
+      await service.update('form-1', { preparedAt: '2026-10-03T14:30:00.000Z' } as any);
+      expect(form201Repo.update).toHaveBeenCalledWith('form-1', { preparedAt: new Date('2026-10-03T14:30:00.000Z') });
     });
 
     it('el PATCH normaliza el mapa de situación y rechaza símbolos desconocidos', async () => {
@@ -258,6 +266,8 @@ describe('Form201Service', () => {
 
       expect(result.isFinalized).toBe(true);
       expect(actionRepo.save).toHaveBeenCalled();
+      // El cierre marca el fin del periodo del mando (acota el resumen de acciones).
+      expect(form201Repo.save).toHaveBeenCalledWith(expect.objectContaining({ finalizedAt: expect.any(Date) }));
     });
   });
 });
