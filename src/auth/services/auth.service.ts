@@ -195,13 +195,55 @@ export class AuthService {
     }
   }
 
-  async recoverPassword(email: string): Promise<{ accessToken: string }> {
-    this.logger.log(`[recoverPassword] Solicitud de recuperación de contraseña. email=${email}`);
-    const user = await this.userService.findByEmail(email);
-    const payload = this.getPayload(user);
-    const accessToken = this.jwtService.signToken(payload);
-    this.logger.log(`[recoverPassword] Token de recuperación generado. userId=${user.id}`);
-    return { accessToken };
+  /**
+   * Paso 1 de la recuperación: si hay una cuenta activa con ese correo, envía un enlace de un solo
+   * uso. La respuesta es siempre la misma (y el correo sale en segundo plano) para no revelar qué
+   * correos están registrados. Reemplaza a un `recoverPassword` anterior que, sin exponerse,
+   * entregaba un access token a quien supiera un correo.
+   */
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    const message = 'Si el correo corresponde a una cuenta activa, recibirás un enlace para restablecer tu contraseña.';
+    let user: UserEntity | null = null;
+    try {
+      user = await this.userService.findByEmail(email.trim());
+    } catch {
+      user = null;
+    }
+    if (!user || !user.isActive || user.isDeleted) {
+      this.logger.warn(`[requestPasswordReset] Solicitud para un correo sin cuenta activa.`);
+      return { message };
+    }
+
+    // RECOVERY_TOKEN_EXPIRY_HOURS (ya en .env.example); createToken trabaja en horas enteras.
+    const expiryHours = Math.max(1, Math.round(Number(this.configService.get<number>('RECOVERY_TOKEN_EXPIRY_HOURS')) || 1));
+    const rawToken = await this.authTokenService.createToken(user, AuthTokenType.PASSWORD_RECOVERY, expiryHours);
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
+    const recoveryUrl = `${frontendUrl}${FRONTEND_ROUTES.RECOVER_PASSWORD}?token=${rawToken}`;
+    this.emailService
+      .sendPasswordRecoveryEmail(user.email, `${user.name} ${user.lastName}`, recoveryUrl)
+      .catch((error) => this.logger.error(`[requestPasswordReset] No se pudo enviar el correo: ${error?.message}`));
+    this.logger.log(`[requestPasswordReset] Enlace de recuperación generado. userId=${user.id}`);
+    return { message };
+  }
+
+  /** Paso 2: con el token del correo fija la nueva contraseña y cierra las sesiones abiertas. */
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    try {
+      const authToken = await this.authTokenService.validateToken(token, AuthTokenType.PASSWORD_RECOVERY);
+      const user = authToken.user;
+      await this.userService.update(user.id, { password: newPassword } as any);
+      await this.authTokenService.markAsUsed(authToken);
+      await this.refreshTokenRepository
+        .createQueryBuilder()
+        .update(RefreshTokenEntity)
+        .set({ isRevoked: true })
+        .where('user_id = :userId AND is_revoked = false', { userId: user.id })
+        .execute();
+      this.logger.log(`[resetPassword] Contraseña restablecida y sesiones revocadas. userId=${user.id}`);
+      return { message: 'Contraseña actualizada. Ya puedes iniciar sesión con la nueva contraseña.' };
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
   }
 
   private getPayload(user: UserEntity): IPayload {

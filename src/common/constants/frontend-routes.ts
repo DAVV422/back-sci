@@ -1,4 +1,5 @@
 export const FRONTEND_ROUTES = {
-  ACTIVATE_ACCOUNT: '/auth/activate',
-  RECOVER_PASSWORD: '/auth/recover-password',
+  // Rutas reales del front (antes '/auth/…', que no existían y dejaban los enlaces rotos).
+  ACTIVATE_ACCOUNT: '/activate',
+  RECOVER_PASSWORD: '/recover-password',
 };

@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Query } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, Query } from '@nestjs/common';
 import { ApiQuery, ApiTags } from '@nestjs/swagger/dist/decorators';
 import { Throttle } from '@nestjs/throttler';
 import { authThrottleLimit } from '../../common/constants';
@@ -13,6 +13,7 @@ import { IUserToken } from '../interfaces/userToken.interface';
 
 import { ActivateAccountDto } from '../dto/activate-account.dto';
 import { ResendActivationDto } from '../dto/resend-activation.dto';
+import { ForgotPasswordDto, ResetPasswordDto } from '../dto/password-recovery.dto';
 
 @ApiTags('Auth')
 @Controller()
@@ -72,6 +73,22 @@ export class AuthController {
       message: result.message,
       data: result,
     };
+  }
+
+  @Throttle({ short: { ttl: 60000, limit: authThrottleLimit(3) } })
+  @HttpCode(200)
+  @Post('forgot-password')
+  public async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<ApiResponse<{ message: string }>> {
+    const result = await this.authService.requestPasswordReset(dto.email);
+    return { success: true, statusCode: 200, message: result.message, data: result };
+  }
+
+  @Throttle({ short: { ttl: 60000, limit: authThrottleLimit(10) } })
+  @HttpCode(200)
+  @Post('reset-password')
+  public async resetPassword(@Body() dto: ResetPasswordDto): Promise<ApiResponse<{ message: string }>> {
+    const result = await this.authService.resetPassword(dto.token, dto.password);
+    return { success: true, statusCode: 200, message: result.message, data: result };
   }
 
   @Throttle({ short: { ttl: 60000, limit: authThrottleLimit(10) } }) // 10 intentos/min
