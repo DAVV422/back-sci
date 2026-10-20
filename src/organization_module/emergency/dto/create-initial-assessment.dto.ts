@@ -4,7 +4,7 @@ import {
   IsInt,
   IsNotEmpty,
   IsOptional,
-  IsPositive,
+  Min,
   IsString,
 } from 'class-validator';
 import { SeverityLevel } from '../enums/severity-level.enum';
@@ -71,7 +71,7 @@ export class CreateInitialAssessmentDto {
   })
   @IsOptional()
   @IsInt()
-  @IsPositive()
+  @Min(0) // 0 es un dato válido: aún no hay personas afectadas.
   affected_people_estimated?: number;
 
   @ApiProperty({

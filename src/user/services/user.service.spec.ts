@@ -50,6 +50,7 @@ describe('UserService - whitelist QueryDto.attr', () => {
   describe('searchDirectory (asignar personal / traspasar mando)', () => {
     beforeEach(() => {
       queryBuilder.select = jest.fn().mockReturnThis();
+      queryBuilder.addOrderBy = jest.fn().mockReturnThis();
       queryBuilder.getMany = jest.fn().mockResolvedValue([
         { id: 'u1', name: 'Marta', lastName: 'Rojas', grade: 'Sgto.', isOperational: true, email: 'm@x.bo', role: 'manager' },
       ]);
@@ -63,15 +64,17 @@ describe('UserService - whitelist QueryDto.attr', () => {
       expect(queryBuilder.andWhere).toHaveBeenCalledWith('user.role != :suadminRole', { suadminRole: ROLES.SUADMIN });
     });
 
-    it('menos de 2 caracteres no consulta', async () => {
-      await expect(service.searchDirectory(' a ')).resolves.toEqual([]);
-      expect(queryBuilder.getMany).not.toHaveBeenCalled();
+    it('sin texto lista al personal activo, los operativos primero', async () => {
+      await service.searchDirectory('  ', 100);
+      expect(queryBuilder.andWhere).not.toHaveBeenCalledWith(expect.stringContaining('ILIKE :term'), expect.anything());
+      expect(queryBuilder.orderBy).toHaveBeenCalledWith('user.is_operational', 'DESC');
+      expect(queryBuilder.take).toHaveBeenCalledWith(100);
     });
 
-    it('escapa comodines y limita a 20 resultados', async () => {
+    it('busca también por grado, escapa comodines y limita a 200 resultados', async () => {
       await service.searchDirectory('50%_', 500);
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith(expect.stringContaining('ILIKE :term'), { term: '%50\\%\\_%' });
-      expect(queryBuilder.take).toHaveBeenCalledWith(20);
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(expect.stringContaining('user.grade ILIKE :term'), { term: '%50\\%\\_%' });
+      expect(queryBuilder.take).toHaveBeenCalledWith(200);
     });
   });
 

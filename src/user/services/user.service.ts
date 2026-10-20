@@ -179,21 +179,26 @@ export class UserService {
    */
   public async searchDirectory(term: string, limit = 8): Promise<UserDirectoryEntry[]> {
     const search = term?.trim() ?? '';
-    if (search.length < 2) return [];
     try {
-      const users = await this.userRepository
+      const query = this.userRepository
         .createQueryBuilder('user')
         .select(['user.id', 'user.name', 'user.lastName', 'user.grade', 'user.isOperational'])
         .where('user.is_deleted = false')
         .andWhere('user.is_active = true')
-        .andWhere('user.role != :suadminRole', { suadminRole: ROLES.SUADMIN })
-        .andWhere(
-          "(user.name ILIKE :term OR user.last_name ILIKE :term OR CONCAT(user.name, ' ', user.last_name) ILIKE :term)",
+        .andWhere('user.role != :suadminRole', { suadminRole: ROLES.SUADMIN });
+      // Sin texto lista a todo el personal activo, para elegir sin escribir (asignar personal).
+      if (search) {
+        query.andWhere(
+          "(user.name ILIKE :term OR user.last_name ILIKE :term OR CONCAT(user.name, ' ', user.last_name) ILIKE :term OR user.grade ILIKE :term)",
           // Comodines de LIKE escapados: "%" o "_" se buscan literalmente.
           { term: `%${search.replace(/[%_\\]/g, '\\$&')}%` },
-        )
-        .orderBy('user.name', 'ASC')
-        .take(Math.min(Math.max(limit, 1), 20))
+        );
+      }
+      const users = await query
+        .orderBy('user.is_operational', 'DESC')
+        .addOrderBy('user.name', 'ASC')
+        .addOrderBy('user.last_name', 'ASC')
+        .take(Math.min(Math.max(limit, 1), 200))
         .getMany();
       return users.map(({ id, name, lastName, grade, isOperational }) => ({ id, name, lastName, grade, isOperational }));
     } catch (error) {
