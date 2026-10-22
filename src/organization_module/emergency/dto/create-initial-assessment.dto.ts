@@ -6,6 +6,7 @@ import {
   IsOptional,
   Min,
   IsString,
+  MaxLength,
 } from 'class-validator';
 import { SeverityLevel } from '../enums/severity-level.enum';
 
@@ -17,6 +18,7 @@ export class CreateInitialAssessmentDto {
   })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(100, { message: '$property: máximo $constraint1 caracteres' })
   hazard_type: string;
 
   @ApiProperty({
@@ -26,6 +28,7 @@ export class CreateInitialAssessmentDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100, { message: '$property: máximo $constraint1 caracteres' })
   nature_of_incident?: string;
 
   @ApiProperty({
@@ -44,6 +47,7 @@ export class CreateInitialAssessmentDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100, { message: '$property: máximo $constraint1 caracteres' })
   affected_area?: string;
 
   @ApiProperty({
@@ -53,6 +57,7 @@ export class CreateInitialAssessmentDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100, { message: '$property: máximo $constraint1 caracteres' })
   isolation?: string;
 
   @ApiProperty({
@@ -90,5 +95,6 @@ export class CreateInitialAssessmentDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100, { message: '$property: máximo $constraint1 caracteres' })
   weather_conditions?: string;
 }

@@ -6,6 +6,7 @@ import {
   IsPositive,
   IsString,
   IsUUID,
+  MaxLength,
 } from 'class-validator';
 
 export class CreateResourceDto {
@@ -25,6 +26,7 @@ export class CreateResourceDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(255, { message: '$property: máximo $constraint1 caracteres' })
   note?: string;
 
   @ApiProperty({

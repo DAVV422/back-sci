@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateVictimDto {
   @ApiProperty({
@@ -9,6 +15,7 @@ export class CreateVictimDto {
   })
   @IsString()
   @IsOptional()
+  @MaxLength(50, { message: '$property: máximo $constraint1 caracteres' })
   identifier?: string;
 
   @ApiProperty({
@@ -27,6 +34,7 @@ export class CreateVictimDto {
   })
   @IsString()
   @IsOptional()
+  @MaxLength(20, { message: '$property: máximo $constraint1 caracteres' })
   gender?: string;
 
   @ApiProperty({
@@ -36,6 +44,7 @@ export class CreateVictimDto {
   })
   @IsString()
   @IsOptional()
+  @MaxLength(20, { message: '$property: máximo $constraint1 caracteres' })
   cellphone?: string;
 
   @ApiProperty({
@@ -45,6 +54,7 @@ export class CreateVictimDto {
   })
   @IsString()
   @IsOptional()
+  @MaxLength(20, { message: '$property: máximo $constraint1 caracteres' })
   referenceCellphone?: string;
 
   @ApiProperty({

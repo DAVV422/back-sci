@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsDateString,
   IsObject,
+  MaxLength,
 } from 'class-validator';
 
 export class CreateForm201Dto {
@@ -21,7 +22,8 @@ export class CreateForm201Dto {
 
   @ApiProperty({
     example: '2026-08-08T14:30:00.000Z',
-    description: 'Casilla 2: fecha y hora de preparación, en UTC. Por defecto, la de creación.',
+    description:
+      'Casilla 2: fecha y hora de preparación, en UTC. Por defecto, la de creación.',
     required: false,
   })
   @IsOptional()
@@ -34,6 +36,7 @@ export class CreateForm201Dto {
   })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(150, { message: '$property: máximo $constraint1 caracteres' })
   nature: string;
 
   @ApiProperty({
@@ -50,6 +53,7 @@ export class CreateForm201Dto {
   })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(255, { message: '$property: máximo $constraint1 caracteres' })
   affectedArea: string;
 
   @ApiProperty({
@@ -58,6 +62,7 @@ export class CreateForm201Dto {
   })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(100, { message: '$property: máximo $constraint1 caracteres' })
   communicationsChannel: string;
 
   @ApiProperty({
@@ -66,6 +71,7 @@ export class CreateForm201Dto {
   })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(255, { message: '$property: máximo $constraint1 caracteres' })
   entryRoute: string;
 
   @ApiProperty({
@@ -74,6 +80,7 @@ export class CreateForm201Dto {
   })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(255, { message: '$property: máximo $constraint1 caracteres' })
   egressRoute: string;
 
   @ApiProperty({
@@ -83,10 +90,12 @@ export class CreateForm201Dto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(500, { message: '$property: máximo $constraint1 caracteres' })
   affectedAreasMapUrl?: string;
 
   @ApiProperty({
-    description: 'Mapa de situación (casilla 12): { perimeter: [{lat,lng}], elements: [{id, symbol, lat, lng, label?}] }. null lo borra.',
+    description:
+      'Mapa de situación (casilla 12): { perimeter: [{lat,lng}], elements: [{id, symbol, lat, lng, label?}] }. null lo borra.',
     required: false,
     nullable: true,
   })
@@ -123,6 +132,7 @@ export class CreateForm201Dto {
   })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(500, { message: '$property: máximo $constraint1 caracteres' })
   safetyMessage: string;
 
   @ApiProperty({

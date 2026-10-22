@@ -1,6 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsUUID, IsEnum, MaxLength } from 'class-validator';
-import { TRANSPORT_MEANS, TransportMeans } from '../entities/registration.entity';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  IsEnum,
+  MaxLength,
+} from 'class-validator';
+import {
+  TRANSPORT_MEANS,
+  TransportMeans,
+} from '../entities/registration.entity';
 
 export class CreateRegistrationDto {
   @ApiProperty({
@@ -21,7 +31,8 @@ export class CreateRegistrationDto {
   classification: 'rojo' | 'amarillo' | 'verde' | 'negro';
 
   @ApiProperty({
-    description: 'Lugar de traslado (nombre del centro de salud). Si no existe se crea. Va junto con transportMeans.',
+    description:
+      'Lugar de traslado (nombre del centro de salud). Si no existe se crea. Va junto con transportMeans.',
     example: 'Hospital de Clínicas',
     required: false,
   })
@@ -46,6 +57,7 @@ export class CreateRegistrationDto {
   })
   @IsString()
   @IsOptional()
+  @MaxLength(150, { message: '$property: máximo $constraint1 caracteres' })
   transferredBy?: string;
 
   @ApiProperty({
@@ -55,6 +67,7 @@ export class CreateRegistrationDto {
   })
   @IsString()
   @IsOptional()
+  @MaxLength(20, { message: '$property: máximo $constraint1 caracteres' })
   cellphoneTransferManager?: string;
 
   @ApiProperty({
@@ -64,6 +77,7 @@ export class CreateRegistrationDto {
   })
   @IsString()
   @IsOptional()
+  @MaxLength(500, { message: '$property: máximo $constraint1 caracteres' })
   notes?: string;
 
   @ApiProperty({

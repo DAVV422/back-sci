@@ -5,6 +5,7 @@ import {
   IsDateString,
   IsOptional,
   IsUUID,
+  MaxLength,
 } from 'class-validator';
 
 export class CreateForm207Dto {
@@ -14,6 +15,7 @@ export class CreateForm207Dto {
   })
   @IsString()
   @IsOptional()
+  @MaxLength(255, { message: '$property: máximo $constraint1 caracteres' })
   placeOfRegistration: string;
 
   @ApiProperty({
@@ -22,6 +24,7 @@ export class CreateForm207Dto {
   })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(150, { message: '$property: máximo $constraint1 caracteres' })
   attendant: string;
 
   @ApiProperty({

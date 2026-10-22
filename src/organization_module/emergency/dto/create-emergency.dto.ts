@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateEmergencyDto {
   @ApiProperty({
@@ -9,6 +15,7 @@ export class CreateEmergencyDto {
   })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(100, { message: '$property: máximo $constraint1 caracteres' })
   name: string;
 
   @ApiProperty({
@@ -18,6 +25,7 @@ export class CreateEmergencyDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(255, { message: '$property: máximo $constraint1 caracteres' })
   location_description?: string;
 
   @ApiProperty({
@@ -44,6 +52,7 @@ export class CreateEmergencyDto {
   })
   @IsNotEmpty()
   @IsString()
+  @MaxLength(50, { message: '$property: máximo $constraint1 caracteres' })
   type: string;
 
   @ApiProperty({
@@ -80,5 +89,6 @@ export class CreateEmergencyDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(50, { message: '$property: máximo $constraint1 caracteres' })
   duration?: string;
 }
