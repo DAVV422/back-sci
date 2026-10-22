@@ -6,7 +6,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 
 import { CreateResourceDto } from '../dto/create-resource.dto';
 import { UpdateResourceDto } from '../dto/update-resource.dto';
@@ -22,6 +22,12 @@ import {
   SCI_CHARGE,
 } from '../../../organization_module/emergency/services/emergency-access.service';
 import { RealtimeService } from '../../../notification/services/realtime.service';
+
+/** Un equipo y la cantidad a despachar. */
+export interface DispatchItem {
+  readonly equipmentId: string;
+  readonly amount: number;
+}
 
 @Injectable()
 export class ResourceService {
@@ -55,66 +61,46 @@ export class ResourceService {
     userId: string,
     userRole?: string,
   ): Promise<ResourceEntity> {
+    const { emergencyId, equipmentId, amount, note } = createResourceDto;
+    const [created] = await this.createMany(
+      emergencyId,
+      [{ equipmentId, amount }],
+      note,
+      userId,
+      userRole,
+    );
+    return created;
+  }
+
+  /**
+   * Despacho de varios equipos sueltos en una sola operación (un registro por equipo y una entrada
+   * en la bitácora). Todo o nada: si a uno le falta stock, no se despacha ninguno.
+   */
+  public async createMany(
+    emergencyId: string,
+    items: readonly DispatchItem[],
+    note: string | undefined,
+    userId: string,
+    userRole?: string,
+  ): Promise<ResourceEntity[]> {
     const queryRunner = this.dataSource.createQueryRunner();
     try {
-      const { emergencyId, equipmentId, amount, ...resourceData } =
-        createResourceDto;
-      const emergency = await this.emergencyService.findOne(emergencyId);
-      if (!emergency) throw new NotFoundException('Emergency not found.');
-      this.emergencyService.assertEditable(emergency);
-      if (userRole) {
-        await this.emergencyAccessService.assertMember(
-          emergency.id,
-          userId,
-          userRole,
-          'Solo el personal asignado a la emergencia o un usuario con rol Manager o superior puede despachar recursos.',
-        );
-      }
-      const equipment = await this.equipmentService.findOne(equipmentId);
-      if (!equipment) throw new NotFoundException('Equipment not found.');
-      if (amount > equipment.availableQuantity)
-        throw new BadRequestException('Cantidad no disponible en inventario');
-
+      const emergency = await this.assertCanDispatch(emergencyId, userId, userRole);
       await queryRunner.connect();
       await queryRunner.startTransaction();
       try {
-        const lockedEquipment = await queryRunner.manager.findOne(
-          EquipmentEntity,
-          {
-            where: { id: equipment.id, isDeleted: false },
-            lock: { mode: 'pessimistic_write' },
-          },
+        const saved = await this.dispatchWithin(queryRunner.manager, emergency.id, items, { note });
+        await this.logAction(
+          queryRunner.manager,
+          emergency.id,
+          userId,
+          `Despacho de recurso: ${saved.map((r) => `${r.equipment.name} x${r.amount}`).join(', ')}`,
         );
-        if (!lockedEquipment)
-          throw new NotFoundException('Equipment not found.');
-        if (amount > lockedEquipment.availableQuantity)
-          throw new BadRequestException('Cantidad no disponible en inventario');
-
-        lockedEquipment.availableQuantity -= amount;
-        await queryRunner.manager.save(lockedEquipment);
-
-        const resource = queryRunner.manager.create(ResourceEntity, {
-          ...resourceData,
-          amount,
-          emergency: { id: emergency.id },
-          equipment: { id: equipment.id },
-        });
-        const savedResource = await queryRunner.manager.save(resource);
-
-        const now = new Date();
-        const action = queryRunner.manager.create(ActionEntity, {
-          description: `Despacho de recurso: ${equipment.name} x${amount}`,
-          date: now,
-          hour: `${String(now.getHours()).padStart(2, '0')}:${String(
-            now.getMinutes(),
-          ).padStart(2, '0')}`,
-          user: { id: userId },
-          emergency: { id: emergency.id },
-        });
-        await queryRunner.manager.save(action);
-
         await queryRunner.commitTransaction();
-        return await this.findOne(savedResource.id);
+        return await this.resourceRepository.find({
+          where: { id: In(saved.map((r) => r.id)) },
+          relations: ['equipment', 'emergency'],
+        });
       } catch (error) {
         await queryRunner.rollbackTransaction();
         throw error;
@@ -124,6 +110,85 @@ export class ResourceService {
     } finally {
       if (queryRunner.isReleased === false) await queryRunner.release();
     }
+  }
+
+  /** Emergencia abierta y usuario asignado a ella (o rol Manager o superior). */
+  public async assertCanDispatch(emergencyId: string, userId: string, userRole?: string) {
+    const emergency = await this.emergencyService.findOne(emergencyId);
+    if (!emergency) throw new NotFoundException('Emergency not found.');
+    this.emergencyService.assertEditable(emergency);
+    if (userRole) {
+      await this.emergencyAccessService.assertMember(
+        emergency.id,
+        userId,
+        userRole,
+        'Solo el personal asignado a la emergencia o un usuario con rol Manager o superior puede despachar recursos.',
+      );
+    }
+    return emergency;
+  }
+
+  /**
+   * Descuenta el stock y crea los registros de despacho dentro de una transacción abierta. Bloquea
+   * cada equipo (`FOR UPDATE`) y valida lo disponible en ese momento; un mismo equipo repetido se
+   * suma. Lo usan el despacho suelto y el de un vehículo con su carga.
+   */
+  public async dispatchWithin(
+    manager: EntityManager,
+    emergencyId: string,
+    items: readonly DispatchItem[],
+    options: { note?: string | null; vehicleDispatchId?: string } = {},
+  ): Promise<ResourceEntity[]> {
+    const merged = new Map<string, number>();
+    for (const item of items) {
+      if (item.amount > 0) merged.set(item.equipmentId, (merged.get(item.equipmentId) ?? 0) + item.amount);
+    }
+    if (merged.size === 0) throw new BadRequestException('Indica al menos un equipo con cantidad mayor a 0.');
+
+    const shortages: string[] = [];
+    const saved: ResourceEntity[] = [];
+    for (const [equipmentId, amount] of merged) {
+      const locked = await manager.findOne(EquipmentEntity, {
+        where: { id: equipmentId, isDeleted: false },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked) throw new NotFoundException('Equipment not found.');
+      if (amount > locked.availableQuantity) {
+        shortages.push(`${locked.name} (pedido ${amount}, disponible ${locked.availableQuantity})`);
+        continue;
+      }
+      locked.availableQuantity -= amount;
+      await manager.save(locked);
+      const resource = await manager.save(
+        manager.create(ResourceEntity, {
+          amount,
+          note: options.note ?? undefined,
+          emergency: { id: emergencyId },
+          equipment: { id: locked.id },
+          ...(options.vehicleDispatchId ? { vehicleDispatch: { id: options.vehicleDispatchId } } : {}),
+        }),
+      );
+      resource.equipment = locked;
+      saved.push(resource);
+    }
+    if (shortages.length) {
+      throw new BadRequestException(`Cantidad no disponible en inventario: ${shortages.join('; ')}.`);
+    }
+    return saved;
+  }
+
+  /** Entrada en la bitácora de la emergencia con la hora actual. */
+  public async logAction(manager: EntityManager, emergencyId: string, userId: string, description: string): Promise<void> {
+    const now = new Date();
+    await manager.save(
+      manager.create(ActionEntity, {
+        description,
+        date: now,
+        hour: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+        user: { id: userId },
+        emergency: { id: emergencyId },
+      }),
+    );
   }
 
   public async returnResource(
@@ -145,48 +210,16 @@ export class ResourceService {
           'Solo el Comandante del Incidente o un usuario con rol Manager o superior puede registrar devoluciones.',
         );
       }
-      const pending = resource.amount - resource.amount_returned;
-      if (amountReturned > pending)
-        throw new BadRequestException('Cantidad a devolver excede lo asignado');
-
       await queryRunner.connect();
       await queryRunner.startTransaction();
       try {
-        const lockedEquipment = await queryRunner.manager.findOne(
-          EquipmentEntity,
-          {
-            where: { id: resource.equipment.id, isDeleted: false },
-            lock: { mode: 'pessimistic_write' },
-          },
+        await this.returnWithin(queryRunner.manager, resource, amountReturned);
+        await this.logAction(
+          queryRunner.manager,
+          resource.emergency.id,
+          userId,
+          `Devolución de recurso: ${resource.equipment.name} x${amountReturned}`,
         );
-        if (!lockedEquipment)
-          throw new NotFoundException('Equipment not found.');
-        if (
-          lockedEquipment.availableQuantity + amountReturned >
-          lockedEquipment.totalQuantity
-        )
-          throw new BadRequestException(
-            'La devolución supera la cantidad total del equipo',
-          );
-
-        lockedEquipment.availableQuantity += amountReturned;
-        await queryRunner.manager.save(lockedEquipment);
-
-        resource.amount_returned += amountReturned;
-        await queryRunner.manager.save(resource);
-
-        const now = new Date();
-        const action = queryRunner.manager.create(ActionEntity, {
-          description: `Devolución de recurso: ${resource.equipment.name} x${amountReturned}`,
-          date: now,
-          hour: `${String(now.getHours()).padStart(2, '0')}:${String(
-            now.getMinutes(),
-          ).padStart(2, '0')}`,
-          user: { id: userId },
-          emergency: { id: resource.emergency.id },
-        });
-        await queryRunner.manager.save(action);
-
         await queryRunner.commitTransaction();
         return await this.findOne(id);
       } catch (error) {
@@ -198,6 +231,28 @@ export class ResourceService {
     } finally {
       if (queryRunner.isReleased === false) await queryRunner.release();
     }
+  }
+
+  /**
+   * Reincorpora unidades de un despacho al inventario dentro de una transacción abierta.
+   * 400 si supera lo pendiente o el total del equipo.
+   */
+  public async returnWithin(manager: EntityManager, resource: ResourceEntity, amountReturned: number): Promise<void> {
+    const pending = resource.amount - (resource.amount_returned ?? 0);
+    if (amountReturned > pending)
+      throw new BadRequestException('Cantidad a devolver excede lo asignado');
+    if (amountReturned <= 0) return;
+    const lockedEquipment = await manager.findOne(EquipmentEntity, {
+      where: { id: resource.equipment.id, isDeleted: false },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!lockedEquipment) throw new NotFoundException('Equipment not found.');
+    if (lockedEquipment.availableQuantity + amountReturned > lockedEquipment.totalQuantity)
+      throw new BadRequestException('La devolución supera la cantidad total del equipo');
+    lockedEquipment.availableQuantity += amountReturned;
+    await manager.save(lockedEquipment);
+    resource.amount_returned = (resource.amount_returned ?? 0) + amountReturned;
+    await manager.save(resource);
   }
 
   public async update(
@@ -320,7 +375,7 @@ export class ResourceService {
       if (!emergency) throw new NotFoundException('Emergency not found.');
       return await this.resourceRepository.find({
         where: { emergency: { id: emergency.id }, isDeleted: false },
-        relations: ['equipment', 'emergency'],
+        relations: ['equipment', 'emergency', 'vehicleDispatch', 'vehicleDispatch.vehicle'],
       });
     } catch (error) {
       handlerError(error, this.logger);

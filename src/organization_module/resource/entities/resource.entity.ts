@@ -1,7 +1,8 @@
-import { Column, Entity, ManyToOne, OneToMany } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { EmergencyEntity } from '../../../organization_module/emergency/entities/emergency.entity';
 import { EquipmentEntity } from '../../../organization_module/equipment/entities/equipment.entity';
+import { VehicleDispatchEntity } from '../../vehicle/entities/vehicle-dispatch.entity';
 
 @Entity({ name: 'resource' })
 export class ResourceEntity extends BaseEntity {
@@ -25,4 +26,9 @@ export class ResourceEntity extends BaseEntity {
     onDelete: 'CASCADE',
   })
   equipment: EquipmentEntity;
+
+  /** Si el equipo fue a bordo de un vehículo, ese despacho; nulo si se despachó suelto. */
+  @ManyToOne(() => VehicleDispatchEntity, (dispatch) => dispatch.resources, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'vehicle_dispatch_id' })
+  vehicleDispatch?: VehicleDispatchEntity | null;
 }

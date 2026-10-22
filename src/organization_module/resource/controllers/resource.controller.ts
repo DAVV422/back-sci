@@ -20,6 +20,7 @@ import { AuthGuard, RolesGuard } from '../../../auth/guards';
 import { GetUser } from '../../../auth/decorators';
 import { ResourceEntity } from '../entities/resource.entity';
 import { ReturnResourceDto } from '../dto/return-resource.dto';
+import { CreateResourceBatchDto } from '../dto/create-resource-batch.dto';
 
 @ApiTags('Resource')
 @ApiBearerAuth()
@@ -37,6 +38,19 @@ export class ResourceController {
       success: true,
       statusCode: 200,
       data: await this.resourceService.findOne(id),
+    };
+  }
+
+  @Post('batch')
+  public async createBatch(
+    @Body() dto: CreateResourceBatchDto,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
+  ): Promise<ApiResponse<ResourceEntity[]>> {
+    return {
+      success: true,
+      statusCode: 201,
+      data: await this.resourceService.createMany(dto.emergencyId, dto.items, dto.note, userId, userRole),
     };
   }
 

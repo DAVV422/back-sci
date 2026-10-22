@@ -19,6 +19,7 @@ import { EquipmentModule } from './organization_module/equipment/equipment.modul
 import { Form201Module } from './incident_module/form-201/form-201.module';
 import { Form207Module } from './victim_registry_module/form-207/form-207.module';
 import { ResourceModule } from './organization_module/resource/resource.module';
+import { VehicleModule } from './organization_module/vehicle/vehicle.module';
 import { ChargesModule } from './sci_module/charges/charges.module';
 import { VictimModule } from './victim_registry_module/victim/victim.module';
 import { RegistrationModule } from './victim_registry_module/registration/registration.module';
@@ -50,6 +51,7 @@ import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
     Form201Module,
     Form207Module,
     ResourceModule,
+    VehicleModule,
     VictimModule,
     RegistrationModule,
     HealthFacilityModule,

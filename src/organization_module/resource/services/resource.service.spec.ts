@@ -39,7 +39,7 @@ describe('ResourceService', () => {
       save: jest.fn(async (data: any) => ({ id: 'res-1', ...data })),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
       delete: jest.fn(),
-      find: jest.fn(),
+      find: jest.fn().mockResolvedValue([{ id: 'res-1', amount: 2, emergency: { id: 'emg-1' }, equipment: { id: 'eq-1' } }]),
     };
     mockEquipmentService = {
       findOne: jest.fn().mockResolvedValue({
@@ -156,6 +156,48 @@ describe('ResourceService', () => {
     });
   });
 
+  describe('createMany - varios equipos en una operación', () => {
+    beforeEach(() => {
+      mockEmergencyService.findOne.mockResolvedValue({ id: 'emg-1', state: EmergencyStatus.Active });
+      mockEmergencyService.assertEditable.mockReturnValue(undefined);
+    });
+
+    it('descuenta cada equipo, suma los repetidos y deja una sola entrada en la bitácora', async () => {
+      const stock: Record<string, any> = {
+        'eq-1': { id: 'eq-1', name: 'Casco', availableQuantity: 10 },
+        'eq-2': { id: 'eq-2', name: 'Radio', availableQuantity: 4 },
+      };
+      mockManager.findOne.mockImplementation(async (_e: any, opts: any) => ({ ...stock[opts.where.id] }));
+
+      await service.createMany('emg-1', [
+        { equipmentId: 'eq-1', amount: 2 }, { equipmentId: 'eq-2', amount: 1 }, { equipmentId: 'eq-1', amount: 3 },
+      ], 'Sector norte', 'user-1');
+
+      expect(mockManager.save).toHaveBeenCalledWith(expect.objectContaining({ id: 'eq-1', availableQuantity: 5 }));
+      expect(mockManager.save).toHaveBeenCalledWith(expect.objectContaining({ id: 'eq-2', availableQuantity: 3 }));
+      const actions = mockManager.create.mock.calls.filter(([, data]: any[]) => data.description);
+      expect(actions).toHaveLength(1);
+      expect(actions[0][1].description).toBe('Despacho de recurso: Casco x5, Radio x1');
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+    });
+
+    it('si a alguno le falta stock no despacha ninguno y dice cuáles', async () => {
+      mockManager.findOne.mockImplementation(async (_e: any, opts: any) =>
+        opts.where.id === 'eq-1' ? { id: 'eq-1', name: 'Casco', availableQuantity: 10 } : { id: 'eq-2', name: 'Radio', availableQuantity: 0 });
+
+      await expect(service.createMany('emg-1', [
+        { equipmentId: 'eq-1', amount: 2 }, { equipmentId: 'eq-2', amount: 1 },
+      ], undefined, 'user-1')).rejects.toThrow('Radio (pedido 1, disponible 0)');
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(mockQueryRunner.commitTransaction).not.toHaveBeenCalled();
+    });
+
+    it('sin cantidades mayores a 0 no despacha', async () => {
+      await expect(service.createMany('emg-1', [{ equipmentId: 'eq-1', amount: 0 }], undefined, 'user-1'))
+        .rejects.toThrow('al menos un equipo');
+    });
+  });
+
   describe('create - despacho de recursos y stock (F1-015)', () => {
     const dto = {
       emergencyId: 'emg-1',
@@ -194,7 +236,8 @@ describe('ResourceService', () => {
     });
 
     it('lanza BadRequestException si amount > availableQuantity (AC2)', async () => {
-      mockEquipmentService.findOne.mockResolvedValue({
+      // El stock se valida sobre el equipo bloqueado dentro de la transacción.
+      mockManager.findOne.mockResolvedValue({
         id: 'eq-1',
         name: 'Casco',
         availableQuantity: 3,
