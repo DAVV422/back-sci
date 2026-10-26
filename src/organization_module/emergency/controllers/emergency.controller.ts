@@ -138,6 +138,12 @@ export class EmergencyController {
   }
 
   @ApiParam({ name: 'id', type: 'string' })
+  @Get(':id/close-readiness')
+  public async closeReadiness(@Param('id', ParseUUIDPipe) id: string) {
+    return { success: true, statusCode: 200, data: await this.emergencyService.getCloseReadiness(id) };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
   @Get(':id/forms/pending')
   public async findPendingForms(
     @Param('id', ParseUUIDPipe) id: string,

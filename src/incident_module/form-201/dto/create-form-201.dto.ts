@@ -14,11 +14,11 @@ export class CreateForm201Dto {
     example: '2026-08-08',
     description: 'Fecha del formulario',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsDateString()
   // string ISO: con enableImplicitConversion un tipo Date convertiría el valor
   // antes de validar y @IsDateString() lo rechazaría siempre.
-  date: string;
+  date?: string;
 
   @ApiProperty({
     example: '2026-08-08T14:30:00.000Z',
@@ -34,54 +34,54 @@ export class CreateForm201Dto {
     example: 'Accidente de tránsito múltiple',
     description: 'Naturaleza del incidente',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MaxLength(150, { message: '$property: máximo $constraint1 caracteres' })
-  nature: string;
+  nature?: string;
 
   @ApiProperty({
     example: 'Derrame de combustible y riesgo de explosión',
     description: 'Amenaza(s) asociada(s)',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  thread: string;
+  thread?: string;
 
   @ApiProperty({
     example: 'Kilómetro 15 de la autopista principal',
     description: 'Descripción del área afectada',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MaxLength(255, { message: '$property: máximo $constraint1 caracteres' })
-  affectedArea: string;
+  affectedArea?: string;
 
   @ApiProperty({
     example: 'Canal 16 VHF (156.800 MHz)',
     description: 'Frecuencia o canal de comunicación',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MaxLength(100, { message: '$property: máximo $constraint1 caracteres' })
-  communicationsChannel: string;
+  communicationsChannel?: string;
 
   @ApiProperty({
     example: 'Ruta 5 Sur, carril norte-sur',
     description: 'Ruta de acceso de recursos',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MaxLength(255, { message: '$property: máximo $constraint1 caracteres' })
-  entryRoute: string;
+  entryRoute?: string;
 
   @ApiProperty({
     example: 'Ruta 5 Sur, carril sur-norte (contraflujo)',
     description: 'Ruta de evacuación',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MaxLength(255, { message: '$property: máximo $constraint1 caracteres' })
-  egressRoute: string;
+  egressRoute?: string;
 
   @ApiProperty({
     example: 'https://mapas.sci.gov/incident-102.png',
@@ -106,34 +106,34 @@ export class CreateForm201Dto {
     example: '1. Rescatar atrapados. 2. Controlar derrame.',
     description: 'Objetivos',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  objectives: string;
+  objectives?: string;
 
   @ApiProperty({
     example: 'Uso de espuma química y extricación vehicular.',
     description: 'Estrategias',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  strategies: string;
+  strategies?: string;
 
   @ApiProperty({
     example: 'Despliegue de Unidad de Rescate R-1.',
     description: 'Tácticas',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  tactics: string;
+  tactics?: string;
 
   @ApiProperty({
     example: 'Mantener distancia de seguridad del derrame.',
     description: 'Mensaje de seguridad general',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MaxLength(500, { message: '$property: máximo $constraint1 caracteres' })
-  safetyMessage: string;
+  safetyMessage?: string;
 
   @ApiProperty({
     example: {},

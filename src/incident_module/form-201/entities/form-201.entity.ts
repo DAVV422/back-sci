@@ -19,27 +19,27 @@ export class Form201Entity extends BaseEntity {
   @Column({ name: 'date', type: 'date', nullable: false })
   date: Date;
 
-  @Column({ name: 'nature', type: 'varchar', length: 150, nullable: false })
+  @Column({ name: 'nature', type: 'varchar', length: 150, nullable: true })
   nature: string;
 
-  @Column({ name: 'thread', type: 'text', nullable: false })
+  @Column({ name: 'thread', type: 'text', nullable: true })
   thread: string;
 
-  @Column({ name: 'affected_area', type: 'varchar', length: 255, nullable: false })
+  @Column({ name: 'affected_area', type: 'varchar', length: 255, nullable: true })
   affectedArea: string;
 
   @Column({
     name: 'communications_channel',
     type: 'varchar',
     length: 100,
-    nullable: false,
+    nullable: true,
   })
   communicationsChannel: string;
 
-  @Column({ name: 'entry_route', type: 'varchar', length: 255, nullable: false })
+  @Column({ name: 'entry_route', type: 'varchar', length: 255, nullable: true })
   entryRoute: string;
 
-  @Column({ name: 'egress_route', type: 'varchar', length: 255, nullable: false })
+  @Column({ name: 'egress_route', type: 'varchar', length: 255, nullable: true })
   egressRoute: string;
 
   @Column({
@@ -58,16 +58,16 @@ export class Form201Entity extends BaseEntity {
   @Column({ name: 'situation_map', type: 'jsonb', nullable: true })
   situationMap?: SituationMap | null;
 
-  @Column({ name: 'objectives', type: 'text', nullable: false })
+  @Column({ name: 'objectives', type: 'text', nullable: true })
   objectives: string;
 
-  @Column({ name: 'strategies', type: 'text', nullable: false })
+  @Column({ name: 'strategies', type: 'text', nullable: true })
   strategies: string;
 
-  @Column({ name: 'tactics', type: 'text', nullable: false })
+  @Column({ name: 'tactics', type: 'text', nullable: true })
   tactics: string;
 
-  @Column({ name: 'safety_message', type: 'varchar', length: 500, nullable: false })
+  @Column({ name: 'safety_message', type: 'varchar', length: 500, nullable: true })
   safetyMessage: string;
 
   @Column({ name: 'organization_chart', type: 'jsonb', nullable: false })

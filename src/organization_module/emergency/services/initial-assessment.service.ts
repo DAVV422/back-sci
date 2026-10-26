@@ -19,6 +19,11 @@ import { UserService } from '../../../user/services/user.service';
 import { AttendEntity } from '../../attends/entities/attends.entity';
 import { ROLES } from '../../../common/constants';
 
+/** La evaluación se puede guardar incompleta, pero no vacía. */
+function hasAnyAssessmentData(dto: CreateInitialAssessmentDto): boolean {
+  return Object.values(dto).some((v) => (typeof v === 'string' ? v.trim() !== '' : v !== null && v !== undefined));
+}
+
 @Injectable()
 export class InitialAssessmentService {
   private readonly logger = new Logger('InitialAssessmentService');
@@ -103,6 +108,9 @@ export class InitialAssessmentService {
     try {
       if (userRole) {
         await this.assertCanManageAssessment(emergencyId, userId, userRole);
+      }
+      if (!hasAnyAssessmentData(createAssessmentDto)) {
+        throw new BadRequestException('Registra al menos un dato de la evaluación inicial.');
       }
       const emergency = await this.findEmergencyForAssessment(emergencyId);
       if (emergency.initialAssessment)

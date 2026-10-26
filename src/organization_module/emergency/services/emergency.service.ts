@@ -44,6 +44,8 @@ import { EmergencyAccessService } from './emergency-access.service';
 import { getAppTimezone } from '../../../config/timezone';
 
 /** Formularios abiertos de una emergencia, por código (sin datos de pacientes). */
+import { CloseBlocker, UNCLASSIFIED_TYPE, describeCloseBlockers, findCloseBlockers } from '../close-requirements';
+
 export interface PendingForms {
   form201: { id: string; code: string }[];
   form207: { id: string; code: string }[];
@@ -53,6 +55,8 @@ export interface PendingForms {
 export interface TransferReadiness extends PendingForms {
   blockers: string[];
 }
+
+export { UNCLASSIFIED_TYPE };
 
 @Injectable()
 export class EmergencyService {
@@ -143,10 +147,18 @@ export class EmergencyService {
           `SELECT COALESCE(MAX(CAST(SUBSTRING(code FROM 5) AS INTEGER)), 0) + 1 AS next_val FROM emergency`,
         );
         const nextCode = `EMG-${String(result[0].next_val).padStart(3, '0')}`;
+        // En terreno los segundos cuentan: nada es obligatorio al registrar. Lo que falte se completa
+        // después y se exige al finalizar (ver findCloseBlockers).
+        const now = new Date();
+        const type = createEmergency.type?.trim() || UNCLASSIFIED_TYPE;
         const emergencyCreate: EmergencyEntity = queryRunner.manager.create(
           EmergencyEntity,
           {
             ...createEmergency,
+            type,
+            name: createEmergency.name?.trim() || `${type === UNCLASSIFIED_TYPE ? 'Emergencia' : type} ${nextCode}`,
+            date: createEmergency.date ?? (now.toISOString().slice(0, 10) as unknown as Date),
+            hour: createEmergency.hour?.trim() || now.toISOString().slice(11, 16),
             code: nextCode,
             state: EmergencyStatus.Pending,
             // La zona no la decide el cliente: es la de la institución al momento del registro.
@@ -331,7 +343,7 @@ export class EmergencyService {
     try {
       const emergency = await this.emergencyRepository.findOne({
         where: { id, isDeleted: false },
-        relations: ['form201', 'form207'],
+        relations: ['form201', 'form207', 'initialAssessment'],
       });
       if (!emergency) {
         this.logger.warn(`[changeState] Emergencia no encontrada. id=${id}`);
@@ -372,6 +384,12 @@ export class EmergencyService {
               ', ',
             )}`,
           );
+        }
+        // Lo que se dejó en blanco durante la emergencia se exige al cerrarla.
+        const closeBlockers = findCloseBlockers(emergency);
+        if (closeBlockers.length) {
+          this.logger.warn(`[changeState] Finalización rechazada por datos faltantes. id=${id}`);
+          throw new BadRequestException(describeCloseBlockers(closeBlockers));
         }
       }
 
@@ -808,6 +826,16 @@ export class EmergencyService {
       }
     }
     return blockers;
+  }
+
+  /** Qué falta para finalizar la emergencia (formularios abiertos y datos sin completar). */
+  public async getCloseReadiness(emergencyId: string): Promise<{ pendingForms: string[]; blockers: CloseBlocker[] }> {
+    const emergency = await this.emergencyRepository.findOne({
+      where: { id: emergencyId, isDeleted: false },
+      relations: ['form201', 'form207', 'initialAssessment'],
+    });
+    if (!emergency) throw new NotFoundException('Emergencia no encontrada.');
+    return { pendingForms: this.getPendingForms(emergency), blockers: findCloseBlockers(emergency) };
   }
 
   /** Formularios abiertos y bloqueos, para el modal de traspaso de mando. */

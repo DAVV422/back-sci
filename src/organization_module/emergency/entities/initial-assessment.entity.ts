@@ -8,7 +8,7 @@ export class InitialAssessmentEntity extends BaseEntity {
     name: 'hazard_type',
     type: 'varchar',
     length: 100,
-    nullable: false,
+    nullable: true,
   })
   hazard_type: string;
 

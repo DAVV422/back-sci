@@ -180,6 +180,8 @@ export class Form201Service {
 
       const form201 = this.form201Repository.create({
         ...createForm201Dto,
+        // Se puede iniciar el 201 vacío y completarlo durante el periodo; se exige al finalizar la emergencia.
+        date: (createForm201Dto.date ?? new Date().toISOString().slice(0, 10)) as any,
         situationMap: normalizeSituationMap(createForm201Dto.situationMap ?? null),
         preparedAt: createForm201Dto.preparedAt ? new Date(createForm201Dto.preparedAt) : new Date(),
         code,

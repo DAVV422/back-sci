@@ -23,19 +23,19 @@ export class CreateForm207Dto {
     example: 'Jane Doe',
   })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(150, { message: '$property: máximo $constraint1 caracteres' })
-  attendant: string;
+  attendant?: string;
 
   @ApiProperty({
     description: 'Date of the form',
     example: '2023-10-27T10:00:00Z',
   })
   @IsDateString()
-  @IsNotEmpty()
+  @IsOptional()
   // string ISO: con enableImplicitConversion un tipo Date convertiría el valor
   // antes de validar y @IsDateString() lo rechazaría siempre.
-  date: string;
+  date?: string;
 
   @ApiProperty({
     example: '01b9bbf4-41a6-4820-abd4-9df61a2d6356',

@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsArray,
-  IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
@@ -13,10 +12,10 @@ export class CreateEmergencyDto {
     type: String,
     description: 'Nombre de la emergencia',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MaxLength(100, { message: '$property: máximo $constraint1 caracteres' })
-  name: string;
+  name?: string;
 
   @ApiProperty({
     example: 'Segundo piso, sector norte',
@@ -33,27 +32,27 @@ export class CreateEmergencyDto {
     type: String,
     description: 'Fecha de la emergencia',
   })
-  @IsNotEmpty()
-  date: Date;
+  @IsOptional()
+  date?: Date;
 
   @ApiProperty({
     example: '14:30',
     type: String,
     description: 'Hora de la emergencia',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  hour: string;
+  hour?: string;
 
   @ApiProperty({
     example: 'Incendio',
     type: String,
     description: 'Tipo de emergencia',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MaxLength(50, { message: '$property: máximo $constraint1 caracteres' })
-  type: string;
+  type?: string;
 
   @ApiProperty({
     example: [-68.15, -16.5],

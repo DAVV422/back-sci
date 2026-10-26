@@ -16,10 +16,10 @@ export class CreateInitialAssessmentDto {
     type: String,
     description: 'Tipo de peligro identificado',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @MaxLength(100, { message: '$property: máximo $constraint1 caracteres' })
-  hazard_type: string;
+  hazard_type?: string;
 
   @ApiProperty({
     example: 'Accidente de tránsito',
@@ -65,9 +65,9 @@ export class CreateInitialAssessmentDto {
     enum: SeverityLevel,
     description: 'Nivel de severidad',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsEnum(SeverityLevel)
-  severity_level: SeverityLevel;
+  severity_level?: SeverityLevel;
 
   @ApiProperty({
     example: 25,
@@ -84,9 +84,9 @@ export class CreateInitialAssessmentDto {
     type: String,
     description: 'Descripción detallada de la situación',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  situation_description: string;
+  situation_description?: string;
 
   @ApiProperty({
     example: 'Viento moderado, lluvia leve',

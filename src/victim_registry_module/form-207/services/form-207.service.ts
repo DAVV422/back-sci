@@ -107,6 +107,9 @@ export class Form207Service {
         ...createForm207Dto,
         // El DTO lo admite vacío (móvil/offline) pero la columna es NOT NULL: antes daba 500.
         placeOfRegistration: createForm207Dto.placeOfRegistration?.trim() || DEFAULT_FORM207_PLACE,
+        // Sin responsable indicado, lo es quien abre la planilla; sin fecha, la de hoy.
+        attendant: createForm207Dto.attendant?.trim() || `${user.name} ${user.lastName}`.trim(),
+        date: createForm207Dto.date ?? new Date().toISOString(),
         code,
         emergency,
         user,

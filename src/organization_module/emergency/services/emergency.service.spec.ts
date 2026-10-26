@@ -267,6 +267,7 @@ describe('EmergencyService', () => {
       code: 'EMG-001',
       name: 'Incendio',
       state,
+      ...forms,
       form201: forms?.form201 ?? [],
       form207: forms?.form207 ?? [],
     });
@@ -371,10 +372,35 @@ describe('EmergencyService', () => {
       expect(mockRepo.save).not.toHaveBeenCalled();
     });
 
+    const complete201 = {
+      id: 'f201-1', code: 'F201-001', isFinalized: true, nature: 'n', thread: 't', affectedArea: 'a', objectives: 'o',
+      strategies: 's', tactics: 'ta', entryRoute: 'e', egressRoute: 'r', communicationsChannel: 'c', safetyMessage: 'm',
+    };
+    const closeData = {
+      type: 'Incendio', location_description: 'Barrio Alto',
+      initialAssessment: { hazard_type: 'Fuego', severity_level: 'Alto', situation_description: 'x' },
+    };
+
+    it('a → f con datos incompletos: 400 que dice qué falta, sin cambiar el estado', async () => {
+      mockRepo.findOne.mockResolvedValue(
+        makeEmergency(EmergencyStatus.Active, {
+          ...closeData,
+          initialAssessment: null,
+          form201: [{ ...complete201, objectives: '' }],
+          form207: [],
+        }),
+      );
+      await expect(
+        service.changeState(emergencyId, { state: EmergencyStatus.Finished } as any, userId, ROLES.BASIC),
+      ).rejects.toThrow('Evaluación inicial: Registrar la evaluación inicial; Formulario 201 F201-001: Objetivos');
+      expect(mockRepo.save).not.toHaveBeenCalled();
+    });
+
     it('a → f con formularios finalizados: transición exitosa', async () => {
       mockRepo.findOne.mockResolvedValue(
         makeEmergency(EmergencyStatus.Active, {
-          form201: [{ id: 'f201-1', isFinalized: true }],
+          ...closeData,
+          form201: [complete201],
           form207: [{ id: 'f207-1', isFinalized: true }],
         }),
       );
