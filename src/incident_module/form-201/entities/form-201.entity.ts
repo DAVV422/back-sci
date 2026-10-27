@@ -1,5 +1,6 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { SituationMap } from '../situation-map';
+import { AffectedAreasMap } from '../affected-areas-map';
 import { BaseEntity } from '../../../common/entities/base.entity';
 import { EmergencyEntity } from '../../../organization_module/emergency/entities/emergency.entity';
 import { UserEntity } from '../../../user/entities/user.entity';
@@ -57,6 +58,10 @@ export class Form201Entity extends BaseEntity {
   /** Casilla 12: mapa de situación dibujado (perímetro y símbolos SCI). Ver `situation-map.ts`. */
   @Column({ name: 'situation_map', type: 'jsonb', nullable: true })
   situationMap?: SituationMap | null;
+
+  /** Mapa de zonas afectadas: recorte, zonas y rutas de ingreso/egreso trazadas. Ver `affected-areas-map.ts`. */
+  @Column({ name: 'affected_areas_map', type: 'jsonb', nullable: true })
+  affectedAreasMap?: AffectedAreasMap | null;
 
   @Column({ name: 'objectives', type: 'text', nullable: true })
   objectives: string;

@@ -22,6 +22,7 @@ import { ROLES } from '../../../common/constants';
 import { RealtimeService } from '../../../notification/services/realtime.service';
 import { IStorageService, StoredObject } from '../../../common/interfaces/storage.interface';
 import { normalizeSituationMap } from '../situation-map';
+import { normalizeAffectedAreasMap } from '../affected-areas-map';
 import { croquisKey, uniqueFileName } from '../../../common/services/storage/storage-keys';
 import { assertImageFile } from '../../../common/services/storage/stored-files';
 
@@ -183,6 +184,7 @@ export class Form201Service {
         // Se puede iniciar el 201 vacío y completarlo durante el periodo; se exige al finalizar la emergencia.
         date: (createForm201Dto.date ?? new Date().toISOString().slice(0, 10)) as any,
         situationMap: normalizeSituationMap(createForm201Dto.situationMap ?? null),
+        affectedAreasMap: normalizeAffectedAreasMap(createForm201Dto.affectedAreasMap ?? null),
         preparedAt: createForm201Dto.preparedAt ? new Date(createForm201Dto.preparedAt) : new Date(),
         code,
         organizationChart: createForm201Dto.organizationChart || { members: organizationChart },
@@ -297,6 +299,7 @@ export class Form201Service {
       const { clientGeneratedId, code, isFinalized, croquisImage, finalizedAt, ...updateData } = updateForm201Dto as any;
       if (updateData.preparedAt) updateData.preparedAt = new Date(updateData.preparedAt);
       if ('situationMap' in updateData) updateData.situationMap = normalizeSituationMap(updateData.situationMap);
+      if ('affectedAreasMap' in updateData) updateData.affectedAreasMap = normalizeAffectedAreasMap(updateData.affectedAreasMap);
       await this.form201Repository.update(id, updateData);
       this.logger.log(`[update] Form201 actualizado exitosamente. id=${id}`);
       this.realtimeService?.notifyEmergency(form201.emergency.id, 'form201', 'update', id);

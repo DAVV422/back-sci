@@ -37,6 +37,14 @@ describe('findCloseBlockers', () => {
     expect(findCloseBlockers(emergency({ form201: [] }))[0].missing).toEqual(['Registrar el Formulario 201']);
   });
 
+  it('las rutas valen escritas o trazadas en el mapa de zonas afectadas', () => {
+    const line = [{ lat: -17.4, lng: -66.17 }, { lat: -17.39, lng: -66.16 }];
+    const drawn = { ...complete201, entryRoute: null, egressRoute: '', affectedAreasMap: { frame: null, zones: [], entryRoute: line, egressRoute: [] } };
+    expect(findCloseBlockers(emergency({ form201: [drawn] }))).toEqual([
+      { section: 'Formulario 201 F201-001', tab: 'form201', missing: ['Ruta de egreso (texto o trazado en el mapa)'] },
+    ]);
+  });
+
   it('el mensaje del 400 dice sección por sección qué falta', () => {
     expect(describeCloseBlockers(findCloseBlockers(emergency({ type: UNCLASSIFIED_TYPE, form201: [] }))))
       .toBe('Para finalizar la emergencia falta completar: Datos de la emergencia: Tipo de emergencia; Formulario 201: Registrar el Formulario 201.');

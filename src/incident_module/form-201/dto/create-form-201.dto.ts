@@ -103,6 +103,16 @@ export class CreateForm201Dto {
   situationMap?: unknown;
 
   @ApiProperty({
+    description:
+      'Mapa de zonas afectadas: { frame: {north,south,east,west} | null, zones: [{id, points: [{lat,lng}], label?}], ' +
+      'entryRoute: [{lat,lng}], egressRoute: [{lat,lng}] }. Los textos de las rutas quedan como complemento. null lo borra.',
+    required: false,
+    nullable: true,
+  })
+  @IsOptional()
+  affectedAreasMap?: unknown;
+
+  @ApiProperty({
     example: '1. Rescatar atrapados. 2. Controlar derrame.',
     description: 'Objetivos',
   })

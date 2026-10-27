@@ -1,4 +1,5 @@
 import { EmergencyEntity } from './entities/emergency.entity';
+import { hasRoute } from '../../incident_module/form-201/affected-areas-map';
 
 /** Tipo que toma una emergencia registrada sin tipo; al finalizarla se pide uno real. */
 export const UNCLASSIFIED_TYPE = 'Sin clasificar';
@@ -23,8 +24,6 @@ const FORM201_FIELDS: readonly [string, string][] = [
   ['objectives', 'Objetivos'],
   ['strategies', 'Estrategias'],
   ['tactics', 'Tácticas'],
-  ['entryRoute', 'Ruta de ingreso'],
-  ['egressRoute', 'Ruta de egreso'],
   ['communicationsChannel', 'Canales de comunicación'],
   ['safetyMessage', 'Mensaje de seguridad'],
 ];
@@ -60,6 +59,9 @@ export function findCloseBlockers(emergency: EmergencyEntity): CloseBlocker[] {
   }
   for (const form of forms) {
     const missing = FORM201_FIELDS.filter(([key]) => blank((form as unknown as Record<string, unknown>)[key])).map(([, label]) => label);
+    // Las rutas valen escritas o trazadas en el mapa de zonas afectadas.
+    if (!hasRoute(form.entryRoute, form.affectedAreasMap, 'entryRoute')) missing.push('Ruta de ingreso (texto o trazado en el mapa)');
+    if (!hasRoute(form.egressRoute, form.affectedAreasMap, 'egressRoute')) missing.push('Ruta de egreso (texto o trazado en el mapa)');
     if (missing.length) blockers.push({ section: `Formulario 201 ${form.code}`, tab: 'form201', missing });
   }
   return blockers;
