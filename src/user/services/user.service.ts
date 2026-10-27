@@ -430,6 +430,9 @@ export class UserService {
         ...(updateProfileDto.urlImage !== undefined && {
           urlImage: updateProfileDto.urlImage,
         }),
+        ...(updateProfileDto.mapType !== undefined && {
+          mapType: updateProfileDto.mapType,
+        }),
       };
 
       if (file) {

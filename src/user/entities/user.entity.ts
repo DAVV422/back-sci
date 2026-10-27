@@ -2,6 +2,7 @@ import { Column, Entity, OneToMany } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { ROLES } from '../../common/constants';
+import { MAP_TYPES, MapType } from '../map-type';
 import { EmergencyEntity } from '../../organization_module/emergency/entities/emergency.entity';
 import { AttendEntity } from '../../organization_module/attends/entities/attends.entity';
 import { RefreshTokenEntity } from '../../auth/entities/refresh-token.entity';
@@ -54,6 +55,10 @@ export class UserEntity extends BaseEntity {
     default: ROLES.BASIC,
   })
   role: ROLES;
+
+  /** Preferencia del usuario: vista con la que abren los mapas (mapa normal o satelital). */
+  @Column({ name: 'map_type', type: 'enum', enum: MAP_TYPES, default: 'roadmap' })
+  mapType: MapType;
 
   @Exclude()
   createdAt: Date;

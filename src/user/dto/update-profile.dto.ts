@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { MAP_TYPES, MapType } from '../map-type';
 
 export class UpdateProfileDto {
   @ApiProperty({
@@ -53,5 +54,15 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   urlImage?: string;
+
+  @ApiProperty({
+    example: 'roadmap',
+    enum: MAP_TYPES,
+    description: 'Vista con la que abren los mapas: mapa normal (roadmap) o satelital (hybrid)',
+    required: false,
+  })
+  @IsOptional()
+  @IsIn(MAP_TYPES)
+  mapType?: MapType;
 }
 

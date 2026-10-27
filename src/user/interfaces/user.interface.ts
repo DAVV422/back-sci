@@ -12,4 +12,5 @@ export interface IUser {
   isOperational: boolean;
   isDeleted: boolean;
   role: string;
+  mapType: string;
 }

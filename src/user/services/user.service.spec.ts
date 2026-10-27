@@ -9,6 +9,9 @@ import { EmailService } from '../../common/services/email.service';
 import { AuthTokenService } from '../../auth/services/auth-token.service';
 import { ConfigService } from '@nestjs/config';
 import { ROLES } from '../../common/constants';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { UpdateProfileDto } from '../dto';
 
 const mockStorageService = {
   saveFile: jest.fn().mockResolvedValue('/api/user/image/profile_123.png'),
@@ -321,6 +324,21 @@ describe('UserService - updateProfile', () => {
       name: 'Nuevo',
       cellphone: '67303349',
     });
+  });
+
+  it('saves the map type preference', async () => {
+    jest.spyOn(service, 'findOne').mockResolvedValue({ id: 'uuid' } as UserEntity);
+    mockRepo.update.mockResolvedValue({ affected: 1 });
+
+    await service.updateProfile('uuid', { mapType: 'hybrid' });
+
+    expect(mockRepo.update).toHaveBeenCalledWith('uuid', { mapType: 'hybrid' });
+  });
+
+  it('rejects an unknown map type in the DTO', async () => {
+    const errors = await validate(plainToInstance(UpdateProfileDto, { mapType: 'terrain' }));
+    expect(errors.map(e => e.property)).toEqual(['mapType']);
+    expect(await validate(plainToInstance(UpdateProfileDto, { mapType: 'roadmap' }))).toEqual([]);
   });
 
   it('never passes role, email, password or is_active to the repository', async () => {
