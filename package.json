@@ -22,6 +22,7 @@
     "migration:generate": "npm run typeorm -- migration:generate",
     "migration:create": "typeorm migration:create",
     "migration:run": "npm run typeorm -- migration:run",
+    "seed:demo": "node scripts/seed-demo.mjs",
     "migration:revert": "npm run typeorm -- migration:revert",
     "migration:show": "npm run typeorm -- migration:show"
   },
