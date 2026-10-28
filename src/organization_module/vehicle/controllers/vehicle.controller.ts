@@ -8,7 +8,7 @@ import { ApiResponse } from '../../../common/interfaces/responseMessage.interfac
 import { VehicleService, VehicleWithDispatch } from '../services/vehicle.service';
 import { VehicleEntity } from '../entities/vehicle.entity';
 import { VehicleDispatchEntity } from '../entities/vehicle-dispatch.entity';
-import { CreateVehicleDto, DispatchVehicleDto, ReturnVehicleDto, UpdateVehicleDto } from '../dto/vehicle.dto';
+import { AddVehicleItemsDto, CreateVehicleDto, DispatchVehicleDto, ReturnVehicleDto, UpdateVehicleDto } from '../dto/vehicle.dto';
 
 @ApiTags('Vehicle')
 @ApiBearerAuth()
@@ -44,6 +44,13 @@ export class VehicleController {
   }
 
   @ApiParam({ name: 'emergencyId', type: 'string' })
+  @Get('emergency/:emergencyId/vehicle')
+  @ApiOperation({ summary: 'Vehículos despachados a la emergencia (activos y devueltos)' })
+  async findDispatches(@Param('emergencyId', ParseUUIDPipe) emergencyId: string): Promise<ApiResponse<VehicleDispatchEntity[]>> {
+    return { success: true, statusCode: 200, data: await this.vehicleService.findDispatchesByEmergency(emergencyId) };
+  }
+
+  @ApiParam({ name: 'emergencyId', type: 'string' })
   @Post('emergency/:emergencyId/vehicle')
   @ApiOperation({ summary: 'Despachar un vehículo con su equipo a la emergencia' })
   async dispatch(
@@ -53,6 +60,18 @@ export class VehicleController {
     @GetUser('role') userRole: string,
   ): Promise<ApiResponse<VehicleDispatchEntity>> {
     return { success: true, statusCode: 201, data: await this.vehicleService.dispatch(emergencyId, dto, userId, userRole) };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
+  @Post('vehicle-dispatch/:id/items')
+  @ApiOperation({ summary: 'Agregar equipo a bordo de un vehículo despachado' })
+  async addItems(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddVehicleItemsDto,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
+  ): Promise<ApiResponse<VehicleDispatchEntity>> {
+    return { success: true, statusCode: 201, data: await this.vehicleService.addItems(id, dto, userId, userRole) };
   }
 
   @ApiParam({ name: 'id', type: 'string' })

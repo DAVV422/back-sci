@@ -17,6 +17,7 @@ import { VehicleEntity } from '../entities/vehicle.entity';
 import { VehicleLoadItemEntity } from '../entities/vehicle-load-item.entity';
 import { VehicleDispatchEntity } from '../entities/vehicle-dispatch.entity';
 import {
+  AddVehicleItemsDto,
   CreateVehicleDto,
   DispatchVehicleDto,
   ReturnVehicleDto,
@@ -70,6 +71,22 @@ export class VehicleService {
         return Object.assign(v, {
           activeDispatch: d ? { id: d.id, emergency: { id: d.emergency.id, code: d.emergency.code, name: d.emergency.name } } : null,
         });
+      });
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
+  /**
+   * Vehículos despachados a la emergencia (activos y devueltos), aunque no lleven equipo: sin esto,
+   * uno despachado sin carga no se vería en la emergencia y no se podría devolver.
+   */
+  async findDispatchesByEmergency(emergencyId: string): Promise<VehicleDispatchEntity[]> {
+    try {
+      return await this.dispatchRepository.find({
+        where: { emergency: { id: emergencyId }, isDeleted: false },
+        relations: ['vehicle'],
+        order: { createdAt: 'ASC' },
       });
     } catch (error) {
       handlerError(error, this.logger);
@@ -201,6 +218,51 @@ export class VehicleService {
           // Otro usuario lo despachó al mismo tiempo: el índice único parcial lo impide.
           throw new ConflictException(`${vehicle.code} ya fue despachado a otra emergencia.`);
         }
+        throw error;
+      }
+    } catch (error) {
+      handlerError(error, this.logger);
+    } finally {
+      if (queryRunner.isReleased === false) await queryRunner.release();
+    }
+  }
+
+  /**
+   * Más equipo a bordo de un vehículo que sigue en la emergencia (se pidió después o faltó al
+   * despacharlo). Lo que ya lleva suma a su línea; descuenta del inventario como cualquier despacho.
+   */
+  async addItems(dispatchId: string, dto: AddVehicleItemsDto, userId: string, userRole?: string): Promise<VehicleDispatchEntity> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    try {
+      const dispatch = await this.dispatchRepository.findOne({
+        where: { id: dispatchId, isDeleted: false },
+        relations: ['vehicle', 'emergency', 'resources', 'resources.equipment'],
+      });
+      if (!dispatch) throw new NotFoundException('Despacho de vehículo no encontrado.');
+      if (dispatch.returnedAt) throw new BadRequestException(`${dispatch.vehicle.code} ya fue devuelto.`);
+      await this.resourceService.assertCanDispatch(dispatch.emergency.id, userId, userRole);
+
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const added = await this.resourceService.dispatchWithin(queryRunner.manager, dispatch.emergency.id, dto.items, {
+          note: `A bordo de ${dispatch.vehicle.code}`,
+          vehicleDispatchId: dispatch.id,
+          existing: dispatch.resources ?? [],
+        });
+        await this.resourceService.logAction(
+          queryRunner.manager,
+          dispatch.emergency.id,
+          userId,
+          `Equipo agregado a ${dispatch.vehicle.code}: ${added.map((r) => `${r.equipment.name} x${r.amount}`).join(', ')}`,
+        );
+        await queryRunner.commitTransaction();
+        return await this.dispatchRepository.findOne({
+          where: { id: dispatch.id },
+          relations: ['vehicle', 'emergency', 'resources', 'resources.equipment'],
+        });
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
         throw error;
       }
     } catch (error) {

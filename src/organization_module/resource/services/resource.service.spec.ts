@@ -476,6 +476,68 @@ describe('ResourceService', () => {
     });
   });
 
+  describe('correctAmount - corrección de lo despachado', () => {
+    const dispatched = () => ({
+      id: 'res-1',
+      amount: 5,
+      amount_returned: 2,
+      isDeleted: false,
+      emergency: { id: 'emg-1', state: EmergencyStatus.Active },
+      equipment: { id: 'eq-1', name: 'Casco' },
+    });
+
+    beforeEach(() => {
+      mockResourceRepo.findOne.mockResolvedValue(dispatched());
+      mockManager.findOne.mockResolvedValue({ id: 'eq-1', name: 'Casco', availableQuantity: 4, totalQuantity: 20 });
+    });
+
+    it('al subir la cantidad descuenta la diferencia del inventario y lo anota', async () => {
+      await service.correctAmount('res-1', 8, 'user-1', 'basic');
+      expect(mockManager.save).toHaveBeenCalledWith(expect.objectContaining({ id: 'eq-1', availableQuantity: 1 }));
+      expect(mockManager.save).toHaveBeenCalledWith(expect.objectContaining({ id: 'res-1', amount: 8 }));
+      expect(mockManager.create).toHaveBeenCalledWith(
+        ActionEntity,
+        expect.objectContaining({ description: 'Corrección de despacho: Casco de 5 a 8' }),
+      );
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+    });
+
+    it('al bajarla reincorpora la diferencia', async () => {
+      await service.correctAmount('res-1', 3, 'user-1', 'basic');
+      expect(mockManager.save).toHaveBeenCalledWith(expect.objectContaining({ id: 'eq-1', availableQuantity: 6 }));
+    });
+
+    it('no baja de lo ya devuelto ni pide más de lo disponible', async () => {
+      await expect(service.correctAmount('res-1', 1, 'user-1', 'basic')).rejects.toThrow('Ya se devolvieron 2');
+      await expect(service.correctAmount('res-1', 10, 'user-1', 'basic')).rejects.toThrow('hay 4 disponibles');
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+    });
+
+    it('exige CI o manager+ y la emergencia abierta', async () => {
+      mockEmergencyAccessService.assertCommanderOrManager.mockRejectedValueOnce(new ForbiddenException('sin permiso'));
+      await expect(service.correctAmount('res-1', 6, 'user-1', 'basic')).rejects.toThrow(ForbiddenException);
+      mockEmergencyService.assertEditable.mockImplementationOnce(() => {
+        throw new BadRequestException('cerrada');
+      });
+      await expect(service.correctAmount('res-1', 6, 'user-1', 'basic')).rejects.toThrow(BadRequestException);
+      expect(mockManager.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('dispatchWithin - equipo que ya va a bordo', () => {
+    it('suma a la línea existente del vehículo en vez de crear otra', async () => {
+      mockManager.findOne.mockResolvedValue({ id: 'eq-1', name: 'Casco', availableQuantity: 10, totalQuantity: 20 });
+      const aboard = { id: 'res-9', amount: 2, isDeleted: false, equipment: { id: 'eq-1' } } as any;
+      const [added] = await service.dispatchWithin(mockManager, 'emg-1', [{ equipmentId: 'eq-1', amount: 3 }], {
+        vehicleDispatchId: 'disp-1',
+        existing: [aboard],
+      });
+      expect(mockManager.save).toHaveBeenCalledWith(expect.objectContaining({ id: 'res-9', amount: 5 }));
+      expect(mockManager.create).not.toHaveBeenCalledWith(ResourceEntity, expect.anything());
+      expect(added.amount).toBe(3);
+    });
+  });
+
   describe('findByEmergencyId - excluye recursos soft-deleted (F1-012)', () => {
     it('filtra por isDeleted: false', async () => {
       mockEmergencyService.findOne.mockResolvedValue({ id: 'emg-1' });

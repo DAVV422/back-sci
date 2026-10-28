@@ -19,7 +19,7 @@ import { ApiResponse } from '../../../common/interfaces/responseMessage.interfac
 import { AuthGuard, RolesGuard } from '../../../auth/guards';
 import { GetUser } from '../../../auth/decorators';
 import { ResourceEntity } from '../entities/resource.entity';
-import { ReturnResourceDto } from '../dto/return-resource.dto';
+import { CorrectResourceDto, ReturnResourceDto } from '../dto/return-resource.dto';
 import { CreateResourceBatchDto } from '../dto/create-resource-batch.dto';
 
 @ApiTags('Resource')
@@ -88,6 +88,21 @@ export class ResourceController {
         userId,
         userRole,
       ),
+    };
+  }
+
+  @ApiParam({ name: 'id', type: 'string' })
+  @Patch(':id/amount')
+  public async correctAmount(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CorrectResourceDto,
+    @GetUser('id') userId: string,
+    @GetUser('role') userRole: string,
+  ): Promise<ApiResponse<ResourceEntity>> {
+    return {
+      success: true,
+      statusCode: 200,
+      data: await this.resourceService.correctAmount(id, dto.amount, userId, userRole),
     };
   }
 

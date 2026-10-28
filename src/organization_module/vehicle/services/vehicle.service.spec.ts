@@ -97,6 +97,37 @@ describe('VehicleService', () => {
     });
   });
 
+  it('lista los vehículos despachados a la emergencia aunque no lleven equipo', async () => {
+    dispatchRepo.find.mockResolvedValue([{ id: 'disp-1', vehicle: { code: 'AB-3' }, returnedAt: null }]);
+    const list = await service.findDispatchesByEmergency('emg-1');
+    expect(dispatchRepo.find).toHaveBeenCalledWith(expect.objectContaining({ where: { emergency: { id: 'emg-1' }, isDeleted: false } }));
+    expect(list.map((d) => d.id)).toEqual(['disp-1']);
+  });
+
+  describe('addItems', () => {
+    const resources = [{ id: 'res-1', amount: 2, amount_returned: 0, isDeleted: false, equipment: { id: 'eq-1', name: 'Motobomba' } }];
+    beforeEach(() => {
+      dispatchRepo.findOne.mockResolvedValue({ id: 'disp-1', vehicle: { code: 'AB-3' }, emergency: { id: 'emg-1' }, resources, returnedAt: null });
+    });
+
+    it('agrega equipo a bordo de un vehículo que sigue en la emergencia, sumando a lo que ya lleva', async () => {
+      await service.addItems('disp-1', { items: [{ equipmentId: 'eq-1', amount: 2 }] }, 'user-1', 'basic');
+      expect(resourceService.assertCanDispatch).toHaveBeenCalledWith('emg-1', 'user-1', 'basic');
+      expect(resourceService.dispatchWithin).toHaveBeenCalledWith(
+        manager, 'emg-1', [{ equipmentId: 'eq-1', amount: 2 }],
+        { note: 'A bordo de AB-3', vehicleDispatchId: 'disp-1', existing: resources },
+      );
+      expect(resourceService.logAction).toHaveBeenCalledWith(manager, 'emg-1', 'user-1', 'Equipo agregado a AB-3: Motobomba x2');
+      expect(queryRunner.commitTransaction).toHaveBeenCalled();
+    });
+
+    it('no agrega a un vehículo ya devuelto', async () => {
+      dispatchRepo.findOne.mockResolvedValue({ id: 'disp-1', vehicle: { code: 'AB-3' }, emergency: { id: 'emg-1' }, resources, returnedAt: new Date() });
+      await expect(service.addItems('disp-1', { items: [{ equipmentId: 'eq-1', amount: 1 }] }, 'user-1')).rejects.toThrow('AB-3 ya fue devuelto.');
+      expect(resourceService.dispatchWithin).not.toHaveBeenCalled();
+    });
+  });
+
   describe('returnVehicle', () => {
     const resources = [
       { id: 'res-1', amount: 2, amount_returned: 0, isDeleted: false, equipment: { name: 'Motobomba' } },

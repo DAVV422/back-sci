@@ -131,13 +131,14 @@ export class ResourceService {
   /**
    * Descuenta el stock y crea los registros de despacho dentro de una transacción abierta. Bloquea
    * cada equipo (`FOR UPDATE`) y valida lo disponible en ese momento; un mismo equipo repetido se
-   * suma. Lo usan el despacho suelto y el de un vehículo con su carga.
+   * suma. Lo usan el despacho suelto y el de un vehículo con su carga. Con `existing` (lo que ya
+   * va a bordo de ese vehículo), un equipo que ya lleva suma a su línea en vez de crear otra.
    */
   public async dispatchWithin(
     manager: EntityManager,
     emergencyId: string,
     items: readonly DispatchItem[],
-    options: { note?: string | null; vehicleDispatchId?: string } = {},
+    options: { note?: string | null; vehicleDispatchId?: string; existing?: readonly ResourceEntity[] } = {},
   ): Promise<ResourceEntity[]> {
     const merged = new Map<string, number>();
     for (const item of items) {
@@ -159,6 +160,14 @@ export class ResourceService {
       }
       locked.availableQuantity -= amount;
       await manager.save(locked);
+      const aboard = options.existing?.find((r) => !r.isDeleted && r.equipment?.id === equipmentId);
+      if (aboard) {
+        aboard.amount += amount;
+        await manager.save(aboard);
+        // Lo devuelto describe lo agregado ahora (para la bitácora), no el total a bordo.
+        saved.push({ ...aboard, equipment: locked, amount } as ResourceEntity);
+        continue;
+      }
       const resource = await manager.save(
         manager.create(ResourceEntity, {
           amount,
@@ -253,6 +262,73 @@ export class ResourceService {
     await manager.save(lockedEquipment);
     resource.amount_returned = (resource.amount_returned ?? 0) + amountReturned;
     await manager.save(resource);
+  }
+
+  /**
+   * Corrige las unidades despachadas (se cargó de más o de menos): el inventario se ajusta por la
+   * diferencia y queda en la bitácora. No puede quedar por debajo de lo ya devuelto.
+   */
+  public async correctAmount(
+    id: string,
+    amount: number,
+    userId: string,
+    userRole?: string,
+  ): Promise<ResourceEntity> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    try {
+      const resource = await this.findOne(id);
+      this.emergencyService.assertEditable(resource.emergency);
+      if (userRole) {
+        await this.emergencyAccessService.assertCommanderOrManager(
+          resource.emergency.id,
+          userId,
+          userRole,
+          'Solo el Comandante del Incidente o un usuario con rol Manager o superior puede corregir un despacho.',
+        );
+      }
+      const returned = resource.amount_returned ?? 0;
+      if (amount < returned) {
+        throw new BadRequestException(`Ya se devolvieron ${returned}: la cantidad no puede ser menor.`);
+      }
+      const delta = amount - resource.amount;
+      if (delta === 0) return resource;
+
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        const locked = await queryRunner.manager.findOne(EquipmentEntity, {
+          where: { id: resource.equipment.id, isDeleted: false },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!locked) throw new NotFoundException('Equipment not found.');
+        if (delta > locked.availableQuantity) {
+          throw new BadRequestException(`${locked.name}: hay ${locked.availableQuantity} disponibles, no alcanza para ${delta} más.`);
+        }
+        if (locked.availableQuantity - delta > locked.totalQuantity) {
+          throw new BadRequestException('La corrección supera la cantidad total del equipo.');
+        }
+        locked.availableQuantity -= delta;
+        await queryRunner.manager.save(locked);
+        const before = resource.amount;
+        resource.amount = amount;
+        await queryRunner.manager.save(resource);
+        await this.logAction(
+          queryRunner.manager,
+          resource.emergency.id,
+          userId,
+          `Corrección de despacho: ${resource.equipment.name} de ${before} a ${amount}`,
+        );
+        await queryRunner.commitTransaction();
+        return await this.findOne(id);
+      } catch (error) {
+        await queryRunner.rollbackTransaction();
+        throw error;
+      }
+    } catch (error) {
+      handlerError(error, this.logger);
+    } finally {
+      if (queryRunner.isReleased === false) await queryRunner.release();
+    }
   }
 
   public async update(

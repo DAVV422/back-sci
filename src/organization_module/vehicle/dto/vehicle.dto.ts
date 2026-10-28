@@ -104,6 +104,16 @@ export class DispatchVehicleDto {
   note?: string;
 }
 
+/** `POST /vehicle-dispatch/:id/items`: más equipo a bordo de un vehículo que sigue en la emergencia. */
+export class AddVehicleItemsDto {
+  @ApiProperty({ type: [DispatchVehicleItemDto] })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => DispatchVehicleItemDto)
+  items: DispatchVehicleItemDto[];
+}
+
 export class ReturnVehicleItemDto {
   @ApiProperty({ example: '01b9bbf4-41a6-4820-abd4-9df61a2d6356' })
   @IsUUID()
