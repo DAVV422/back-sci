@@ -33,6 +33,7 @@ export function uniqueFileName(prefix: string, originalName: string | undefined,
 // --- Carpetas de cada tipo de archivo. Coinciden con la estructura ya existente en `data/`. ---
 
 export const PROFILE_FOLDER = ['uploads', 'profiles'] as const;
+export const BRANDING_FOLDER = ['uploads', 'branding'] as const;
 export const CROQUIS_FOLDER = ['uploads', 'croquis'] as const;
 export const AUDIO_FOLDER = 'audios';
 
@@ -40,6 +41,8 @@ export const AUDIO_FOLDER = 'audios';
 export const profileImageUrl = (fileName: string) => `/api/user/image/${fileName}`;
 export const profileKey = (fileName: string) => storageKey(...PROFILE_FOLDER, path.basename(fileName ?? ''));
 export const croquisKey = (fileName: string) => storageKey(...CROQUIS_FOLDER, fileName);
+/** Logo de la institución: `uploads/branding/logo_<uuid>.png`. */
+export const brandingKey = (fileName: string) => storageKey(...BRANDING_FOLDER, path.basename(fileName ?? ''));
 export const audioKey = (userId: string, emergencyId: string, fileName: string) =>
   storageKey(AUDIO_FOLDER, userId, emergencyId, fileName);
 

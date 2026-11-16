@@ -1,0 +1,119 @@
+# Una copia del SCI por institución, todas en el mismo servidor y sin tocarse entre sí:
+# cada una con su base, su carpeta de archivos, sus secretos y su puerto. Comparten solo la
+# imagen de la API y los archivos estáticos de la web (compilados con rutas relativas).
+#
+# El proxy es el Caddy que ya corre en el servidor; ver caddy/sci.caddy.
+name: sci
+
+x-api: &api
+  image: sci-api:latest
+  restart: unless-stopped
+  depends_on:
+    postgres:
+      condition: service_healthy
+  environment: &api-env
+    APP_PROD: "true"
+    PORT: "3000"
+    DB_HOST: postgres
+    DB_PORT: "5432"
+    DB_SSL: "false"
+    DB_MIGRATIONS_RUN: "true"
+    APP_TIMEZONE: America/La_Paz
+    TRUST_PROXY: "1"
+    SWAGGER_ENABLED: "false"
+    REQUIRE_EMAIL_ACTIVATION: "false"
+    STORAGE_LOCAL_ROOT: /app/data
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}
+      # Las bases y los roles de cada institución los crea postgres-init.sh la primera vez.
+      DEMO_PASSWORD: ${DEMO_DB_PASSWORD:?}
+      TEST_PASSWORD: ${TEST_DB_PASSWORD:?}
+      FRU_PASSWORD: ${FRU_DB_PASSWORD:?}
+    volumes:
+      - ./datos/postgres:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/10-sci.sh:ro
+    # Solo desde el servidor (o por un túnel SSH): nunca desde internet.
+    ports:
+      - "127.0.0.1:5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api-demo:
+    <<: *api
+    environment:
+      <<: *api-env
+      DB_DATABASE: sci_demo
+      DB_USERNAME: sci_demo
+      DB_PASSWORD: ${DEMO_DB_PASSWORD:?}
+      INSTITUTION_NAME: ${DEMO_INSTITUTION_NAME:-Cuerpo de Bomberos Demostración}
+      INSTITUTION_SHORT_NAME: ${DEMO_INSTITUTION_SHORT_NAME:-DEMO}
+      APP_URL: https://demo.emerg-ia.com
+      FRONTEND_URL: https://demo.emerg-ia.com
+      CORS_ORIGINS: https://demo.emerg-ia.com
+      JWT_AUTH: ${DEMO_JWT_AUTH:?}
+      JWT_RECOVERY: ${DEMO_JWT_RECOVERY:?}
+      JWT_REFRESH_SECRET: ${DEMO_JWT_REFRESH:?}
+      ADMIN_EMAIL: ${DEMO_ADMIN_EMAIL:?}
+      ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:?}
+      ADMIN_NAME: ${DEMO_ADMIN_NAME:-Administrador}
+      ADMIN_LAST_NAME: ${DEMO_ADMIN_LAST_NAME:-Demostración}
+    volumes:
+      - ./datos/demo:/app/data
+    ports:
+      - "127.0.0.1:3001:3000"
+
+  api-test:
+    <<: *api
+    environment:
+      <<: *api-env
+      DB_DATABASE: sci_test
+      DB_USERNAME: sci_test
+      DB_PASSWORD: ${TEST_DB_PASSWORD:?}
+      INSTITUTION_NAME: ${TEST_INSTITUTION_NAME:-Unidad de Emergencias Las Palmas}
+      INSTITUTION_SHORT_NAME: ${TEST_INSTITUTION_SHORT_NAME:-UELP}
+      APP_URL: https://test.emerg-ia.com
+      FRONTEND_URL: https://test.emerg-ia.com
+      CORS_ORIGINS: https://test.emerg-ia.com
+      JWT_AUTH: ${TEST_JWT_AUTH:?}
+      JWT_RECOVERY: ${TEST_JWT_RECOVERY:?}
+      JWT_REFRESH_SECRET: ${TEST_JWT_REFRESH:?}
+      ADMIN_EMAIL: ${TEST_ADMIN_EMAIL:?}
+      ADMIN_PASSWORD: ${TEST_ADMIN_PASSWORD:?}
+      ADMIN_NAME: ${TEST_ADMIN_NAME:-Administrador}
+      ADMIN_LAST_NAME: ${TEST_ADMIN_LAST_NAME:-Pruebas}
+    volumes:
+      - ./datos/test:/app/data
+    ports:
+      - "127.0.0.1:3002:3000"
+
+  api-fru:
+    <<: *api
+    environment:
+      <<: *api-env
+      DB_DATABASE: sci_fru
+      DB_USERNAME: sci_fru
+      DB_PASSWORD: ${FRU_DB_PASSWORD:?}
+      INSTITUTION_NAME: ${FRU_INSTITUTION_NAME:-Fundación Rescate Urbano}
+      INSTITUTION_SHORT_NAME: ${FRU_INSTITUTION_SHORT_NAME:-FRU}
+      APP_URL: https://fru.emerg-ia.com
+      FRONTEND_URL: https://fru.emerg-ia.com
+      CORS_ORIGINS: https://fru.emerg-ia.com
+      JWT_AUTH: ${FRU_JWT_AUTH:?}
+      JWT_RECOVERY: ${FRU_JWT_RECOVERY:?}
+      JWT_REFRESH_SECRET: ${FRU_JWT_REFRESH:?}
+      ADMIN_EMAIL: ${FRU_ADMIN_EMAIL:?}
+      ADMIN_PASSWORD: ${FRU_ADMIN_PASSWORD:?}
+      ADMIN_NAME: ${FRU_ADMIN_NAME:-Administrador}
+      ADMIN_LAST_NAME: ${FRU_ADMIN_LAST_NAME:-FRU}
+    volumes:
+      - ./datos/fru:/app/data
+    ports:
+      - "127.0.0.1:3003:3000"

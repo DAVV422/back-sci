@@ -25,6 +25,7 @@ import { VictimModule } from './victim_registry_module/victim/victim.module';
 import { RegistrationModule } from './victim_registry_module/registration/registration.module';
 import { HealthFacilityModule } from './victim_registry_module/health-facility/health-facility.module';
 import { NotificationModule } from './notification/notification.module';
+import { InstitutionModule } from './institution/institution.module';
 import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
 
 @Module({
@@ -56,6 +57,7 @@ import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
     RegistrationModule,
     HealthFacilityModule,
     NotificationModule,
+    InstitutionModule,
   ],
   providers: [
     {
