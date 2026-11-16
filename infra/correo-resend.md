@@ -44,28 +44,37 @@ para verla.
 El DNS de `emerg-ia.com` lo sirve tu registrador (`*.orderbox-dns.com`), el mismo panel donde
 pusiste los registros A de `demo`, `test` y `fru`. Los campos que te pide se corresponden así:
 
+**Los valores los copias de Resend, no de aquí.** Son únicos de tu dominio, y Resend tiene dos
+formas de pedir el retorno (`send`): un **CNAME** o un par **TXT + MX**. Según la cuenta y la fecha te
+toca una u otra, así que la tabla de abajo es la forma de los nombres, no los valores.
+
+Esto es lo que quedó configurado para `mail.emerg-ia.com` (la forma con CNAME, que es la que Resend
+entrega hoy):
+
 | Nombre del host | Tipo de registro | Dirección / Valor | Prioridad |
 |---|---|---|---|
-| `resend._domainkey.mail` | TXT | `p=MIGfMA0G…` ← **cópialo de Resend, es único** | — |
-| `send.mail` | TXT | `v=spf1 include:amazonses.com ~all` | — |
-| `send.mail` | MX | `feedback-smtp.sa-east-1.amazonses.com` | `10` |
-| `_dmarc` | TXT | `v=DMARC1; p=none; rua=mailto:TU-CORREO` | — |
+| `resend._domainkey.mail` | TXT | `p=MIGfMA0G…` ← la clave pública del DKIM | — |
+| `send.mail` | CNAME | `send.forge.rmta.net` | — |
+| `_dmarc` | TXT | `v=DMARC1; p=none;` | — |
 
-Ojo con el detalle que más se falla aquí: **el nombre del host va sin el dominio**. Resend te muestra
-los nombres completos (`send.mail.emerg-ia.com`), pero en tu panel tienes que escribir solo
-`send.mail`, igual que escribiste `demo` y no `demo.emerg-ia.com`. El panel le añade el dominio solo.
+Si a ti Resend te muestra en cambio un **TXT con `v=spf1 include:…`** y un **MX con prioridad 10**,
+los dos van en `send.mail` y sustituyen al CNAME. Es la forma antigua y funciona igual.
+
+Ojo con el detalle que más se falla: **el nombre del host va sin el dominio**. Resend te muestra los
+nombres completos (`send.mail.emerg-ia.com`), pero en tu panel tienes que escribir solo `send.mail`,
+igual que escribiste `demo` y no `demo.emerg-ia.com`. El panel le añade el dominio solo.
 
 Lo demás que hace fallar la verificación:
 
-- **El MX de `send.mail` debe ser de la región que elegiste.** Si elegiste São Paulo es `sa-east-1`;
-  el valor exacto lo muestra Resend. Todos los MX tienen que apuntar a la misma región, o la
-  verificación da el error `multiple-regions`.
-- Si el panel te añade el dominio al final del valor del MX (te queda
-  `feedback-smtp.sa-east-1.amazonses.com.emerg-ia.com`), **pon un punto al final**:
-  `feedback-smtp.sa-east-1.amazonses.com.` Ese punto significa "este nombre está completo, no lo
-  toques".
+- **El CNAME no puede ir con proxy.** Si algún día pones el dominio detrás de Cloudflare, ese
+  registro tiene que quedar en gris (DNS only), no en naranja, o la verificación no termina.
+- Si el panel te añade el dominio al final del valor (te queda
+  `send.forge.rmta.net.emerg-ia.com`), **pon un punto al final**: `send.forge.rmta.net.` Ese punto
+  significa "este nombre está completo, no lo toques".
 - El **DKIM es largo** (más de 255 caracteres). Si el panel lo rechaza por longitud, busca si
   permite partirlo en trozos entre comillas; casi todos lo hacen solos.
+- Con la forma antigua (TXT + MX), todos los MX tienen que apuntar a la misma región o la
+  verificación da el error `multiple-regions`.
 
 ### Por qué el DMARC va en la raíz y no en `mail`
 
@@ -84,11 +93,13 @@ el TTL del dominio, que hoy está en 10 h 40 min, así que si cambias un registr
 demorar. Para comprobar desde tu máquina sin esperar al panel:
 
 ```bash
-nslookup -type=TXT resend._domainkey.mail.emerg-ia.com 8.8.8.8
-nslookup -type=TXT send.mail.emerg-ia.com 8.8.8.8
-nslookup -type=MX  send.mail.emerg-ia.com 8.8.8.8
-nslookup -type=TXT _dmarc.emerg-ia.com 8.8.8.8
+nslookup -type=TXT   resend._domainkey.mail.emerg-ia.com 8.8.8.8
+nslookup -type=CNAME send.mail.emerg-ia.com 8.8.8.8
+nslookup -type=TXT   _dmarc.emerg-ia.com 8.8.8.8
 ```
+
+El del DKIM debe devolver una línea larga que empieza por `p=`, y el de `send.mail` un
+`canonical name = send.forge.rmta.net` (o, con la forma antigua, un TXT de SPF y un MX).
 
 Si eso ya responde y Resend sigue diciendo que no, es el panel que aún no reintentó: dale otra vez.
 
@@ -184,7 +195,8 @@ Si alguna vez se usa para avisos masivos, ahí sí se queda corto.
 | `The domain is not verified` | Falta terminar el paso 3, o el remitente es `@emerg-ia.com` en vez de `@mail.emerg-ia.com` |
 | El dominio no verifica aunque `nslookup` ya responde | El panel de Resend no reintentó: pulsa *Verify* de nuevo |
 | El `nslookup` no devuelve nada | El nombre del host quedó duplicado: mira si en el panel aparece `send.mail.emerg-ia.com.emerg-ia.com` |
-| `multiple-regions` al verificar | Hay MX de dos regiones distintas. Todos tienen que ser de la misma |
+| El CNAME existe pero Resend no lo ve | Está con proxy (naranja en Cloudflare). Tiene que ser DNS only |
+| `multiple-regions` al verificar | Con la forma antigua: hay MX de dos regiones distintas. Todos tienen que ser de la misma |
 | Los correos llegan a no deseados | Falta el DMARC, o el nombre visible no coincide con el dominio. Revisar también el panel de Resend → *Emails*, que muestra rebotes y quejas |
 | En los registros sale `[SIMULATION_EMAIL]` | Falta `SMTP_HOST`, `SMTP_USER` o `SMTP_PASS`: el servicio está en modo simulado y el enlace se imprime ahí |
 
