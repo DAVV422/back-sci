@@ -32,7 +32,12 @@ import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
     LoggerModule.forRoot({ pinoHttp: pinoHttpOptions() }),
-    TypeOrmModule.forRoot({ ...DataSourceConfig }),
+    // Las entidades salen de los `TypeOrmModule.forFeature()` de cada módulo, no del patrón de
+    // archivos de `DataSourceConfig` (que queda solo para el CLI de migraciones). Así TypeORM
+    // registra exactamente las clases que importa el código: al buscarlas por ruta, Windows podía
+    // cargar el mismo archivo dos veces si la letra de unidad cambiaba de caja (`c:` vs `C:`),
+    // creando dos clases por entidad y dejando a los repositorios sin metadatos.
+    TypeOrmModule.forRoot({ ...DataSourceConfig, entities: [], autoLoadEntities: true }),
     ThrottlerModule.forRoot([
       {
         name: 'short',
