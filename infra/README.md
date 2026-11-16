@@ -41,6 +41,11 @@ cd /srv/sci && sudo docker compose build && sudo docker compose up -d
 
 La web y la página de presentación son archivos estáticos en `/srv/sci/web` y `/srv/sci/landing`.
 
+> Al actualizarlas, **vaciar la carpeta sin borrarla** (`find /srv/sci/web -mindepth 1 -delete`).
+> Están montadas en el contenedor de Caddy: si se borra la carpeta, el montaje queda apuntando a un
+> directorio que ya no existe, Caddy la ve vacía y los sitios responden 404 aunque los archivos estén
+> en el host. Volver a copiar no lo arregla; hay que reiniciar Caddy.
+
 ## Pendientes
 
 - **Correo**: ver [correo-resend.md](correo-resend.md). Falta cargar `RESEND_API_KEY` en
