@@ -273,6 +273,9 @@ export class UserService {
         ...createUserDto,
         isActive,
         isOperational,
+        // Si nace activa, ya entró en funcionamiento: así no se confunde más adelante con una
+        // cuenta pendiente si alguien la suspende.
+        activatedAt: isActive ? new Date() : null,
       });
 
       const created = await this.findOneBy({ key: 'email', value: createUserDto.email });
@@ -289,6 +292,15 @@ export class UserService {
   }
 
   /**
+   * Una cuenta está **pendiente de activación** solo si nunca llegó a funcionar: no basta con que
+   * `isActive` sea falso, porque eso también es cierto de una cuenta suspendida o eliminada, y a
+   * esas no se les puede mandar una invitación para volver a entrar.
+   */
+  public static pendienteDeActivacion(user: UserEntity): boolean {
+    return !user.isDeleted && !user.isActive && !user.activatedAt;
+  }
+
+  /**
    * Reenvía la invitación de una cuenta que todavía no se activó. Solo para administradores: se
    * identifica por id (no por correo) y puede dar detalle, porque quien llama ya está autenticado.
    */
@@ -300,8 +312,20 @@ export class UserService {
     try {
       const user = await this.findOne(id, currentUserRole);
 
+      // El orden de los mensajes importa: una cuenta eliminada no debe distinguirse de una que no
+      // existe, para no confirmar que ahí hubo alguien.
+      if (user.isDeleted) {
+        this.logger.warn(`[resendActivation] Intento sobre una cuenta eliminada. id=${id}`);
+        throw new NotFoundException('Usuario no encontrado.');
+      }
       if (user.isActive) {
         throw new BadRequestException('La cuenta ya está activa: no hay invitación que reenviar.');
+      }
+      if (!UserService.pendienteDeActivacion(user)) {
+        throw new BadRequestException(
+          'La cuenta está suspendida, no pendiente de activación. Para devolverle el acceso, habilítala; ' +
+            'si olvidó su contraseña, debe usar «¿Olvidaste tu contraseña?».',
+        );
       }
 
       await this.enviarInvitacion(user, 'reenvío solicitado por un administrador');
@@ -422,16 +446,23 @@ export class UserService {
       }
 
       // El enlace de activación ya enviado apunta a la dirección anterior. Si se corrige el correo
-      // de una cuenta sin activar, hay que matarlo ANTES de cambiarlo: si no, quien recibió la
+      // de una cuenta pendiente, hay que matarlo ANTES de cambiarlo: si no, quien recibió la
       // invitación en el buzón equivocado puede fijar la contraseña de esta cuenta. Se revoca
       // primero para que un fallo posterior deje la cuenta sin enlace, nunca con el enlace viejo.
       const correoCorregido =
         allowedUpdates.email !== undefined && allowedUpdates.email !== user.email;
-      const sigueSinActivar = !(allowedUpdates.isActive ?? user.isActive);
-      const reinvitar = correoCorregido && sigueSinActivar;
+      const seActivaAhora = allowedUpdates.isActive === true;
+      const reinvitar =
+        correoCorregido && !seActivaAhora && UserService.pendienteDeActivacion(user);
 
       if (reinvitar) {
         await this.authTokenService.revokeUnusedTokens(user.id, AuthTokenType.ACTIVATION);
+      }
+
+      // Si la cuenta entra en funcionamiento ahora y es la primera vez, queda marcada: así una
+      // suspensión posterior no la vuelve a parecer una cuenta nueva.
+      if (seActivaAhora && !user.activatedAt) {
+        allowedUpdates.activatedAt = new Date();
       }
 
       const userUpdated = await this.userRepository.update(
@@ -605,6 +636,11 @@ export class UserService {
     }
   }
 
+  /**
+   * Usuario de una petición ya autenticada (lo llama `AuthGuard`). Comprueba el estado de la cuenta
+   * en cada petición y no solo al iniciar sesión: si no, eliminar o suspender a alguien lo dejaba
+   * trabajando con su token hasta que expirara, hasta 8 horas después.
+   */
   public async findOneAuth(id: string): Promise<UserEntity> {
     try {
       const user: UserEntity = await this.userRepository.findOne({
@@ -614,6 +650,9 @@ export class UserService {
         throw new UnauthorizedException(
           'Usuario asociado al token no encontrado.',
         );
+      if (user.isDeleted || !user.isActive) {
+        throw new UnauthorizedException('La cuenta ya no tiene acceso.');
+      }
       return user;
     } catch (error) {
       handlerError(error, this.logger);

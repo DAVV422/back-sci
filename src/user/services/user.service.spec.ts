@@ -421,6 +421,8 @@ describe('UserService - update (Admin / Suadmin restrictions)', () => {
       role: ROLES.ADVANCED,
       isActive: true,
       isOperational: false,
+      // La cuenta entra en funcionamiento con este cambio, así que queda sellada la fecha.
+      activatedAt: expect.any(Date),
     });
   });
 
@@ -1007,5 +1009,159 @@ describe('UserService - resendActivation (solo administradores)', () => {
       /ya está activa/i,
     );
     expect(mockEmailService.sendActivationEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('UserService - pendiente de activación vs suspendida o eliminada', () => {
+  let service: UserService;
+  let mockRepo: any;
+  let mockEmailService: any;
+  let mockAuthTokenService: any;
+
+  // Las tres comparten `isActive: false`, y por eso antes no se podían distinguir.
+  const pendiente = { id: 'u1', name: 'Ana', lastName: 'Flores', email: 'ana@sci.test', isActive: false, isDeleted: false, activatedAt: null };
+  const suspendida = { ...pendiente, id: 'u2', activatedAt: new Date('2026-03-01T12:00:00Z') };
+  const eliminada = { ...pendiente, id: 'u3', isDeleted: true };
+
+  beforeEach(async () => {
+    mockRepo = { update: jest.fn().mockResolvedValue({ affected: 1 }), findOne: jest.fn() };
+    mockEmailService = { sendActivationEmail: jest.fn().mockResolvedValue(true) };
+    mockAuthTokenService = {
+      createToken: jest.fn().mockResolvedValue('token-nuevo'),
+      revokeUnusedTokens: jest.fn().mockResolvedValue(1),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: EmailService, useValue: mockEmailService },
+        { provide: AuthTokenService, useValue: mockAuthTokenService },
+        { provide: ConfigService, useValue: { get: jest.fn(() => 'https://demo.emerg-ia.com') } },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+  });
+
+  describe('la regla', () => {
+    it('solo una cuenta que nunca entró está pendiente', () => {
+      expect(UserService.pendienteDeActivacion(pendiente as any)).toBe(true);
+      expect(UserService.pendienteDeActivacion(suspendida as any)).toBe(false);
+      expect(UserService.pendienteDeActivacion(eliminada as any)).toBe(false);
+      expect(UserService.pendienteDeActivacion({ ...pendiente, isActive: true } as any)).toBe(false);
+    });
+  });
+
+  describe('reenviar la invitación', () => {
+    const conUsuario = (u: any) => jest.spyOn(service, 'findOne').mockResolvedValue(u as any);
+
+    it('se reenvía a una cuenta pendiente', async () => {
+      conUsuario(pendiente);
+      await expect(service.resendActivation('u1', ROLES.ADMIN)).resolves.toEqual({
+        message: 'Invitación reenviada.',
+      });
+      expect(mockEmailService.sendActivationEmail).toHaveBeenCalled();
+    });
+
+    it('NO se reenvía a una cuenta suspendida: se le explica qué hacer', async () => {
+      conUsuario(suspendida);
+      await expect(service.resendActivation('u2', ROLES.ADMIN)).rejects.toThrow(/suspendida/i);
+      expect(mockEmailService.sendActivationEmail).not.toHaveBeenCalled();
+    });
+
+    it('NO se reenvía a una cuenta eliminada, y responde como si no existiera', async () => {
+      conUsuario(eliminada);
+      await expect(service.resendActivation('u3', ROLES.ADMIN)).rejects.toThrow(/no encontrado/i);
+      expect(mockEmailService.sendActivationEmail).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('corregir el correo', () => {
+    const corregir = (u: any) => {
+      const spy = jest.spyOn(service, 'findOne');
+      spy.mockResolvedValueOnce(u as any);
+      spy.mockResolvedValue({ ...u, email: 'nuevo@sci.test' } as any);
+      return service.update(u.id, { email: 'nuevo@sci.test' } as any, ROLES.ADMIN);
+    };
+
+    it('a una cuenta pendiente: revoca el enlace viejo y manda uno nuevo', async () => {
+      await corregir(pendiente);
+      expect(mockAuthTokenService.revokeUnusedTokens).toHaveBeenCalled();
+      expect(mockEmailService.sendActivationEmail).toHaveBeenCalled();
+    });
+
+    it('a una cuenta suspendida: cambia el correo y NO manda invitación', async () => {
+      await corregir(suspendida);
+      expect(mockEmailService.sendActivationEmail).not.toHaveBeenCalled();
+      expect(mockRepo.update).toHaveBeenCalled();
+    });
+
+    it('a una cuenta eliminada: cambia el correo y NO la resucita con una invitación', async () => {
+      await corregir(eliminada);
+      expect(mockEmailService.sendActivationEmail).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('marca de activación', () => {
+    it('al activar por primera vez se sella la fecha', async () => {
+      const spy = jest.spyOn(service, 'findOne');
+      spy.mockResolvedValueOnce(pendiente as any);
+      spy.mockResolvedValue({ ...pendiente, isActive: true } as any);
+
+      await service.update('u1', { isActive: true } as any, ROLES.ADMIN);
+
+      expect(mockRepo.update).toHaveBeenCalledWith(
+        'u1',
+        expect.objectContaining({ isActive: true, activatedAt: expect.any(Date) }),
+      );
+    });
+
+    it('al rehabilitar una cuenta suspendida no se pisa la fecha original', async () => {
+      const spy = jest.spyOn(service, 'findOne');
+      spy.mockResolvedValueOnce(suspendida as any);
+      spy.mockResolvedValue({ ...suspendida, isActive: true } as any);
+
+      await service.update('u2', { isActive: true } as any, ROLES.ADMIN);
+
+      expect(mockRepo.update.mock.calls[0][1].activatedAt).toBeUndefined();
+    });
+  });
+});
+
+describe('UserService - findOneAuth comprueba el estado en cada petición', () => {
+  let service: UserService;
+  let mockRepo: any;
+
+  beforeEach(async () => {
+    mockRepo = { findOne: jest.fn() };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: EmailService, useValue: {} },
+        { provide: AuthTokenService, useValue: {} },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
+      ],
+    }).compile();
+    service = module.get<UserService>(UserService);
+  });
+
+  it('deja pasar a una cuenta activa', async () => {
+    mockRepo.findOne.mockResolvedValue({ id: 'u1', isActive: true, isDeleted: false });
+    await expect(service.findOneAuth('u1')).resolves.toMatchObject({ id: 'u1' });
+  });
+
+  // Antes, el token seguía sirviendo hasta expirar: hasta 8 horas de acceso tras ser eliminado.
+  it('corta el acceso de una cuenta eliminada aunque su token siga vigente', async () => {
+    mockRepo.findOne.mockResolvedValue({ id: 'u2', isActive: true, isDeleted: true });
+    await expect(service.findOneAuth('u2')).rejects.toThrow(/ya no tiene acceso/i);
+  });
+
+  it('corta el acceso de una cuenta suspendida', async () => {
+    mockRepo.findOne.mockResolvedValue({ id: 'u3', isActive: false, isDeleted: false });
+    await expect(service.findOneAuth('u3')).rejects.toThrow(/ya no tiene acceso/i);
   });
 });

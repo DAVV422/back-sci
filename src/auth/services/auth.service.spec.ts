@@ -84,6 +84,8 @@ describe('AuthService - refreshToken', () => {
     mockUserService.findOne.mockResolvedValue({
       id: 'user-id',
       role: ROLES.BASIC,
+      isActive: true,
+      isDeleted: false,
     } as UserEntity);
 
     const result = await service.refreshToken(refreshToken);
@@ -94,6 +96,29 @@ describe('AuthService - refreshToken', () => {
     expect(mockRefreshRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ isRevoked: true }),
     );
+  });
+
+  // Antes, renovar no volvía a mirar el estado de la cuenta: eliminar o suspender a alguien no le
+  // quitaba el acceso, porque seguía renovando su sesión indefinidamente.
+  it.each([
+    ['eliminada', { isDeleted: true, isActive: true }],
+    ['suspendida', { isDeleted: false, isActive: false }],
+  ])('no renueva la sesión de una cuenta %s', async (_caso, estado) => {
+    mockJwtService.verifyToken.mockReturnValue({
+      sub: 'user-id',
+      role: ROLES.BASIC,
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+    mockRefreshRepo.findOne.mockResolvedValue({
+      id: 'rt-1',
+      userId: 'user-id',
+      tokenHash: storedHash,
+      isRevoked: false,
+      expiresAt: new Date(Date.now() + 86400000),
+    });
+    mockUserService.findOne.mockResolvedValue({ id: 'user-id', role: ROLES.BASIC, ...estado } as UserEntity);
+
+    await expect(service.refreshToken(refreshToken)).rejects.toThrow(UnauthorizedException);
   });
 
   it('throws UnauthorizedException when the token was revoked', async () => {

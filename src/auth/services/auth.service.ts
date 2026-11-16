@@ -77,6 +77,13 @@ export class AuthService {
 
       const user = authToken.user;
 
+      // Una cuenta eliminada no se activa, aunque alguien conserve un enlace de cuando existía.
+      if (user.isDeleted) {
+        this.logger.warn(`[activateAccount] Enlace usado sobre una cuenta eliminada. userId=${user.id}`);
+        await this.authTokenService.markAsUsed(authToken);
+        throw new BadRequestException('El enlace ya no es válido.');
+      }
+
       await this.userService.update(user.id, {
         password: newPassword,
         isActive: true,
@@ -126,6 +133,12 @@ export class AuthService {
       await this.refreshTokenRepository.save(stored);
 
       const user = await this.userService.findOne(stored.userId || decoded.sub);
+      // Sin esto, eliminar o suspender a alguien no le quitaba el acceso: seguía renovando su
+      // sesión indefinidamente, porque la renovación no volvía a mirar el estado de la cuenta.
+      if (user.isDeleted || !user.isActive) {
+        this.logger.warn(`[refreshToken] Cuenta sin acceso: eliminada o suspendida. userId=${user.id}`);
+        throw new UnauthorizedException('La cuenta ya no tiene acceso.');
+      }
       const result = await this.generateJWT(user);
       this.logger.log(`[refreshToken] Token renovado exitosamente. userId=${user.id}`);
       return result;

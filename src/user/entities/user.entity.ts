@@ -45,6 +45,18 @@ export class UserEntity extends BaseEntity {
   @Column({ name: 'is_active', type: 'boolean', default: false })
   isActive: boolean;
 
+  /**
+   * Cuándo entró en funcionamiento la cuenta. Nulo = **nunca se activó**.
+   *
+   * Hace falta porque `isActive: false` significa dos cosas muy distintas: una cuenta recién creada
+   * que espera su invitación, y una cuenta que un administrador suspendió. Sin separarlas, corregir
+   * el correo de una cuenta suspendida (o eliminada) le habría mandado una invitación para volver a
+   * entrar. Con esta marca, "pendiente de activación" es una condición positiva y no la ausencia de
+   * otra cosa.
+   */
+  @Column({ name: 'activated_at', type: 'timestamptz', nullable: true })
+  activatedAt?: Date | null;
+
   @Column({ name: 'is_operational', type: 'boolean', default: true })
   isOperational: boolean;
 
