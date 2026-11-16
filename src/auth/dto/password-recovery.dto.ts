@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+
+import { IsPassword, PASSWORD_RULE_TEXT } from '../../common/validators/password.validator';
 
 export class ForgotPasswordDto {
   @ApiProperty({ example: 'usuario@institucion.bo', description: 'Correo de la cuenta' })
@@ -16,10 +18,8 @@ export class ResetPasswordDto {
   @MaxLength(200)
   token: string;
 
-  @ApiProperty({ example: 'NuevaPassword123!', description: 'Nueva contraseña (mínimo 8 caracteres)' })
+  @ApiProperty({ example: 'NuevaPassword123!', description: `Nueva contraseña. ${PASSWORD_RULE_TEXT}` })
   @IsNotEmpty()
-  @IsString()
-  @MinLength(8)
-  @MaxLength(72) // bcrypt ignora lo que pase de 72 bytes
+  @IsPassword()
   password: string;
 }

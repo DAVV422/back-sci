@@ -5,7 +5,6 @@ import { createHash } from 'node:crypto';
 import * as jwt from 'jsonwebtoken';
 
 import { AuthService } from './auth.service';
-import { TokenValidatorService } from './token-validator.service';
 import { JwtServiceAdapter } from './jwt.service';
 import { UserService } from '../../user/services/user.service';
 import { RefreshTokenEntity } from '../entities/refresh-token.entity';
@@ -56,7 +55,6 @@ describe('AuthService - refreshToken', () => {
       providers: [
         AuthService,
         { provide: UserService, useValue: mockUserService },
-        { provide: TokenValidatorService, useValue: {} },
         { provide: JwtServiceAdapter, useValue: mockJwtService },
         {
           provide: getRepositoryToken(RefreshTokenEntity),

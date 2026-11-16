@@ -230,6 +230,22 @@ export class UserController {
     };
   }
 
+  /**
+   * Reenvía la invitación de una cuenta sin activar. Reemplaza al endpoint público que había
+   * (`POST /resend-activation`), que identificaba por correo y respondía distinto según existiera o
+   * no la cuenta, así que servía para averiguar qué correos están registrados.
+   */
+  @RolesAccess(ROLES.ADMIN)
+  @ApiParam({ name: 'id', type: 'string' })
+  @Post(':id/resend-activation')
+  public async resendActivation(
+    @GetUser('role') currentUserRole: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ApiResponse<{ message: string }>> {
+    const result = await this.userService.resendActivation(id, currentUserRole);
+    return { success: true, statusCode: 200, message: result.message, data: result };
+  }
+
   @RolesAccess(ROLES.MANAGER)
   @ApiParam({ name: 'id', type: 'string' })
   @Patch('status/:id')

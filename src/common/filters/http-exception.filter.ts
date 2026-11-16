@@ -44,11 +44,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
       traceId,
     };
 
-    this.logger.error(
-      `[${traceId}] ${request.method} ${
-        request.url
-      } - ${statusCode} - ${JSON.stringify(message)}`,
-    );
+    // Un 4xx es funcionamiento normal (sin permisos, no encontrado, datos inválidos); solo un 5xx
+    // es un fallo del servidor. Registrarlo todo como error dejaba los fallos reales sepultados.
+    const resumen = `[${traceId}] ${request.method} ${request.url} - ${statusCode} - ${JSON.stringify(message)}`;
+    const quien = (request as Request & { idUser?: string }).idUser;
+    const linea = quien ? `${resumen} - userId=${quien}` : resumen;
+
+    if (statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.logger.error(linea, exception instanceof Error ? exception.stack : undefined);
+    } else {
+      this.logger.warn(linea);
+    }
 
     response.status(statusCode).json(body);
   }

@@ -5,9 +5,19 @@
 # El proxy es el Caddy que ya corre en el servidor; ver caddy/sci.caddy.
 name: sci
 
+# Sin esto los registros de Docker crecen sin límite: tres copias escribiendo pueden llenar el disco
+# del servidor y tumbarlas todas a la vez. 10 MB por archivo y 5 archivos: 50 MB como máximo por
+# contenedor, suficiente para diagnosticar lo reciente.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 x-api: &api
   image: sci-api:latest
   restart: unless-stopped
+  logging: *logging
   depends_on:
     postgres:
       condition: service_healthy
@@ -32,11 +42,13 @@ x-api: &api
     SMTP_SECURE: "false"
     SMTP_USER: resend
     SMTP_PASS: ${RESEND_API_KEY:-}
+    LOG_LEVEL: ${LOG_LEVEL:-info}
 
 services:
   postgres:
     image: postgres:17
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}
       # Las bases y los roles de cada institución los crea postgres-init.sh la primera vez.

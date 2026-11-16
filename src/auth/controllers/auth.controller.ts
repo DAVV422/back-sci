@@ -1,5 +1,5 @@
-import { Body, Controller, HttpCode, Post, Query } from '@nestjs/common';
-import { ApiQuery, ApiTags } from '@nestjs/swagger/dist/decorators';
+import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger/dist/decorators';
 import { Throttle } from '@nestjs/throttler';
 import { authThrottleLimit } from '../../common/constants';
 
@@ -9,10 +9,8 @@ import { AuthService } from '../services/auth.service';
 import { ApiResponse } from 'src/common/interfaces/responseMessage.interface';
 import { UserService } from '../../user/services/user.service';
 import { ILoginResponse } from '../interfaces/login.interface';
-import { IUserToken } from '../interfaces/userToken.interface';
 
 import { ActivateAccountDto } from '../dto/activate-account.dto';
-import { ResendActivationDto } from '../dto/resend-activation.dto';
 import { ForgotPasswordDto, ResetPasswordDto } from '../dto/password-recovery.dto';
 
 @ApiTags('Auth')
@@ -61,20 +59,6 @@ export class AuthController {
     };
   }
 
-  @Throttle({ short: { ttl: 60000, limit: authThrottleLimit(5) } })
-  @Post('resend-activation')
-  public async resendActivation(
-    @Body() resendDto: ResendActivationDto,
-  ): Promise<ApiResponse<{ message: string }>> {
-    const result = await this.authService.resendActivationEmail(resendDto.email);
-    return {
-      success: true,
-      statusCode: 200,
-      message: result.message,
-      data: result,
-    };
-  }
-
   @Throttle({ short: { ttl: 60000, limit: authThrottleLimit(3) } })
   @HttpCode(200)
   @Post('forgot-password')
@@ -100,30 +84,6 @@ export class AuthController {
       success: true,
       statusCode: 200,
       data: await this.authService.refreshToken(refreshTokenDto.refreshToken),
-    };
-  }
-
-  @ApiQuery({ name: 'token', type: 'string', required: true })
-  @Post('checkToken')
-  public async checkToken(
-    @Query('token') token: string,
-  ): Promise<ApiResponse<IUserToken | false>> {
-    return {
-      success: true,
-      statusCode: 200,
-      data: await this.authService.checkToken(token),
-    };
-  }
-
-  @ApiQuery({ name: 'token', type: 'string', required: true })
-  @Post('expiredToken')
-  public async expiredToken(
-    @Query('token') token: string,
-  ): Promise<ApiResponse<boolean>> {
-    return {
-      success: true,
-      statusCode: 200,
-      data: await this.authService.expiredToken(token),
     };
   }
 }

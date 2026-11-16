@@ -75,11 +75,21 @@ export class AuthTokenService {
     await this.authTokenRepository.save(authToken);
   }
 
-  private async revokeUnusedTokens(userId: string, type: AuthTokenType): Promise<void> {
-    await this.authTokenRepository.update(
+  /**
+   * Invalida los tokens vigentes de un tipo. Se usa al corregir el correo de una cuenta sin
+   * activar: el enlace ya enviado apuntaba a la dirección equivocada y debe morir antes de que la
+   * cuenta pase a tener otro dueño.
+   */
+  async revokeUnusedTokens(userId: string, type: AuthTokenType): Promise<number> {
+    const resultado = await this.authTokenRepository.update(
       { user: { id: userId }, type, isUsed: false },
       { isUsed: true },
     );
+    const revocados = resultado.affected ?? 0;
+    if (revocados > 0) {
+      this.logger.log(`[revokeUnusedTokens] ${revocados} token(s) ${type} invalidados. userId=${userId}`);
+    }
+    return revocados;
   }
 
   private hashToken(token: string): string {

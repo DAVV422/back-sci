@@ -227,30 +227,12 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
   }
   ```
 
-#### `POST /api/resend-activation`
-- **Descripción**: Reenvía el correo electrónico de activación con un nuevo token para usuarios con cuenta inactiva (`isActive = false`).
-- **Acceso**: Público (Rate limit: 5 req/min).
-- **Body**:
-  ```json
-  {
-    "email": "juan.perez@sci.local"
-  }
-  ```
-- **Response (200)**:
-  ```json
-  {
-    "success": true,
-    "statusCode": 200,
-    "message": "Correo de activación reenviado exitosamente.",
-    "data": {
-      "message": "Correo de activación reenviado exitosamente."
-    }
-  }
-  ```
-
-#### `POST /api/checkToken?token=...`
-- **Descripción**: Valida la integridad y vigencia de un token JWT.
-- **Acceso**: Público.
+> **Retirados**: `POST /api/resend-activation`, `POST /api/checkToken` y `POST /api/expiredToken`.
+> El primero identificaba por correo y respondía distinto según la cuenta existiera, estuviera activa
+> o no, así que servía para averiguar qué correos están registrados; su reemplazo es
+> [`POST /api/user/:id/resend-activation`](#post-apiuseridresend-activation), solo para
+> administradores. Los otros dos recibían el token por *query string*, donde queda escrito en los
+> registros de acceso del proxy, y el front no los usaba.
 
 ---
 
@@ -354,6 +336,7 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
   - **Regla de negocio sobre campos editables**:
     - **Permitidos para admin/suadmin**: `email`, `role`, `grade` (grado o jerarquía institucional), `isActive` (habilitar/suspender cuenta), `isOperational` (disponibilidad operativa), `password` (reset/cambio de contraseña), y opcionalmente imagen de perfil (`urlImage` o subida en `file` mediante `multipart/form-data`).
     - **Protegidos**: Los datos personales (`name`, `lastName`, `cellphone`, `birthdate`) los actualiza preferentemente el propio usuario en su perfil (`PATCH /api/user/me`).
+  - **Corregir el correo de una cuenta sin activar**: si se cambia `email` y la cuenta sigue inactiva, el enlace de activación ya enviado **se invalida** y se manda una invitación nueva a la dirección corregida. La revocación ocurre antes de guardar, así que un fallo posterior deja la cuenta sin enlace, nunca con el anterior vivo en el buzón equivocado.
   - **Restricciones de rol**:
     - Un `admin` no puede modificar a un usuario con rol `suadmin` (`403 Forbidden`).
     - Un `admin` no puede asignar o promover a ningún usuario al rol `suadmin` (`403 Forbidden`).
@@ -366,6 +349,20 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
     "grade": "Teniente Segundo",
     "isActive": true,
     "isOperational": true
+  }
+  ```
+
+#### `POST /api/user/:id/resend-activation`
+- **Descripción**: Reenvía la invitación de una cuenta que todavía no se activó, con un enlace nuevo que **invalida el anterior**. Reemplaza al endpoint público `POST /api/resend-activation`, que identificaba por correo y respondía distinto según la cuenta existiera o no.
+- **Acceso**: Exclusivo `admin` / `suadmin`.
+- **Errores**: `400` si la cuenta ya está activa; `403` para cualquier otro rol; `404` si el usuario no existe o está oculto para quien llama.
+- **Response (200)**:
+  ```json
+  {
+    "success": true,
+    "statusCode": 200,
+    "message": "Invitación reenviada.",
+    "data": { "message": "Invitación reenviada." }
   }
   ```
 

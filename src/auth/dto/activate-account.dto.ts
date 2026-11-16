@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
+
+import { IsPassword, PASSWORD_RULE_TEXT } from '../../common/validators/password.validator';
 
 export class ActivateAccountDto {
   @ApiProperty({
@@ -12,10 +14,9 @@ export class ActivateAccountDto {
 
   @ApiProperty({
     example: 'NuevaPassword123!',
-    description: 'Nueva contraseña elegida por el usuario',
+    description: `Nueva contraseña elegida por el usuario. ${PASSWORD_RULE_TEXT}`,
   })
   @IsNotEmpty()
-  @IsString()
-  @MinLength(6)
+  @IsPassword()
   password: string;
 }

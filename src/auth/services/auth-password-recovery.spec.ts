@@ -6,7 +6,6 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthTokenService } from './auth-token.service';
 import { JwtServiceAdapter } from './jwt.service';
-import { TokenValidatorService } from './token-validator.service';
 import { RefreshTokenEntity } from '../entities/refresh-token.entity';
 import { AuthTokenType } from '../entities/auth-token.entity';
 import { UserService } from '../../user/services/user.service';
@@ -34,7 +33,6 @@ describe('AuthService - recuperación de contraseña', () => {
       providers: [
         AuthService,
         { provide: UserService, useValue: userService },
-        { provide: TokenValidatorService, useValue: {} },
         { provide: JwtServiceAdapter, useValue: {} },
         { provide: getRepositoryToken(RefreshTokenEntity), useValue: refreshRepo },
         { provide: AuthTokenService, useValue: tokens },

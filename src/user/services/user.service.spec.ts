@@ -7,6 +7,7 @@ import { UserEntity } from '../entities/user.entity';
 import { QueryDto } from '../../common/dto/query.dto';
 import { EmailService } from '../../common/services/email.service';
 import { AuthTokenService } from '../../auth/services/auth-token.service';
+import { AuthTokenType } from '../../auth/entities/auth-token.entity';
 import { ConfigService } from '@nestjs/config';
 import { ROLES } from '../../common/constants';
 import { plainToInstance } from 'class-transformer';
@@ -833,5 +834,178 @@ describe('UserService - image upload and fault tolerance', () => {
   });
 });
 
+describe('UserService - corregir el correo de una cuenta sin activar', () => {
+  let service: UserService;
+  let mockRepo: any;
+  let mockEmailService: any;
+  let mockAuthTokenService: any;
 
+  const sinActivar = {
+    id: 'uuid-1',
+    name: 'Juan',
+    lastName: 'Perez',
+    email: 'juan@gmai.com', // el dominio mal escrito: la invitación se fue a un buzón ajeno
+    role: ROLES.BASIC,
+    isActive: false,
+  };
 
+  beforeEach(async () => {
+    mockRepo = {
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+      findOne: jest.fn(),
+    };
+    mockEmailService = { sendActivationEmail: jest.fn().mockResolvedValue(true) };
+    mockAuthTokenService = {
+      createToken: jest.fn().mockResolvedValue('token-nuevo'),
+      revokeUnusedTokens: jest.fn().mockResolvedValue(1),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: EmailService, useValue: mockEmailService },
+        { provide: AuthTokenService, useValue: mockAuthTokenService },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              if (key === 'ACTIVATION_TOKEN_EXPIRY_HOURS') return '72';
+              if (key === 'FRONTEND_URL') return 'https://demo.emerg-ia.com';
+              return null;
+            }),
+          },
+        },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+  });
+
+  /** `update` consulta el usuario con findOne antes y después de guardar. */
+  const prepararUsuario = (usuario: any, despues?: any) => {
+    const spy = jest.spyOn(service, 'findOne');
+    spy.mockResolvedValueOnce(usuario as any);
+    spy.mockResolvedValue((despues ?? usuario) as any);
+    return spy;
+  };
+
+  it('invalida el enlace anterior y manda la invitación a la dirección nueva', async () => {
+    const corregido = { ...sinActivar, email: 'juan@gmail.com' };
+    prepararUsuario(sinActivar, corregido);
+
+    await service.update('uuid-1', { email: 'juan@gmail.com' } as any, ROLES.ADMIN);
+
+    expect(mockAuthTokenService.revokeUnusedTokens).toHaveBeenCalledWith('uuid-1', AuthTokenType.ACTIVATION);
+    expect(mockAuthTokenService.createToken).toHaveBeenCalled();
+    expect(mockEmailService.sendActivationEmail).toHaveBeenCalledWith(
+      'juan@gmail.com',
+      'Juan Perez',
+      expect.stringContaining('token-nuevo'),
+    );
+  });
+
+  it('revoca ANTES de guardar: si algo falla después, nunca queda vivo el enlace viejo', async () => {
+    const orden: string[] = [];
+    mockAuthTokenService.revokeUnusedTokens.mockImplementation(async () => {
+      orden.push('revocar');
+      return 1;
+    });
+    mockRepo.update.mockImplementation(async () => {
+      orden.push('guardar');
+      return { affected: 1 };
+    });
+    prepararUsuario(sinActivar, { ...sinActivar, email: 'juan@gmail.com' });
+
+    await service.update('uuid-1', { email: 'juan@gmail.com' } as any, ROLES.ADMIN);
+
+    expect(orden).toEqual(['revocar', 'guardar']);
+  });
+
+  it('no toca ningún token si la cuenta ya está activa', async () => {
+    const activo = { ...sinActivar, isActive: true };
+    prepararUsuario(activo, { ...activo, email: 'otro@gmail.com' });
+
+    await service.update('uuid-1', { email: 'otro@gmail.com' } as any, ROLES.ADMIN);
+
+    expect(mockAuthTokenService.revokeUnusedTokens).not.toHaveBeenCalled();
+    expect(mockEmailService.sendActivationEmail).not.toHaveBeenCalled();
+  });
+
+  it('no reenvía nada si el correo no cambió', async () => {
+    prepararUsuario(sinActivar);
+
+    await service.update('uuid-1', { email: sinActivar.email, grade: 'Sargento' } as any, ROLES.ADMIN);
+
+    expect(mockAuthTokenService.revokeUnusedTokens).not.toHaveBeenCalled();
+    expect(mockEmailService.sendActivationEmail).not.toHaveBeenCalled();
+  });
+
+  it('si en el mismo cambio se activa la cuenta, no se manda invitación', async () => {
+    prepararUsuario(sinActivar, { ...sinActivar, email: 'juan@gmail.com', isActive: true });
+
+    await service.update(
+      'uuid-1',
+      { email: 'juan@gmail.com', isActive: true } as any,
+      ROLES.ADMIN,
+    );
+
+    expect(mockEmailService.sendActivationEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('UserService - resendActivation (solo administradores)', () => {
+  let service: UserService;
+  let mockEmailService: any;
+  let mockAuthTokenService: any;
+
+  beforeEach(async () => {
+    mockEmailService = { sendActivationEmail: jest.fn().mockResolvedValue(true) };
+    mockAuthTokenService = {
+      createToken: jest.fn().mockResolvedValue('token-reenviado'),
+      revokeUnusedTokens: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: { findOne: jest.fn() } },
+        { provide: EmailService, useValue: mockEmailService },
+        { provide: AuthTokenService, useValue: mockAuthTokenService },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn(() => 'https://demo.emerg-ia.com') },
+        },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
+      ],
+    }).compile();
+
+    service = module.get<UserService>(UserService);
+  });
+
+  it('emite un enlace nuevo, lo que invalida el anterior', async () => {
+    jest.spyOn(service, 'findOne').mockResolvedValue({
+      id: 'uuid-1', name: 'Ana', lastName: 'Flores', email: 'ana@sci.test', isActive: false,
+    } as any);
+
+    const resultado = await service.resendActivation('uuid-1', ROLES.ADMIN);
+
+    expect(mockAuthTokenService.createToken).toHaveBeenCalled();
+    expect(mockEmailService.sendActivationEmail).toHaveBeenCalledWith(
+      'ana@sci.test', 'Ana Flores', expect.stringContaining('token-reenviado'),
+    );
+    expect(resultado.message).toBe('Invitación reenviada.');
+  });
+
+  it('rechaza reenviar a una cuenta ya activa', async () => {
+    jest.spyOn(service, 'findOne').mockResolvedValue({
+      id: 'uuid-1', name: 'Ana', lastName: 'Flores', email: 'ana@sci.test', isActive: true,
+    } as any);
+
+    await expect(service.resendActivation('uuid-1', ROLES.ADMIN)).rejects.toThrow(
+      /ya está activa/i,
+    );
+    expect(mockEmailService.sendActivationEmail).not.toHaveBeenCalled();
+  });
+});

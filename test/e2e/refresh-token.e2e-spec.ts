@@ -14,7 +14,6 @@ import { AuthGuard, RolesGuard } from '../../src/auth/guards';
 import { AuthController } from '../../src/auth/controllers/auth.controller';
 import { AuthService } from '../../src/auth/services/auth.service';
 import { JwtServiceAdapter } from '../../src/auth/services/jwt.service';
-import { TokenValidatorService } from '../../src/auth/services/token-validator.service';
 import { RefreshTokenEntity } from '../../src/auth/entities/refresh-token.entity';
 import { ROLES } from '../../src/common/constants';
 import { HttpExceptionFilter } from '../../src/common/filters/http-exception.filter';
@@ -88,7 +87,6 @@ describe('Refresh token rotation (e2e)', () => {
       providers: [
         { provide: ConfigService, useValue: mockConfigService },
         { provide: UserService, useValue: mockUserService },
-        { provide: TokenValidatorService, useValue: {} },
         { provide: Reflector, useValue: reflector },
         {
           provide: getRepositoryToken(RefreshTokenEntity),

@@ -12,10 +12,8 @@ import { UserService } from '../../user/services/user.service';
 import { IPayload } from '../interfaces/payload.interface';
 import { ILoginResponse } from '../interfaces/login.interface';
 import { handlerError } from '../../common/utils/handlerError.utils';
-import { TokenValidatorService } from './token-validator.service';
 import { JwtServiceAdapter } from './jwt.service';
 import { UserDTO } from '../../user/dto/user.dto';
-import { IUserToken } from '../interfaces/userToken.interface';
 import { RefreshTokenEntity } from '../entities/refresh-token.entity';
 import { AuthTokenService } from './auth-token.service';
 import { AuthTokenType } from '../entities/auth-token.entity';
@@ -28,7 +26,6 @@ export class AuthService {
 
   constructor(
     private readonly userService: UserService,
-    private readonly tokenValidator: TokenValidatorService,
     private readonly jwtService: JwtServiceAdapter,
     @InjectRepository(RefreshTokenEntity)
     private readonly refreshTokenRepository: Repository<RefreshTokenEntity>,
@@ -91,64 +88,6 @@ export class AuthService {
       return { message: 'Cuenta activada exitosamente. Ya puedes iniciar sesión.' };
     } catch (error) {
       handlerError(error, this.logger);
-    }
-  }
-
-  async resendActivationEmail(email: string): Promise<{ message: string }> {
-    this.logger.log(`[resendActivationEmail] Solicitud de reenvío de correo de activación. email=${email}`);
-    try {
-      const user = await this.userService.findByEmail(email);
-      if (!user) {
-        this.logger.warn(`[resendActivationEmail] Usuario no encontrado. email=${email}`);
-        throw new NotFoundException('Usuario no encontrado.');
-      }
-
-      if (user.isActive) {
-        this.logger.warn(`[resendActivationEmail] La cuenta ya está activa. userId=${user.id}`);
-        throw new BadRequestException('La cuenta de usuario ya se encuentra activa.');
-      }
-
-      const expiryHours = Number(this.configService.get<number>('ACTIVATION_TOKEN_EXPIRY_HOURS')) || 72;
-      const rawToken = await this.authTokenService.createToken(
-        user,
-        AuthTokenType.ACTIVATION,
-        expiryHours,
-      );
-
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
-      const activationUrl = `${frontendUrl}${FRONTEND_ROUTES.ACTIVATE_ACCOUNT}?token=${rawToken}`;
-
-      await this.emailService.sendActivationEmail(
-        user.email,
-        `${user.name} ${user.lastName}`,
-        activationUrl,
-      );
-
-      this.logger.log(`[resendActivationEmail] Correo de activación reenviado exitosamente a ${email}`);
-      return { message: 'Correo de activación reenviado exitosamente.' };
-    } catch (error) {
-      handlerError(error, this.logger);
-    }
-  }
-
-  async checkToken(token: string): Promise<IUserToken | false> {
-    try {
-      const userToken = await this.tokenValidator.validateToken(token);
-      if (!userToken) return false;
-      return userToken;
-    } catch (error) {
-      handlerError(error, this.logger);
-    }
-  }
-
-  async expiredToken(token: string): Promise<boolean> {
-    try {
-      const userToken = await this.tokenValidator.validateToken(token);
-      if (!userToken) return false;
-      return userToken.isExpired;
-    } catch (error) {
-      handlerError(error, this.logger);
-      return true;
     }
   }
 

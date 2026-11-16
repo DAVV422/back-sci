@@ -278,33 +278,63 @@ export class UserService {
       const created = await this.findOneBy({ key: 'email', value: createUserDto.email });
 
       if (!isActive) {
-        // Generar token de activación
-        const expiryHours = Number(this.configService.get<number>('ACTIVATION_TOKEN_EXPIRY_HOURS')) || 72;
-        const rawToken = await this.authTokenService.createToken(
-          created,
-          AuthTokenType.ACTIVATION,
-          expiryHours,
-        );
-
-        // Construir URL de activación
-        const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
-        const activationUrl = `${frontendUrl}${FRONTEND_ROUTES.ACTIVATE_ACCOUNT}?token=${rawToken}`;
-
-        // Enviar email de activación
-        await this.emailService.sendActivationEmail(
-          created.email,
-          `${created.name} ${created.lastName}`,
-          activationUrl,
-        );
-
-        this.logger.log(`[createUser] Usuario creado e email de activación enviado. id=${created.id}, email=${created.email}`);
+        await this.enviarInvitacion(created, 'cuenta nueva');
       } else {
-        this.logger.log(`[createUser] Usuario creado directamente activo. id=${created.id}, email=${created.email}`);
+        this.logger.log(`[createUser] Usuario creado directamente activo. id=${created.id}`);
       }
       return created;
     } catch (error) {
       handlerError(error, this.logger);
     }
+  }
+
+  /**
+   * Reenvía la invitación de una cuenta que todavía no se activó. Solo para administradores: se
+   * identifica por id (no por correo) y puede dar detalle, porque quien llama ya está autenticado.
+   */
+  public async resendActivation(
+    id: string,
+    currentUserRole?: string,
+  ): Promise<{ message: string }> {
+    this.logger.log(`[resendActivation] Reenvío de invitación solicitado. id=${id}`);
+    try {
+      const user = await this.findOne(id, currentUserRole);
+
+      if (user.isActive) {
+        throw new BadRequestException('La cuenta ya está activa: no hay invitación que reenviar.');
+      }
+
+      await this.enviarInvitacion(user, 'reenvío solicitado por un administrador');
+      return { message: 'Invitación reenviada.' };
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
+  /**
+   * Emite un enlace de activación nuevo y lo envía. Emitirlo invalida los anteriores
+   * (`AuthTokenService.createToken` revoca los no usados), así que esta es también la forma de
+   * reemplazar una invitación que se fue a una dirección equivocada.
+   */
+  private async enviarInvitacion(user: UserEntity, motivo: string): Promise<void> {
+    const expiryHours =
+      Number(this.configService.get<number>('ACTIVATION_TOKEN_EXPIRY_HOURS')) || 72;
+    const rawToken = await this.authTokenService.createToken(
+      user,
+      AuthTokenType.ACTIVATION,
+      expiryHours,
+    );
+
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:4200';
+    const activationUrl = `${frontendUrl}${FRONTEND_ROUTES.ACTIVATE_ACCOUNT}?token=${rawToken}`;
+
+    await this.emailService.sendActivationEmail(
+      user.email,
+      `${user.name} ${user.lastName}`,
+      activationUrl,
+    );
+    this.logger.log(`[enviarInvitacion] Invitación enviada (${motivo}). userId=${user.id}`);
   }
 
   public async findOne(id: string, currentUserRole?: string): Promise<UserEntity> {
@@ -391,6 +421,19 @@ export class UserService {
         }
       }
 
+      // El enlace de activación ya enviado apunta a la dirección anterior. Si se corrige el correo
+      // de una cuenta sin activar, hay que matarlo ANTES de cambiarlo: si no, quien recibió la
+      // invitación en el buzón equivocado puede fijar la contraseña de esta cuenta. Se revoca
+      // primero para que un fallo posterior deje la cuenta sin enlace, nunca con el enlace viejo.
+      const correoCorregido =
+        allowedUpdates.email !== undefined && allowedUpdates.email !== user.email;
+      const sigueSinActivar = !(allowedUpdates.isActive ?? user.isActive);
+      const reinvitar = correoCorregido && sigueSinActivar;
+
+      if (reinvitar) {
+        await this.authTokenService.revokeUnusedTokens(user.id, AuthTokenType.ACTIVATION);
+      }
+
       const userUpdated = await this.userRepository.update(
         user.id,
         allowedUpdates,
@@ -400,6 +443,11 @@ export class UserService {
         throw new NotFoundException('Usuario no actualizado.');
       }
       this.logger.log(`[update] Usuario actualizado exitosamente. id=${id}`);
+
+      if (reinvitar) {
+        await this.enviarInvitacion(await this.findOne(id), 'correo corregido');
+      }
+
       return await this.findOne(id);
     } catch (error) {
       handlerError(error, this.logger);

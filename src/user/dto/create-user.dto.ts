@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ROLES } from '../../common/constants';
+import { IsPassword, PASSWORD_RULE_TEXT } from '../../common/validators/password.validator';
 
 export class CreateUserDto {
   @ApiProperty({
@@ -43,14 +44,13 @@ export class CreateUserDto {
   email: string;
 
   @ApiProperty({
-    example: '123456',
+    example: 'ClaveInicial123!',
     type: String,
-    description: 'Contraseña inicial del usuario (opcional; si no se provee se genera una aleatoria)',
+    description: `Contraseña inicial del usuario (opcional; si no se provee se genera una aleatoria). ${PASSWORD_RULE_TEXT}`,
     required: false,
   })
   @IsOptional()
-  @IsString()
-  @MinLength(6)
+  @IsPassword()
   password?: string;
 
   @ApiProperty({
