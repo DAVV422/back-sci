@@ -23,8 +23,9 @@ x-api: &api
     SWAGGER_ENABLED: "false"
     REQUIRE_EMAIL_ACTIVATION: "false"
     STORAGE_LOCAL_ROOT: /app/data
-    # Correo por Resend: una sola cuenta y un solo dominio verificado para todas las copias.
-    # Lo propio de cada una es el remitente (SMTP_FROM), con el nombre de su institución.
+    # Correo por Resend: una sola cuenta y un solo subdominio verificado (mail.emerg-ia.com) para
+    # todas las copias. Lo propio de cada una es el remitente (SMTP_FROM), con el nombre de su
+    # institución; la dirección debe ser de mail.emerg-ia.com o Resend rechaza el envío.
     # Sin RESEND_API_KEY la API arranca igual, en modo simulado: ver infra/correo-resend.md.
     SMTP_HOST: smtp.resend.com
     SMTP_PORT: "587"
@@ -63,7 +64,7 @@ services:
       DB_PASSWORD: ${DEMO_DB_PASSWORD:?}
       INSTITUTION_NAME: ${DEMO_INSTITUTION_NAME:-Cuerpo de Bomberos Demostración}
       INSTITUTION_SHORT_NAME: ${DEMO_INSTITUTION_SHORT_NAME:-DEMO}
-      SMTP_FROM: ${DEMO_SMTP_FROM:-EmergIA Demostración <no-reply@emerg-ia.com>}
+      SMTP_FROM: ${DEMO_SMTP_FROM:-EmergIA Demostración <no-reply@mail.emerg-ia.com>}
       APP_URL: https://demo.emerg-ia.com
       FRONTEND_URL: https://demo.emerg-ia.com
       CORS_ORIGINS: https://demo.emerg-ia.com
@@ -88,7 +89,7 @@ services:
       DB_PASSWORD: ${TEST_DB_PASSWORD:?}
       INSTITUTION_NAME: ${TEST_INSTITUTION_NAME:-Unidad de Emergencias Las Palmas}
       INSTITUTION_SHORT_NAME: ${TEST_INSTITUTION_SHORT_NAME:-UELP}
-      SMTP_FROM: ${TEST_SMTP_FROM:-EmergIA Pruebas <no-reply@emerg-ia.com>}
+      SMTP_FROM: ${TEST_SMTP_FROM:-EmergIA Pruebas <no-reply@mail.emerg-ia.com>}
       APP_URL: https://test.emerg-ia.com
       FRONTEND_URL: https://test.emerg-ia.com
       CORS_ORIGINS: https://test.emerg-ia.com
@@ -113,7 +114,7 @@ services:
       DB_PASSWORD: ${FRU_DB_PASSWORD:?}
       INSTITUTION_NAME: ${FRU_INSTITUTION_NAME:-Fundación Rescate Urbano}
       INSTITUTION_SHORT_NAME: ${FRU_INSTITUTION_SHORT_NAME:-FRU}
-      SMTP_FROM: ${FRU_SMTP_FROM:-Fundación Rescate Urbano <no-reply@emerg-ia.com>}
+      SMTP_FROM: ${FRU_SMTP_FROM:-Fundación Rescate Urbano <no-reply@mail.emerg-ia.com>}
       APP_URL: https://fru.emerg-ia.com
       FRONTEND_URL: https://fru.emerg-ia.com
       CORS_ORIGINS: https://fru.emerg-ia.com

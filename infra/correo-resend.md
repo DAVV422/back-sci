@@ -12,19 +12,30 @@ cualquier otro: solo cambian cuatro variables.
 
 | Decisión | Por qué |
 |---|---|
-| **Una sola cuenta de Resend y un solo dominio** (`emerg-ia.com`) para las tres copias | El plan gratuito admite 3 dominios, y sumar instituciones no debería obligar a verificar un dominio nuevo cada vez. Lo que distingue a cada copia es el remitente |
+| **Subdominio de envío `mail.emerg-ia.com`**, no el dominio raíz | Aísla la reputación: si algún día un envío del sistema termina marcado como no deseado, el que se mancha es `mail.emerg-ia.com` y no `emerg-ia.com`. Además deja el MX de la raíz enteramente libre para el correo corporativo (Google Workspace, Zoho) sin que se pisen. Es lo que recomienda Resend |
+| **Una sola cuenta y un solo subdominio** para las tres copias | Sumar instituciones no debería obligar a verificar un dominio nuevo cada vez (el plan gratuito admite 3). Lo que distingue a cada copia es el remitente, no el dominio |
 | **Región São Paulo (`sa-east-1`)** | La más cercana a Bolivia. **Hay que elegirla al crear el dominio**: cambiarla después obliga a borrar el dominio, volver a crearlo y rehacer los registros DNS |
-| **Dominio raíz, no subdominio** | Para que el remitente sea `no-reply@emerg-ia.com`, que es lo que una persona espera ver. Resend recomienda un subdominio para aislar la reputación; es la opción conservadora, pero aquí el dominio no se usa para otro correo y el remitente limpio pesa más. No estorba el correo corporativo a futuro: los registros de Resend van en `send.emerg-ia.com`, el MX de la raíz queda libre para Google o Zoho |
 
-> Si prefieres la opción conservadora, crea el dominio como `avisos.emerg-ia.com` y a cada nombre de
-> host de la tabla de abajo añádele `.avisos` (`resend._domainkey.avisos`, `send.avisos`). El
-> remitente pasa a ser `no-reply@avisos.emerg-ia.com`.
+Dos aclaraciones sobre el subdominio, porque confunden:
+
+- **No hay que crearlo antes en ninguna parte.** `mail.emerg-ia.com` no necesita un registro A, ni
+  apuntar al servidor, ni existir como sitio web. Es solo una identidad de correo: vive en los
+  registros TXT y MX que pones abajo, y nada más.
+- **`mail` suele usarse para el acceso web al correo**, y eso no choca con esto. Los registros de
+  Resend van *por debajo* (`send.mail`, `resend._domainkey.mail`), no en `mail` mismo, así que si
+  algún día quieres `mail.emerg-ia.com` como webmail, sigue libre.
+
+El precio de la decisión es que el remitente pasa a ser `no-reply@mail.emerg-ia.com` en vez de
+`no-reply@emerg-ia.com`. Se ve algo más técnico, pero lo que la persona lee en su bandeja es el
+**nombre visible** (`EmergIA`, `Fundación Rescate Urbano`), no la dirección; hay que abrir el correo
+para verla.
 
 ## 1. Crear el dominio en Resend
 
 1. Cuenta en [resend.com](https://resend.com) (el plan gratuito alcanza de sobra: ver *Límites*).
 2. **Domains → Add Domain**.
-3. Nombre: `emerg-ia.com`. Región: **São Paulo (sa-east-1)**.
+3. Nombre: **`mail.emerg-ia.com`** (el subdominio completo, no solo `emerg-ia.com`).
+   Región: **São Paulo (sa-east-1)**.
 4. Resend muestra una tabla con 3 registros. **Déjala abierta**: el valor del DKIM es único de tu
    dominio y no se puede adivinar ni copiar de ninguna guía.
 
@@ -35,18 +46,20 @@ pusiste los registros A de `demo`, `test` y `fru`. Los campos que te pide se cor
 
 | Nombre del host | Tipo de registro | Dirección / Valor | Prioridad |
 |---|---|---|---|
-| `resend._domainkey` | TXT | `p=MIGfMA0G…` ← **cópialo de Resend, es único** | — |
-| `send` | TXT | `v=spf1 include:amazonses.com ~all` | — |
-| `send` | MX | `feedback-smtp.sa-east-1.amazonses.com` | `10` |
+| `resend._domainkey.mail` | TXT | `p=MIGfMA0G…` ← **cópialo de Resend, es único** | — |
+| `send.mail` | TXT | `v=spf1 include:amazonses.com ~all` | — |
+| `send.mail` | MX | `feedback-smtp.sa-east-1.amazonses.com` | `10` |
 | `_dmarc` | TXT | `v=DMARC1; p=none; rua=mailto:TU-CORREO` | — |
 
-Cuatro cosas que hacen fallar la verificación:
+Ojo con el detalle que más se falla aquí: **el nombre del host va sin el dominio**. Resend te muestra
+los nombres completos (`send.mail.emerg-ia.com`), pero en tu panel tienes que escribir solo
+`send.mail`, igual que escribiste `demo` y no `demo.emerg-ia.com`. El panel le añade el dominio solo.
 
-- **El nombre del host va sin el dominio**: `send`, no `send.emerg-ia.com`. Igual que cuando pusiste
-  `demo`. Si el panel te lo completa solo, no lo repitas.
-- **El MX de `send` debe ser de la región que elegiste.** Si elegiste São Paulo es `sa-east-1`; el
-  valor exacto lo muestra Resend. Todos los MX del dominio tienen que apuntar a la misma región, o
-  la verificación da el error `multiple-regions`.
+Lo demás que hace fallar la verificación:
+
+- **El MX de `send.mail` debe ser de la región que elegiste.** Si elegiste São Paulo es `sa-east-1`;
+  el valor exacto lo muestra Resend. Todos los MX tienen que apuntar a la misma región, o la
+  verificación da el error `multiple-regions`.
 - Si el panel te añade el dominio al final del valor del MX (te queda
   `feedback-smtp.sa-east-1.amazonses.com.emerg-ia.com`), **pon un punto al final**:
   `feedback-smtp.sa-east-1.amazonses.com.` Ese punto significa "este nombre está completo, no lo
@@ -54,9 +67,15 @@ Cuatro cosas que hacen fallar la verificación:
 - El **DKIM es largo** (más de 255 caracteres). Si el panel lo rechaza por longitud, busca si
   permite partirlo en trozos entre comillas; casi todos lo hacen solos.
 
-El cuarto registro, **DMARC, no lo pide Resend**, pero conviene: Gmail y Outlook le dan mejor trato
-al correo de un dominio que lo declara. Con `p=none` solo pides informes, no rechazas nada, así que
-es seguro empezar ahí. En `rua=` pon tu correo para recibirlos.
+### Por qué el DMARC va en la raíz y no en `mail`
+
+Es el único registro que **no** lleva `.mail`, y a propósito. El DMARC se hereda: quien recibe el
+correo busca primero `_dmarc.mail.emerg-ia.com` y, si no lo encuentra, usa el de la raíz. Poniéndolo
+una sola vez en `_dmarc` queda cubierto `emerg-ia.com` y todos sus subdominios, incluido `mail`.
+
+**Resend no lo pide**, pero conviene: Gmail y Outlook le dan mejor trato al correo de un dominio que
+lo declara. Con `p=none` solo pides informes, no rechazas nada, así que es seguro empezar ahí. En
+`rua=` pon tu correo para recibirlos.
 
 ## 3. Verificar
 
@@ -65,16 +84,17 @@ el TTL del dominio, que hoy está en 10 h 40 min, así que si cambias un registr
 demorar. Para comprobar desde tu máquina sin esperar al panel:
 
 ```bash
-nslookup -type=TXT resend._domainkey.emerg-ia.com 8.8.8.8
-nslookup -type=TXT send.emerg-ia.com 8.8.8.8
-nslookup -type=MX  send.emerg-ia.com 8.8.8.8
+nslookup -type=TXT resend._domainkey.mail.emerg-ia.com 8.8.8.8
+nslookup -type=TXT send.mail.emerg-ia.com 8.8.8.8
+nslookup -type=MX  send.mail.emerg-ia.com 8.8.8.8
+nslookup -type=TXT _dmarc.emerg-ia.com 8.8.8.8
 ```
 
 Si eso ya responde y Resend sigue diciendo que no, es el panel que aún no reintentó: dale otra vez.
 
 ## 4. La clave de API
 
-**API Keys → Create API Key**, permiso **Sending access**, dominio `emerg-ia.com`. Empieza por
+**API Keys → Create API Key**, permiso **Sending access**, dominio `mail.emerg-ia.com`. Empieza por
 `re_`. **Se muestra una sola vez**; si la pierdes, creas otra y borras la anterior.
 
 Es un secreto: no va a ningún repositorio. En el servidor vive solo en `/srv/sci/.env`.
@@ -92,7 +112,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=resend
 SMTP_PASS=re_...
-SMTP_FROM="EmergIA" <no-reply@emerg-ia.com>
+SMTP_FROM="EmergIA" <no-reply@mail.emerg-ia.com>
 ```
 
 `SMTP_SECURE` tiene que ir acorde al puerto: **587 y 2587 → `false`** (la conexión empieza en claro y
@@ -116,12 +136,14 @@ entrada. Los valores por defecto están en `compose.yml` y se pueden cambiar des
 
 | Copia | Remitente | Variable para cambiarlo |
 |---|---|---|
-| demo | `EmergIA Demostración <no-reply@emerg-ia.com>` | `DEMO_SMTP_FROM` |
-| test | `EmergIA Pruebas <no-reply@emerg-ia.com>` | `TEST_SMTP_FROM` |
-| fru | `Fundación Rescate Urbano <no-reply@emerg-ia.com>` | `FRU_SMTP_FROM` |
+| demo | `EmergIA Demostración <no-reply@mail.emerg-ia.com>` | `DEMO_SMTP_FROM` |
+| test | `EmergIA Pruebas <no-reply@mail.emerg-ia.com>` | `TEST_SMTP_FROM` |
+| fru | `Fundación Rescate Urbano <no-reply@mail.emerg-ia.com>` | `FRU_SMTP_FROM` |
 
 La parte de antes del `<` es el nombre visible y puede ser cualquiera. La dirección de dentro **debe
-ser del dominio verificado**, o Resend rechaza el envío.
+ser de `mail.emerg-ia.com`**, el subdominio verificado, o Resend rechaza el envío. Si pones
+`no-reply@emerg-ia.com` (sin el `mail.`) **no funciona**: para Resend es otro dominio, y ese no está
+verificado.
 
 ## 6. Probar
 
@@ -159,8 +181,9 @@ Si alguna vez se usa para avisos masivos, ahí sí se queda corto.
 |---|---|
 | La conexión se queda colgada y no da error claro | `SMTP_SECURE` no concuerda con el puerto. Con 587 tiene que ser `false` |
 | `Invalid login` / `535` | La clave de API está mal, fue revocada o se copió con espacios |
-| `The domain is not verified` | Falta terminar el paso 3, o el remitente de `SMTP_FROM` no es del dominio verificado |
+| `The domain is not verified` | Falta terminar el paso 3, o el remitente es `@emerg-ia.com` en vez de `@mail.emerg-ia.com` |
 | El dominio no verifica aunque `nslookup` ya responde | El panel de Resend no reintentó: pulsa *Verify* de nuevo |
+| El `nslookup` no devuelve nada | El nombre del host quedó duplicado: mira si en el panel aparece `send.mail.emerg-ia.com.emerg-ia.com` |
 | `multiple-regions` al verificar | Hay MX de dos regiones distintas. Todos tienen que ser de la misma |
 | Los correos llegan a no deseados | Falta el DMARC, o el nombre visible no coincide con el dominio. Revisar también el panel de Resend → *Emails*, que muestra rebotes y quejas |
 | En los registros sale `[SIMULATION_EMAIL]` | Falta `SMTP_HOST`, `SMTP_USER` o `SMTP_PASS`: el servicio está en modo simulado y el enlace se imprime ahí |
