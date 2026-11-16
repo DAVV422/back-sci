@@ -3,6 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { buildEmailTemplate } from '../templates/email/base-email.template';
 
+/** Puertos que abren TLS desde el saludo (SMTPS). Los demás (25, 587, 2587) usan STARTTLS. */
+const PUERTOS_TLS_DIRECTO = new Set([465, 2465]);
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger('EmailService');
@@ -13,25 +16,42 @@ export class EmailService {
   }
 
   private initTransporter() {
-    const host = this.configService.get<string>('SMTP_HOST');
-    const port = this.configService.get<number>('SMTP_PORT');
-    const user = this.configService.get<string>('SMTP_USER');
+    const host = this.configService.get<string>('SMTP_HOST')?.trim();
+    const port = Number(this.configService.get('SMTP_PORT')) || 587;
+    const user = this.configService.get<string>('SMTP_USER')?.trim();
     const pass = this.configService.get<string>('SMTP_PASS');
-    const secure = this.configService.get<boolean>('SMTP_SECURE', false);
+    const secure = this.resolveSecure(port);
 
     if (user && pass && host) {
       this.transporter = nodemailer.createTransport({
         host,
-        port: Number(port) || 587,
+        port,
         secure,
         auth: { user, pass },
       });
-      this.logger.log(`[initTransporter] Configuración SMTP inicializada para ${host}:${port}`);
+      this.logger.log(
+        `[initTransporter] Configuración SMTP inicializada para ${host}:${port} (TLS ${secure ? 'directo' : 'por STARTTLS'})`,
+      );
     } else {
       this.logger.warn(
         '[initTransporter] Variables SMTP no configuradas completamente. Servicio de Email en modo simulado (los enlaces se imprimirán en logs).',
       );
     }
+  }
+
+  /**
+   * Las variables de entorno llegan como texto, y `"false"` es una cadena con contenido: nodemailer
+   * la tomaba por verdadera y abría TLS desde el saludo en un puerto que espera STARTTLS, así que la
+   * conexión nunca se establecía. Sin un valor explícito se deduce del puerto.
+   */
+  private resolveSecure(port: number): boolean {
+    const raw = this.configService.get('SMTP_SECURE');
+    const valor = typeof raw === 'string' ? raw.trim().toLowerCase() : raw;
+
+    if (valor === true || valor === 'true' || valor === '1') return true;
+    if (valor === false || valor === 'false' || valor === '0') return false;
+
+    return PUERTOS_TLS_DIRECTO.has(port);
   }
 
   async sendActivationEmail(

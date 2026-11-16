@@ -21,6 +21,10 @@ fi
 {
   echo "# Generado por preparar-servidor.sh el $(date -Is). Contiene secretos."
   echo "POSTGRES_PASSWORD=$(clave)"
+  echo
+  echo "# Clave de API de Resend para el envío de correos (se saca del panel, no se genera aquí)."
+  echo "# Vacía: las copias arrancan igual y escriben los enlaces en los registros."
+  echo "RESEND_API_KEY="
   for inst in DEMO TEST FRU; do
     echo
     echo "# --- $inst ---"
@@ -33,5 +37,6 @@ fi
 } > "$ENV_FILE"
 
 chmod 640 "$ENV_FILE"
-echo "Creado $ENV_FILE. Falta agregar los correos de los administradores:"
-echo "  DEMO_ADMIN_EMAIL=, TEST_ADMIN_EMAIL=, FRU_ADMIN_EMAIL="
+echo "Creado $ENV_FILE. Falta agregar a mano:"
+echo "  - Los correos de los administradores: DEMO_ADMIN_EMAIL=, TEST_ADMIN_EMAIL=, FRU_ADMIN_EMAIL="
+echo "  - RESEND_API_KEY= para el envío de correos (ver correo-resend.md)"
