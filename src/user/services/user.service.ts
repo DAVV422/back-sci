@@ -444,11 +444,12 @@ export class UserService {
       }
       this.logger.log(`[update] Usuario actualizado exitosamente. id=${id}`);
 
+      const actualizado = await this.findOne(id);
       if (reinvitar) {
-        await this.enviarInvitacion(await this.findOne(id), 'correo corregido');
+        await this.enviarInvitacion(actualizado, 'correo corregido');
       }
 
-      return await this.findOne(id);
+      return actualizado;
     } catch (error) {
       handlerError(error, this.logger);
     }
