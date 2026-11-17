@@ -24,6 +24,7 @@ import {
   UserQueryDto,
 } from '../dto/';
 import { UserEntity } from '../entities/user.entity';
+import { RefreshTokenEntity } from '../../auth/entities/refresh-token.entity';
 import { handlerError } from '../../common/utils/handlerError.utils';
 import { QueryDto } from '../../common/dto/query.dto';
 import {
@@ -58,6 +59,8 @@ export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    @InjectRepository(RefreshTokenEntity)
+    private readonly refreshTokenRepository: Repository<RefreshTokenEntity>,
     private readonly emailService: EmailService,
     @Inject(forwardRef(() => AuthTokenService))
     private readonly authTokenService: AuthTokenService,
@@ -269,10 +272,17 @@ export class UserService {
       const isActive = createUserDto.isActive ?? !requireEmailActivation;
       const isOperational = createUserDto.isOperational ?? true;
 
+      // La contraseña la puso quien crea la cuenta, así que hay que cambiarla en el primer ingreso
+      // (decisión 6). Se puede eximir explícitamente: lo hacen el seeder inicial, los datos de
+      // demostración y la preparación de las pruebas, que entran con contraseñas conocidas a
+      // propósito. Si la cuenta nace sin activar, la contraseña la elegirá la persona al activarla.
+      const mustChangePassword = isActive && (createUserDto.mustChangePassword ?? true);
+
       await this.userRepository.save({
         ...createUserDto,
         isActive,
         isOperational,
+        mustChangePassword,
         // Si nace activa, ya entró en funcionamiento: así no se confunde más adelante con una
         // cuenta pendiente si alguien la suspende.
         activatedAt: isActive ? new Date() : null,
@@ -289,6 +299,75 @@ export class UserService {
     } catch (error) {
       handlerError(error, this.logger);
     }
+  }
+
+  /**
+   * Cambia la contraseña de la propia cuenta. Exige la actual: sin eso, una sesión robada podría
+   * cambiarla y dejar fuera a su dueño. Al terminar se cierran las demás sesiones.
+   */
+  public async changeOwnPassword(
+    id: string,
+    actual: string,
+    nueva: string,
+  ): Promise<{ message: string }> {
+    this.logger.log(`[changeOwnPassword] Cambio de contraseña propia. userId=${id}`);
+    try {
+      const user = await this.findOne(id);
+
+      const coincide = await bcrypt.compare(actual, user.password);
+      if (!coincide) {
+        this.logger.warn(`[changeOwnPassword] Contraseña actual incorrecta. userId=${id}`);
+        throw new BadRequestException('La contraseña actual no es correcta.');
+      }
+      if (await bcrypt.compare(nueva, user.password)) {
+        throw new BadRequestException('La contraseña nueva debe ser distinta de la actual.');
+      }
+
+      await this.escribirContrasena(id, nueva);
+      this.logger.log(`[changeOwnPassword] Contraseña cambiada. userId=${id}`);
+      return { message: 'Contraseña actualizada. Se cerraron tus demás sesiones.' };
+    } catch (error) {
+      handlerError(error, this.logger);
+    }
+  }
+
+  /** Activa la cuenta con la contraseña que eligió la persona desde el enlace de invitación. */
+  public async activateWithPassword(id: string, password: string): Promise<void> {
+    const user = await this.findOne(id);
+    await this.escribirContrasena(id, password, {
+      isActive: true,
+      activatedAt: user.activatedAt ?? new Date(),
+    });
+    this.logger.log(`[activateWithPassword] Cuenta activada. userId=${id}`);
+  }
+
+  /** Fija la contraseña elegida desde «¿Olvidaste tu contraseña?». */
+  public async resetPassword(id: string, password: string): Promise<void> {
+    await this.escribirContrasena(id, password);
+    this.logger.log(`[resetPassword] Contraseña restablecida. userId=${id}`);
+  }
+
+  /**
+   * Único punto donde se escribe una contraseña. Siempre apaga `mustChangePassword`: en los tres
+   * caminos que llegan aquí (cambio propio, activación y restablecimiento) la eligió la persona, no
+   * un tercero, así que ya no hay nada que forzar.
+   */
+  private async escribirContrasena(
+    id: string,
+    password: string,
+    extra: Partial<UserEntity> = {},
+  ): Promise<void> {
+    await this.userRepository.update(id, {
+      ...extra,
+      password: await this.encryptPassword(password),
+      mustChangePassword: false,
+    });
+
+    // Quien conociera la contraseña anterior no debe seguir dentro con una sesión abierta.
+    await this.refreshTokenRepository.update(
+      { user: { id }, isRevoked: false },
+      { isRevoked: true },
+    );
   }
 
   /**
@@ -429,9 +508,9 @@ export class UserService {
       if (updateUserDto.isActive !== undefined) allowedUpdates.isActive = updateUserDto.isActive;
       if (updateUserDto.isOperational !== undefined) allowedUpdates.isOperational = updateUserDto.isOperational;
       if (updateUserDto.grade !== undefined) allowedUpdates.grade = updateUserDto.grade;
-      if (updateUserDto.password) {
-        allowedUpdates.password = await this.encryptPassword(updateUserDto.password);
-      }
+      // La contraseña no se toca desde aquí (decisión 10): el administrador solo asigna la inicial
+      // al crear la cuenta. Después la cambia su dueño, o se restablece por correo. Así nadie más
+      // que la persona puede reemplazarla.
 
       if (file) {
         try {

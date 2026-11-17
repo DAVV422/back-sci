@@ -58,6 +58,10 @@ export class SeedService implements OnApplicationBootstrap {
       password,
       role: ROLES.SUADMIN,
       isActive: true,
+      // Exento del cambio obligatorio a propósito: su contraseña es `ADMIN_PASSWORD`, un secreto de
+      // despliegue y no una entrega de persona a persona. Además los scripts de datos entran con
+      // ella. Lo que corresponde aquí es rotar el secreto, no forzar un cambio que rompe el arranque.
+      mustChangePassword: false,
     };
   }
 

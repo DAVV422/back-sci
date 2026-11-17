@@ -26,7 +26,9 @@ import {
 import { RolesAccess } from '../../auth/decorators/roles.decorator';
 import { PublicAccess } from '../../auth/decorators/public.decorator';
 import { AuthGuard, RolesGuard } from '../../auth/guards/';
-import { GetUser } from '../../auth/decorators';
+import { AllowWhilePasswordChangePending, GetUser } from '../../auth/decorators';
+import { Throttle } from '@nestjs/throttler';
+import { authThrottleLimit } from '../../common/constants';
 import {
   CreateUserDto,
   UpdateUserDto,
@@ -35,6 +37,7 @@ import {
   AdminUserDto,
   BulkUpdateGradeDto,
   UserQueryDto,
+  ChangePasswordDto,
 } from '../dto/';
 import { UserDirectoryEntry, UserService } from '../services/user.service';
 import { contentTypeFor, sendStoredObject } from '../../common/services/storage/stored-files';
@@ -143,6 +146,9 @@ export class UserController {
     };
   }
 
+  // Permitido con el cambio pendiente: la web necesita el perfil para dibujar la pantalla de
+  // cambio obligatorio (nombre de la persona y si sigue pendiente).
+  @AllowWhilePasswordChangePending()
   @Get('me')
   public async myProfile(
     @GetUser('id') userId: string,
@@ -168,6 +174,27 @@ export class UserController {
       message: 'Perfil actualizado.',
       data: await this.userService.updateProfile(userId, updateProfileDto, file),
     };
+  }
+
+  /**
+   * Cambia la contraseña de la propia cuenta. Endpoint aparte de `PATCH me` a propósito: exige la
+   * contraseña actual, así una sesión robada no puede cambiarla y dejar fuera a su dueño.
+   * `@AllowWhilePasswordChangePending` porque es justo lo que debe poder hacerse con el sistema
+   * bloqueado por el cambio obligatorio.
+   */
+  @AllowWhilePasswordChangePending()
+  @Throttle({ short: { ttl: 60000, limit: authThrottleLimit(5) } })
+  @Patch('me/password')
+  public async changeMyPassword(
+    @GetUser('id') userId: string,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<ApiResponse<{ message: string }>> {
+    const result = await this.userService.changeOwnPassword(
+      userId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+    return { success: true, statusCode: 200, message: result.message, data: result };
   }
 
   @PublicAccess()

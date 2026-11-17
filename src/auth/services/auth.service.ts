@@ -84,10 +84,7 @@ export class AuthService {
         throw new BadRequestException('El enlace ya no es válido.');
       }
 
-      await this.userService.update(user.id, {
-        password: newPassword,
-        isActive: true,
-      } as any);
+      await this.userService.activateWithPassword(user.id, newPassword);
 
       await this.authTokenService.markAsUsed(authToken);
 
@@ -183,14 +180,11 @@ export class AuthService {
     try {
       const authToken = await this.authTokenService.validateToken(token, AuthTokenType.PASSWORD_RECOVERY);
       const user = authToken.user;
-      await this.userService.update(user.id, { password: newPassword } as any);
+      // `resetPassword` del servicio de usuarios ya revoca las sesiones: cerrar la sesión de quien
+      // supiera la contraseña anterior es parte de escribir una contraseña nueva, venga de donde
+      // venga (restablecimiento, activación o cambio propio).
+      await this.userService.resetPassword(user.id, newPassword);
       await this.authTokenService.markAsUsed(authToken);
-      await this.refreshTokenRepository
-        .createQueryBuilder()
-        .update(RefreshTokenEntity)
-        .set({ isRevoked: true })
-        .where('user_id = :userId AND is_revoked = false', { userId: user.id })
-        .execute();
       this.logger.log(`[resetPassword] Contraseña restablecida y sesiones revocadas. userId=${user.id}`);
       return { message: 'Contraseña actualizada. Ya puedes iniciar sesión con la nueva contraseña.' };
     } catch (error) {

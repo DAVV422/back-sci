@@ -6,3 +6,4 @@ export { UserDTO } from './user.dto';
 export { AdminUserDto } from './admin-user.dto';
 export { BulkUpdateGradeDto, UserGradeItemDto } from './bulk-update-grade.dto';
 export { UserQueryDto } from './user-query.dto';
+export { ChangePasswordDto } from './change-password.dto';

@@ -106,6 +106,15 @@ export class UserDTO {
   @IsEnum(ROLES)
   role: ROLES;
 
+  @ApiProperty({
+    example: false,
+    type: Boolean,
+    description:
+      'La contraseña la asignó quien creó la cuenta y hay que cambiarla antes de usar el sistema.',
+  })
+  @IsBoolean()
+  mustChangePassword: boolean;
+
   public constructor(user: UserEntity) {
     this.id = user.id;
     this.name = user.name;
@@ -118,5 +127,7 @@ export class UserDTO {
     this.isActive = user.isActive;
     this.isOperational = user.isOperational ?? true;
     this.role = user.role;
+    // La web lo necesita para llevar a la pantalla de cambio obligatorio en cuanto inicia sesión.
+    this.mustChangePassword = user.mustChangePassword ?? false;
   }
 }

@@ -2,8 +2,10 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 
+import * as bcryptReal from 'bcrypt';
 import { UserService } from './user.service';
 import { UserEntity } from '../entities/user.entity';
+import { RefreshTokenEntity } from '../../auth/entities/refresh-token.entity';
 import { QueryDto } from '../../common/dto/query.dto';
 import { EmailService } from '../../common/services/email.service';
 import { AuthTokenService } from '../../auth/services/auth-token.service';
@@ -13,6 +15,9 @@ import { ROLES } from '../../common/constants';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { UpdateProfileDto } from '../dto';
+
+/** Solo se usa para revocar sesiones al escribir una contrase�a. */
+const mockRefreshRepo = { update: jest.fn().mockResolvedValue({ affected: 0 }) };
 
 const mockStorageService = {
   saveFile: jest.fn().mockResolvedValue('/api/user/image/profile_123.png'),
@@ -41,6 +46,7 @@ describe('UserService - whitelist QueryDto.attr', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
         { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token-123'), validateToken: jest.fn(), markAsUsed: jest.fn() } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
@@ -152,6 +158,7 @@ describe('UserService - findOne/findByEmail (admin direct access)', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
         { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token-123'), validateToken: jest.fn(), markAsUsed: jest.fn() } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
@@ -211,6 +218,7 @@ describe('UserService - updateStatus', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
         { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token-123'), validateToken: jest.fn(), markAsUsed: jest.fn() } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
@@ -296,6 +304,7 @@ describe('UserService - updateProfile', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: { sendActivationEmail: jest.fn(), sendPasswordRecoveryEmail: jest.fn() } },
         { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token-123'), validateToken: jest.fn(), markAsUsed: jest.fn() } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('72') } },
@@ -386,6 +395,7 @@ describe('UserService - update (Admin / Suadmin restrictions)', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: {} },
         { provide: AuthTokenService, useValue: {} },
         {
@@ -479,6 +489,7 @@ describe('UserService - createUser and REQUIRE_EMAIL_ACTIVATION', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: mockEmailService },
         { provide: AuthTokenService, useValue: mockAuthTokenService },
         { provide: ConfigService, useValue: mockConfigService },
@@ -580,6 +591,7 @@ describe('UserService - bulkUpdateGrades', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: {} },
         { provide: AuthTokenService, useValue: {} },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('10') } },
@@ -670,6 +682,7 @@ describe('UserService - combined filters (findAll & findAllAdmin)', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: {} },
         { provide: AuthTokenService, useValue: {} },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('10') } },
@@ -762,6 +775,7 @@ describe('UserService - image upload and fault tolerance', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: { sendActivationEmail: jest.fn() } },
         { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('token') } },
         { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue('false') } },
@@ -866,6 +880,7 @@ describe('UserService - corregir el correo de una cuenta sin activar', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: mockEmailService },
         { provide: AuthTokenService, useValue: mockAuthTokenService },
         {
@@ -973,6 +988,7 @@ describe('UserService - resendActivation (solo administradores)', () => {
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: { findOne: jest.fn() } },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: mockEmailService },
         { provide: AuthTokenService, useValue: mockAuthTokenService },
         {
@@ -1035,6 +1051,7 @@ describe('UserService - pendiente de activación vs suspendida o eliminada', () 
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: mockEmailService },
         { provide: AuthTokenService, useValue: mockAuthTokenService },
         { provide: ConfigService, useValue: { get: jest.fn(() => 'https://demo.emerg-ia.com') } },
@@ -1140,6 +1157,7 @@ describe('UserService - findOneAuth comprueba el estado en cada petición', () =
       providers: [
         UserService,
         { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
         { provide: EmailService, useValue: {} },
         { provide: AuthTokenService, useValue: {} },
         { provide: ConfigService, useValue: { get: jest.fn() } },
@@ -1163,5 +1181,151 @@ describe('UserService - findOneAuth comprueba el estado en cada petición', () =
   it('corta el acceso de una cuenta suspendida', async () => {
     mockRepo.findOne.mockResolvedValue({ id: 'u3', isActive: false, isDeleted: false });
     await expect(service.findOneAuth('u3')).rejects.toThrow(/ya no tiene acceso/i);
+  });
+});
+
+describe('UserService - cambiar la contraseña propia', () => {
+  let service: UserService;
+  let mockRepo: any;
+  const ACTUAL = 'ClaveActual123';
+
+  const usuarioCon = async (clave: string) => ({
+    id: 'u1',
+    password: await bcryptReal.hash(clave, 4),
+    mustChangePassword: true,
+  });
+
+  beforeEach(async () => {
+    mockRepo = { update: jest.fn().mockResolvedValue({ affected: 1 }), findOne: jest.fn() };
+    mockRefreshRepo.update.mockClear();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
+        { provide: EmailService, useValue: {} },
+        { provide: AuthTokenService, useValue: {} },
+        { provide: ConfigService, useValue: { get: jest.fn(() => '10') } },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
+      ],
+    }).compile();
+    service = module.get<UserService>(UserService);
+  });
+
+  it('cambia la contraseña cuando la actual es correcta', async () => {
+    jest.spyOn(service, 'findOne').mockResolvedValue((await usuarioCon(ACTUAL)) as any);
+
+    const r = await service.changeOwnPassword('u1', ACTUAL, 'ClaveNueva456');
+
+    expect(r.message).toMatch(/actualizada/i);
+    expect(mockRepo.update).toHaveBeenCalledWith('u1', expect.objectContaining({
+      mustChangePassword: false,
+    }));
+  });
+
+  // Sin exigir la actual, quien robara una sesión podría cambiarla y dejar fuera al dueño.
+  it('rechaza si la contraseña actual no es correcta', async () => {
+    jest.spyOn(service, 'findOne').mockResolvedValue((await usuarioCon(ACTUAL)) as any);
+
+    await expect(service.changeOwnPassword('u1', 'LaQueNoEs999', 'ClaveNueva456')).rejects.toThrow(
+      /actual no es correcta/i,
+    );
+    expect(mockRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('rechaza si la nueva es igual a la actual', async () => {
+    jest.spyOn(service, 'findOne').mockResolvedValue((await usuarioCon(ACTUAL)) as any);
+
+    await expect(service.changeOwnPassword('u1', ACTUAL, ACTUAL)).rejects.toThrow(/distinta/i);
+    expect(mockRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('guarda la contraseña cifrada, nunca en claro', async () => {
+    jest.spyOn(service, 'findOne').mockResolvedValue((await usuarioCon(ACTUAL)) as any);
+
+    await service.changeOwnPassword('u1', ACTUAL, 'ClaveNueva456');
+
+    const guardada = mockRepo.update.mock.calls[0][1].password;
+    expect(guardada).not.toBe('ClaveNueva456');
+    expect(await bcryptReal.compare('ClaveNueva456', guardada)).toBe(true);
+  });
+
+  it('cierra las demás sesiones', async () => {
+    jest.spyOn(service, 'findOne').mockResolvedValue((await usuarioCon(ACTUAL)) as any);
+
+    await service.changeOwnPassword('u1', ACTUAL, 'ClaveNueva456');
+
+    expect(mockRefreshRepo.update).toHaveBeenCalledWith(
+      { user: { id: 'u1' }, isRevoked: false },
+      { isRevoked: true },
+    );
+  });
+
+  it('restablecer y activar también apagan la marca y cierran sesiones', async () => {
+    jest.spyOn(service, 'findOne').mockResolvedValue({ id: 'u1', activatedAt: null } as any);
+
+    await service.resetPassword('u1', 'OtraClave789');
+    expect(mockRepo.update).toHaveBeenCalledWith('u1', expect.objectContaining({ mustChangePassword: false }));
+    expect(mockRefreshRepo.update).toHaveBeenCalled();
+
+    mockRepo.update.mockClear();
+    await service.activateWithPassword('u1', 'OtraClave789');
+    expect(mockRepo.update).toHaveBeenCalledWith('u1', expect.objectContaining({
+      mustChangePassword: false,
+      isActive: true,
+      activatedAt: expect.any(Date),
+    }));
+  });
+});
+
+describe('UserService - marca de cambio obligatorio al crear', () => {
+  let service: UserService;
+  let mockRepo: any;
+
+  const crear = async (dto: any) => {
+    jest.spyOn(service, 'findOneBy').mockResolvedValue({ id: 'u1', ...dto } as any);
+    await service.createUser(dto, ROLES.ADMIN);
+    return mockRepo.save.mock.calls[0][0];
+  };
+
+  beforeEach(async () => {
+    mockRepo = { save: jest.fn().mockResolvedValue({}), findOne: jest.fn() };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UserService,
+        { provide: getRepositoryToken(UserEntity), useValue: mockRepo },
+        { provide: getRepositoryToken(RefreshTokenEntity), useValue: mockRefreshRepo },
+        { provide: EmailService, useValue: { sendActivationEmail: jest.fn() } },
+        { provide: AuthTokenService, useValue: { createToken: jest.fn().mockResolvedValue('t') } },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn((k: string) => (k === 'REQUIRE_EMAIL_ACTIVATION' ? 'false' : null)) },
+        },
+        { provide: 'STORAGE_SERVICE', useValue: mockStorageService },
+      ],
+    }).compile();
+    service = module.get<UserService>(UserService);
+  });
+
+  it('por defecto exige el cambio: la contraseña la eligió quien creó la cuenta', async () => {
+    const guardado = await crear({ name: 'Ana', lastName: 'F', email: 'a@sci.test', password: 'Clave12345' });
+    expect(guardado.mustChangePassword).toBe(true);
+  });
+
+  // Sin esta exención, la preparación de las pruebas y los datos de demostración quedan bloqueados.
+  it('se puede eximir explícitamente', async () => {
+    const guardado = await crear({
+      name: 'Demo', lastName: 'D', email: 'd@sci.test', password: 'Clave12345',
+      mustChangePassword: false,
+    });
+    expect(guardado.mustChangePassword).toBe(false);
+  });
+
+  it('una cuenta que nace sin activar no la exige: la contraseña la elegirá al activarse', async () => {
+    const guardado = await crear({
+      name: 'Pendiente', lastName: 'P', email: 'p@sci.test', isActive: false,
+    });
+    expect(guardado.mustChangePassword).toBe(false);
   });
 });

@@ -5,7 +5,6 @@ import {
   IsEnum,
   IsOptional,
   IsString,
-  MinLength,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ROLES } from '../../common/constants';
@@ -65,15 +64,8 @@ export class UpdateUserDto {
   @IsString()
   grade?: string;
 
-  @ApiProperty({
-    example: 'NuevaPassword123*',
-    type: String,
-    description: 'Nueva contraseña del usuario',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  @MinLength(6)
-  password?: string;
+  // Sin `password` a propósito: un administrador no cambia la contraseña de otra persona. Solo
+  // asigna la inicial al crear la cuenta; después la cambia su dueño desde el perfil o la
+  // restablece por correo. Con `whitelist` activo, enviarla aquí la descarta en silencio.
 }
 

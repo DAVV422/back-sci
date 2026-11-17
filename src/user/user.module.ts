@@ -6,10 +6,13 @@ import { UserController } from './controllers/user.controller';
 import { UserEntity } from './entities/user.entity';
 import { CommonModule } from '../common/common.module';
 import { AuthModule } from '../auth/auth.module';
+import { RefreshTokenEntity } from '../auth/entities/refresh-token.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity]),
+    // `RefreshTokenEntity` para poder cerrar las sesiones al cambiar una contraseña: quien la
+    // sabía antes no debe seguir dentro con una sesión abierta.
+    TypeOrmModule.forFeature([UserEntity, RefreshTokenEntity]),
     forwardRef(() => CommonModule),
     forwardRef(() => AuthModule),
   ],

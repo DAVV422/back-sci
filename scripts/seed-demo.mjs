@@ -74,7 +74,10 @@ for (const [key, name, lastName, role, grade] of PEOPLE) {
   let user = existing.get(email);
   if (!user) {
     try {
-      user = await api('/user', { method: 'POST', token: admin, body: { name, lastName, email, password: PASSWORD, role, grade, isActive: true, isOperational: true, cellphone: `7${Math.floor(1000000 + Math.random() * 8999999)}` } });
+      // `mustChangePassword: false` a propósito: estas cuentas existen para mostrar el sistema con
+      // una contraseña compartida y conocida. Con el cambio obligatorio encendido, la demostración
+      // quedaría inservible.
+      user = await api('/user', { method: 'POST', token: admin, body: { name, lastName, email, password: PASSWORD, role, grade, isActive: true, isOperational: true, mustChangePassword: false, cellphone: `7${Math.floor(1000000 + Math.random() * 8999999)}` } });
       step(`creado ${name} ${lastName}`);
     } catch (e) {
       if (!/existe/i.test(e.message)) throw e;

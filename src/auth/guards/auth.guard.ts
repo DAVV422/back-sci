@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   HttpException,
   Injectable,
   InternalServerErrorException,
@@ -12,7 +13,10 @@ import { Request } from 'express';
 import { UserService } from '../../user/services/user.service';
 import { verifyAccessToken } from '../../common/utils/user.token';
 import { IUserToken } from '../interfaces/userToken.interface';
-import { PUBLIC_KEY } from '../../common/constants';
+import { PASSWORD_CHANGE_PENDING_KEY, PUBLIC_KEY } from '../../common/constants';
+
+/** Código que la web reconoce para llevar a la pantalla de cambio obligatorio. */
+export const PASSWORD_CHANGE_REQUIRED = 'PASSWORD_CHANGE_REQUIRED';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -39,6 +43,23 @@ export class AuthGuard implements CanActivate {
       request.idUser = user.id;
       request.roleUser = user.role;
       request.user = { id: user.id, role: user.role };
+
+      // Mientras la contraseña la siga conociendo quien creó la cuenta, el sistema queda cerrado
+      // salvo para cambiarla. Se comprueba aquí y no solo en la web: si no, bastaría con usar la
+      // API para saltarse la pantalla y seguir trabajando con esa contraseña.
+      if (user.mustChangePassword) {
+        const permitida = this.reflector.get<boolean>(
+          PASSWORD_CHANGE_PENDING_KEY,
+          context.getHandler(),
+        );
+        if (!permitida) {
+          throw new ForbiddenException({
+            message: 'Debes cambiar tu contraseña antes de usar el sistema.',
+            error: PASSWORD_CHANGE_REQUIRED,
+          });
+        }
+      }
+
       return true;
     } catch (error) {
       if (error instanceof HttpException) {

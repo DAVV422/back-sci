@@ -13,7 +13,7 @@ import { EmailService } from '../../common/services/email.service';
 
 describe('AuthService - recuperación de contraseña', () => {
   let service: AuthService;
-  let userService: { findByEmail: jest.Mock; update: jest.Mock };
+  let userService: { findByEmail: jest.Mock; update: jest.Mock; resetPassword: jest.Mock };
   let tokens: { createToken: jest.Mock; validateToken: jest.Mock; markAsUsed: jest.Mock };
   let email: { sendPasswordRecoveryEmail: jest.Mock };
   let revoke: { set: jest.Mock; where: jest.Mock; execute: jest.Mock };
@@ -22,7 +22,11 @@ describe('AuthService - recuperación de contraseña', () => {
   const GENERIC = 'Si el correo corresponde a una cuenta activa, recibirás un enlace para restablecer tu contraseña.';
 
   beforeEach(async () => {
-    userService = { findByEmail: jest.fn(), update: jest.fn().mockResolvedValue({}) };
+    userService = {
+      findByEmail: jest.fn(),
+      update: jest.fn().mockResolvedValue({}),
+      resetPassword: jest.fn().mockResolvedValue(undefined),
+    };
     tokens = { createToken: jest.fn().mockResolvedValue('raw-token'), validateToken: jest.fn(), markAsUsed: jest.fn() };
     email = { sendPasswordRecoveryEmail: jest.fn().mockResolvedValue(undefined) };
     revoke = { set: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(), execute: jest.fn().mockResolvedValue({}) };
@@ -73,17 +77,18 @@ describe('AuthService - recuperación de contraseña', () => {
     await expect(service.requestPasswordReset('marta@sci.bo')).resolves.toEqual({ message: GENERIC });
   });
 
-  it('con un token válido cambia la contraseña, lo marca usado y revoca las sesiones', async () => {
+  // Revocar las sesiones ya no se hace aquí: es parte de escribir una contraseña, así que vive en
+  // `UserService.resetPassword` y vale igual para el cambio propio y la activación.
+  it('con un token válido cambia la contraseña y lo marca usado', async () => {
     const authToken = { user: activeUser };
     tokens.validateToken.mockResolvedValue(authToken);
 
     await service.resetPassword('raw-token', 'NuevaClave123');
 
     expect(tokens.validateToken).toHaveBeenCalledWith('raw-token', AuthTokenType.PASSWORD_RECOVERY);
-    expect(userService.update).toHaveBeenCalledWith('u-1', { password: 'NuevaClave123' });
+    expect(userService.resetPassword).toHaveBeenCalledWith('u-1', 'NuevaClave123');
+    expect(userService.update).not.toHaveBeenCalled();
     expect(tokens.markAsUsed).toHaveBeenCalledWith(authToken);
-    expect(revoke.set).toHaveBeenCalledWith({ isRevoked: true });
-    expect(revoke.where).toHaveBeenCalledWith(expect.stringContaining('user_id = :userId'), { userId: 'u-1' });
   });
 
   it('un token inválido o vencido no cambia nada', async () => {

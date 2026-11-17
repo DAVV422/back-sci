@@ -297,6 +297,20 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
 - **Descripción**: Obtiene el perfil completo del usuario autenticado actual.
 - **Acceso**: Autenticado (`basic` o superior).
 
+#### `PATCH /api/user/me/password`
+- **Descripción**: Cambia la contraseña de la propia cuenta. Endpoint aparte de `PATCH /api/user/me` a propósito: **exige la contraseña actual**, así una sesión robada no puede cambiarla y dejar fuera a su dueño.
+  - Rechaza (`400`) si la actual no coincide o si la nueva es igual a la actual.
+  - Al cambiarla **se revocan todas las sesiones** del usuario: quien conociera la anterior no sigue dentro.
+  - Apaga `mustChangePassword`. Es la única ruta (junto con `GET /api/user/me`, el cierre de sesión y la renovación de token) que se puede usar mientras esa marca está encendida.
+- **Acceso**: Autenticado (`basic` o superior). Límite: 5 intentos/min.
+- **Body**:
+  ```json
+  {
+    "currentPassword": "MiClaveActual123",
+    "newPassword": "MiClaveNueva456"
+  }
+  ```
+
 #### `PATCH /api/user/me`
 - **Descripción**: Actualiza los datos de identidad y contacto del perfil propio del usuario autenticado.
   - **Subida de imagen de perfil**: Soporta `multipart/form-data` con el campo `file`. Si se sube una nueva imagen, se guarda en el servidor local, se actualiza `urlImage` y se elimina automáticamente el archivo anterior en disco. También admite `application/json` con una URL manual en `urlImage`.
@@ -334,7 +348,8 @@ Para permitir que el Frontend gestione tablas interactivas con filtros múltiple
 #### `PATCH /api/user/:id`
 - **Descripción**: Actualiza la configuración administrativa e institucional de una cuenta de usuario por parte de `admin` o `suadmin`.
   - **Regla de negocio sobre campos editables**:
-    - **Permitidos para admin/suadmin**: `email`, `role`, `grade` (grado o jerarquía institucional), `isActive` (habilitar/suspender cuenta), `isOperational` (disponibilidad operativa), `password` (reset/cambio de contraseña), y opcionalmente imagen de perfil (`urlImage` o subida en `file` mediante `multipart/form-data`).
+    - **Permitidos para admin/suadmin**: `email`, `role`, `grade` (grado o jerarquía institucional), `isActive` (habilitar/suspender cuenta), `isOperational` (disponibilidad operativa), y opcionalmente imagen de perfil (`urlImage` o subida en `file` mediante `multipart/form-data`).
+    - **`password` ya no se admite aquí**: un administrador no cambia la contraseña de otra persona. Solo asigna la inicial al crear la cuenta (`POST /api/user`), y quien la recibe está obligado a cambiarla en su primer ingreso. Después solo su dueño puede cambiarla, o se restablece por correo.
     - **Protegidos**: Los datos personales (`name`, `lastName`, `cellphone`, `birthdate`) los actualiza preferentemente el propio usuario en su perfil (`PATCH /api/user/me`).
   - **Corregir el correo de una cuenta sin activar**: si se cambia `email` y la cuenta sigue inactiva, el enlace de activación ya enviado **se invalida** y se manda una invitación nueva a la dirección corregida. La revocación ocurre antes de guardar, así que un fallo posterior deja la cuenta sin enlace, nunca con el anterior vivo en el buzón equivocado.
   - **Restricciones de rol**:

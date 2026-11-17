@@ -54,6 +54,19 @@ export class CreateUserDto {
   password?: string;
 
   @ApiProperty({
+    example: false,
+    type: Boolean,
+    description:
+      'Exime del cambio obligatorio en el primer ingreso. Por defecto la cuenta sí debe cambiar ' +
+      'la contraseña, porque la eligió quien creó la cuenta. Solo lo usan el seeder inicial, los ' +
+      'datos de demostración y la preparación de las pruebas, que entran con contraseñas conocidas.',
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  mustChangePassword?: boolean;
+
+  @ApiProperty({
     example: '67303349',
     type: String,
     description: 'Número de celular del usuario',

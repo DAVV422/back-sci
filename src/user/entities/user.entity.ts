@@ -57,6 +57,14 @@ export class UserEntity extends BaseEntity {
   @Column({ name: 'activated_at', type: 'timestamptz', nullable: true })
   activatedAt?: Date | null;
 
+  /**
+   * La contraseña la puso otra persona (quien creó la cuenta) y hay que cambiarla al entrar.
+   * Mientras esté encendida, el sistema queda bloqueado salvo para cambiarla: así la contraseña que
+   * conoce un tercero deja de servir en el primer ingreso.
+   */
+  @Column({ name: 'must_change_password', type: 'boolean', default: false })
+  mustChangePassword: boolean;
+
   @Column({ name: 'is_operational', type: 'boolean', default: true })
   isOperational: boolean;
 
